@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizing Area - Interactive p5.js</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+    <style>
+        body { margin: 0; background: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        .ui-panel { position: absolute; top: 20px; left: 20px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 280px; z-index: 10; }
+        h2 { margin: 0 0 10px 0; color: #2c3e50; font-size: 1.2rem; }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.9rem; color: #7f8c8d; margin-bottom: 5px; }
+        input[type=range] { width: 100%; cursor: pointer; }
+        .formula { font-family: 'Courier New', Courier, monospace; font-weight: bold; font-size: 1.1rem; color: #e67e22; background: #fdf2e9; padding: 10px; border-radius: 5px; text-align: center; }
+        .desc { font-size: 0.85rem; color: #34495e; line-height: 1.4; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="ui-panel">
+        <h2>Area Discovery</h2>
+        <div class="control-group">
+            <label id="wLabel">Width: 6 units</label>
+            <input type="range" id="wSlider" min="1" max="12" value="6" step="1">
+        </div>
+        <div class="control-group">
+            <label id="hLabel">Height: 4 units</label>
+            <input type="range" id="hSlider" min="1" max="8" value="4" step="1">
+        </div>
+        <div class="formula" id="mathOutput">6 × 4 = 24</div>
+        <div class="desc">
+            <b>Area</b> is the amount of 2D space inside a boundary. We measure it by counting how many <b>unit squares</b> fit inside.
+        </div>
+    </div>
+
+    <script>
+        let cellSize = 45;
+        let wSlider, hSlider;
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            wSlider = select('#wSlider');
+            hSlider = select('#hSlider');
+            textAlign(CENTER, CENTER);
+        }
+
+        function draw() {
+            background(244, 247, 246);
+            
+            let w = parseInt(wSlider.value());
+            let h = parseInt(hSlider.value());
+            let totalArea = w * h;
+
+            // Update UI labels
+            select('#wLabel').html(`Width: ${w} units`);
+            select('#hLabel').html(`Height: ${h} units`);
+            select('#mathOutput').html(`${w} (w) × ${h} (h) = ${totalArea} units²`);
+
+            // Draw Coordinate Grid Background
+            stroke(220);
+            strokeWeight(1);
+            for (let x = 0; x < width; x += cellSize) line(x, 0, x, height);
+            for (let y = 0; y < height; y += cellSize) line(0, y, width, y);
+
+            // Center the rectangle
+            let startX = (width / 2) - (w * cellSize) / 2 + 100; // Shifted for UI
+            let startY = (height / 2) - (h * cellSize) / 2;
+
+            // Draw Unit Squares
+            for (let i = 0; i < w; i++) {
+                for (let j = 0; j < h; j++) {
+                    let x = startX + i * cellSize;
+                    let y = startY + j * cellSize;
+                    
+                    // Visual "Pulse" based on square index
+                    let index = i + (j * w) + 1;
+                    let wave = sin(frameCount * 0.05 - (i + j) * 0.3);
+                    let col = lerpColor(color(52, 152, 219), color(46, 204, 113), index / totalArea);
+                    
+                    fill(red(col), green(col), blue(col), 180 + wave * 50);
+                    stroke(255);
+                    strokeWeight(2);
+                    rect(x, y, cellSize, cellSize, 4);
+
+                    // Square index numbering
+                    fill(255);
+                    noStroke();
+                    textSize(12);
+                    if (totalArea <= 50) { // Only show numbers if not too crowded
+                        text(index, x + cellSize/2, y + cellSize/2);
+                    }
+                }
+            }
+
+            // Draw Outer Border
+            noFill();
+            stroke(44, 62, 80);
+            strokeWeight(3);
+            rect(startX, startY, w * cellSize, h * cellSize, 4);
+
+            // Dimension Indicators
+            fill(44, 62, 80);
+            noStroke();
+            textSize(18);
+            textStyle(BOLD);
+            
+            // Width Label
+            text(`${w} Units`, startX + (w * cellSize)/2, startY - 25);
+            drawArrow(startX, startY - 15, startX + w * cellSize, startY - 15);
+            
+            // Height Label
+            push();
+            translate(startX - 35, startY + (h * cellSize)/2);
+            rotate(-HALF_PI);
+            text(`${h} Units`, 0, 0);
+            pop();
+            drawArrow(startX - 15, startY, startX - 15, startY + h * cellSize);
+
+            // "Unit Square" Key
+            let keyX = 50;
+            let keyY = height - 100;
+            fill(52, 152, 219);
+            rect(keyX, keyY, cellSize, cellSize, 4);
+            fill(44, 62, 80);
+            textAlign(LEFT);
+            textSize(14);
+            text("= 1 Unit Square (Area: 1x1)", keyX + cellSize + 10, keyY + cellSize/2);
+        }
+
+        function drawArrow(x1, y1, x2, y2) {
+            stroke(44, 62, 80);
+            strokeWeight(1.5);
+            line(x1, y1, x2, y2);
+            let angle = atan2(y2 - y1, x2 - x1);
+            let size = 6;
+            push();
+            translate(x2, y2);
+            rotate(angle);
+            line(0, 0, -size, -size);
+            line(0, 0, -size, size);
+            pop();
+            push();
+            translate(x1, y1);
+            rotate(angle);
+            line(0, 0, size, -size);
+            line(0, 0, size, size);
+            pop();
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+        }
+    </script>
+</body>
+</html>

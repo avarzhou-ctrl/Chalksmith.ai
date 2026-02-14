@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Area Visualization</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+  <style>
+    body { margin: 0; display: flex; justify-content: center; align-items: center; background: #f0f2f5; font-family: sans-serif; height: 100vh; overflow: hidden; }
+    canvas { box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 8px; }
+    .controls { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 8px; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <h2 style="margin:0 0 10px 0">Learning Area</h2>
+    <p style="margin:0">Area = Width × Height</p>
+    <p style="font-size: 0.8em; color: #666;">Drag sliders to resize the rectangle.</p>
+  </div>
+
+<script>
+let wSlider, hSlider;
+const unitSize = 40;
+const startX = 100;
+const startY = 120;
+
+function setup() {
+  createCanvas(windowWidth * 0.9, windowHeight * 0.8);
+  
+  wSlider = createSlider(1, 15, 5, 1);
+  wSlider.position(20, height - 60);
+  hSlider = createSlider(1, 8, 4, 1);
+  hSlider.position(20, height - 30);
+}
+
+function draw() {
+  background(245, 247, 250);
+  
+  let wUnits = wSlider.value();
+  let hUnits = hSlider.value();
+  let totalArea = wUnits * hUnits;
+
+  // Draw UI Text
+  fill(50);
+  noStroke();
+  textSize(16);
+  text(`Width: ${wUnits} units`, 160, height - 45);
+  text(`Height: ${hUnits} units`, 160, height - 15);
+  
+  textSize(24);
+  textStyle(BOLD);
+  fill(44, 62, 80);
+  text(`Total Area: ${wUnits} × ${hUnits} = ${totalArea} sq units`, startX, 60);
+  
+  // Draw Background Grid
+  stroke(220);
+  strokeWeight(1);
+  for (let i = 0; i <= 15; i++) {
+    line(startX + i * unitSize, startY, startX + i * unitSize, startY + 8 * unitSize);
+  }
+  for (let j = 0; j <= 8; j++) {
+    line(startX, startY + j * unitSize, startX + 15 * unitSize, startY + j * unitSize);
+  }
+
+  // Draw Active Units
+  strokeWeight(2);
+  for (let i = 0; i < wUnits; i++) {
+    for (let j = 0; j < hUnits; j++) {
+      // Color logic: highlight as they are "counted"
+      fill(52, 152, 219, 150 + sin(frameCount * 0.05 + (i+j)*0.5) * 50);
+      stroke(41, 128, 185);
+      rect(startX + i * unitSize, startY + j * unitSize, unitSize, unitSize);
+      
+      // Unit number labels
+      if (unitSize > 25) {
+        fill(255);
+        noStroke();
+        textSize(10);
+        textAlign(CENTER, CENTER);
+        text((i + 1) + (j * wUnits), startX + i * unitSize + unitSize/2, startY + j * unitSize + unitSize/2);
+      }
+    }
+  }
+
+  // Dimension Arrows and Labels
+  textAlign(LEFT, BASELINE);
+  drawDimension(startX, startY - 10, startX + wUnits * unitSize, startY - 10, `Width: ${wUnits}`, true);
+  drawDimension(startX - 10, startY, startX - 10, startY + hUnits * unitSize, `Height: ${hUnits}`, false);
+}
+
+function drawDimension(x1, y1, x2, y2, label, isHorizontal) {
+  stroke(44, 62, 80);
+  line(x1, y1, x2, y2);
+  
+  // Arrowheads
+  if (isHorizontal) {
+    line(x1, y1, x1+5, y1-5); line(x1, y1, x1+5, y1+5);
+    line(x2, y2, x2-5, y2-5); line(x2, y2, x2-5, y2+5);
+    noStroke();
+    fill(44, 62, 80);
+    textAlign(CENTER);
+    text(label, (x1 + x2) / 2, y1 - 10);
+  } else {
+    line(x1, y1, x1-5, y1+5); line(x1, y1, x1+5, y1+5);
+    line(x2, y2, x2-5, y2-5); line(x2, y2, x2+5, y2-5);
+    push();
+    translate(x1 - 15, (y1 + y2) / 2);
+    rotate(-HALF_PI);
+    noStroke();
+    fill(44, 62, 80);
+    textAlign(CENTER);
+    text(label, 0, 0);
+    pop();
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth * 0.9, windowHeight * 0.8);
+}
+</script>
+</body>
+</html>

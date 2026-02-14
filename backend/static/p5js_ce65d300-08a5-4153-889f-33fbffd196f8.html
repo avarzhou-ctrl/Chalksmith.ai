@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pythagorean Theorem Interactive</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #0f172a; font-family: sans-serif; }
+        canvas { display: block; }
+        .ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            pointer-events: none;
+            border-left: 4px solid #38bdf8;
+        }
+        h1 { margin: 0 0 10px 0; font-size: 1.2rem; color: #38bdf8; }
+        .math { font-family: 'serif'; font-style: italic; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+    <div class="ui-panel">
+        <h1>Pythagorean Theorem</h1>
+        <p>In a right-angled triangle:</p>
+        <p class="math">a² + b² = c²</p>
+        <p style="font-size: 0.8rem; opacity: 0.8;">Drag the handles to change side lengths.</p>
+    </div>
+
+    <script>
+        let a = 120;
+        let b = 160;
+        let draggingA = false;
+        let draggingB = false;
+        const originX = 400;
+        const originY = 400;
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            textAlign(CENTER, CENTER);
+        }
+
+        function draw() {
+            background(15, 23, 42);
+            
+            // Calculate c
+            let c = Math.sqrt(a * a + b * b);
+            let angle = atan2(a, b);
+
+            translate(width/2 - 100, height/2 + 50);
+
+            // Draw Squares
+            strokeWeight(2);
+            
+            // Side A square (Vertical)
+            fill(244, 63, 94, 150);
+            stroke(244, 63, 94);
+            rect(-a, -a, a, a);
+            
+            // Side B square (Horizontal)
+            fill(34, 197, 94, 150);
+            stroke(34, 197, 94);
+            rect(0, 0, b, b);
+            
+            // Hypotenuse square (Rotated)
+            push();
+            fill(56, 189, 248, 150);
+            stroke(56, 189, 248);
+            rotate(-angle);
+            rect(0, -c, c, c);
+            pop();
+
+            // Draw Triangle
+            fill(255, 255, 255, 200);
+            noStroke();
+            triangle(0, 0, 0, -a, b, 0);
+            
+            // Right angle symbol
+            stroke(255);
+            noFill();
+            rect(0, -15, 15, 15);
+
+            // Side Labels
+            fill(255);
+            noStroke();
+            textSize(16);
+            text(`a = ${round(a/20, 1)}`, -25, -a/2);
+            text(`b = ${round(b/20, 1)}`, b/2, 20);
+            
+            push();
+            translate(b/2, -a/2);
+            rotate(-angle);
+            text(`c = ${round(c/20, 1)}`, 0, -15);
+            pop();
+
+            // Area Text inside squares
+            textSize(14);
+            text(`a²\n${round(sq(a/20), 1)}`, -a/2, -a/2);
+            text(`b²\n${round(sq(b/20), 1)}`, b/2, b/2);
+            
+            push();
+            translate(b/2, -a/2);
+            rotate(-angle);
+            text(`c² = ${round(sq(c/20), 1)}`, 0, -c/2);
+            pop();
+
+            // Interactive Handles
+            drawHandle(0, -a, draggingA);
+            drawHandle(b, 0, draggingB);
+
+            // Display Live Equation
+            resetMatrix();
+            drawEquation(a/20, b/20, c/20);
+        }
+
+        function drawHandle(x, y, active) {
+            push();
+            translate(width/2 - 100, height/2 + 50);
+            stroke(255);
+            fill(active ? 255 : 100);
+            ellipse(x, y, 15, 15);
+            pop();
+        }
+
+        function drawEquation(aVal, bVal, cVal) {
+            fill(255);
+            textSize(24);
+            textAlign(LEFT);
+            let x = 20;
+            let y = height - 40;
+            
+            let a2 = (aVal * aVal).toFixed(1);
+            let b2 = (bVal * bVal).toFixed(1);
+            let c2 = (cVal * cVal).toFixed(1);
+
+            text(`${a2} + ${b2} = ${c2}`, x, y);
+            textSize(14);
+            fill(244, 63, 94); text("a²", x, y-25);
+            fill(34, 197, 94); text("b²", x + 75, y-25);
+            fill(56, 189, 248); text("c²", x + 155, y-25);
+        }
+
+        function mousePressed() {
+            let mx = mouseX - (width/2 - 100);
+            let my = mouseY - (height/2 + 50);
+            
+            if (dist(mx, my, 0, -a) < 20) draggingA = true;
+            if (dist(mx, my, b, 0) < 20) draggingB = true;
+        }
+
+        function mouseReleased() {
+            draggingA = false;
+            draggingB = false;
+        }
+
+        function mouseDragged() {
+            let mx = mouseX - (width/2 - 100);
+            let my = mouseY - (height/2 + 50);
+
+            if (draggingA) a = constrain(-my, 20, 300);
+            if (draggingB) b = constrain(mx, 20, 300);
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+        }
+    </script>
+</body>
+</html>

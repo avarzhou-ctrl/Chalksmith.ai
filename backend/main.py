@@ -1,9 +1,21 @@
+import os
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from backend.routers import content
 
 app = FastAPI()
+
+# Use absolute path for static directory to avoid "Directory 'static' does not exist" errors
+current_dir = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(current_dir, "static")
+
+# Create the directory if it doesn't exist to prevent crashes
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir)
+
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 origins = [
     "http://localhost",
