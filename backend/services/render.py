@@ -7,8 +7,7 @@ from backend.services.llm import generate_lesson, render_manim
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-def render_manim_lesson(topic: str, model: str) -> str:
-    manim_code = generate_lesson(topic, model, "manim")
+def render_manim_lesson(topic: str, model: str, manim_code: str) -> str:
     unique_id = str(uuid.uuid4())
     
     # Save code to a file first
@@ -22,8 +21,7 @@ def render_manim_lesson(topic: str, model: str) -> str:
     # Return the URL path
     return f"/static/manim_{unique_id}.mp4"
 
-def render_p5js_lesson(topic: str, model: str) -> str:
-    p5js_code = generate_lesson(topic, model, "p5.js")
+def render_p5js_lesson(topic: str, model: str, p5js_code: str) -> str:
     unique_id = str(uuid.uuid4())
 
     # Save code to a file first
@@ -33,13 +31,14 @@ def render_p5js_lesson(topic: str, model: str) -> str:
     
     return f"/static/p5js_{unique_id}.html"
 
-def render_revealjs_lesson(topic: str, model: str) -> str:
-    revealjs_code = generate_lesson(topic, model, "reveal.js")
+def render_revealjs_lesson(topic: str, model: str, revealjs_code: str) -> str:
     unique_id = str(uuid.uuid4())
 
     # Save code to a file first
     file_path = os.path.join(STATIC_DIR, f"revealjs_{unique_id}.html")
+
     with open(file_path, "w") as f:
+
         f.write(revealjs_code)
-    
+
     return f"/static/revealjs_{unique_id}.html"

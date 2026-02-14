@@ -477,8 +477,9 @@ def render_manim(script_path: str) -> str:
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=script_dir)
 
     if result.returncode != 0:
-        print(f"Manim error output:\n{result.stderr}", file=sys.stderr)
-        raise RuntimeError(f"Manim rendering failed with code {result.returncode}")
+        error_msg = f"Manim rendering failed with code {result.returncode}.\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
+        print(error_msg, file=sys.stderr)
+        raise RuntimeError(error_msg)
 
     # Find the rendered video recursively in media/videos/
     # Manim structure: media/videos/<script_stem>/<quality>/<scene_name>.mp4

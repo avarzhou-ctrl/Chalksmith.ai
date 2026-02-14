@@ -1,11 +1,18 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from backend.routers import content
+from backend.database import create_db_and_tables
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 # Use absolute path for static directory to avoid "Directory 'static' does not exist" errors
 current_dir = os.path.dirname(os.path.abspath(__file__))

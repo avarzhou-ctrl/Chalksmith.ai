@@ -1,37 +1,62 @@
-from fastapi import APIRouter, Request
-from backend.models import LessonRequest, LessonResponse
+import uuid
+from fastapi import APIRouter, Depends, Request, HTTPException
+from sqlmodel import Session, select, desc
+from backend.database import get_session
+from backend.models import LessonRequest, LessonResponse, Lesson
 from backend.services.llm import generate_lesson
 from backend.services.render import render_manim_lesson, render_p5js_lesson, render_revealjs_lesson
 
 router = APIRouter()
 
 @router.post("/lesson", response_model=LessonResponse)
-async def create_lesson(request: LessonRequest, req: Request):
+async def create_lesson(request: LessonRequest, req: Request, session: Session = Depends(get_session)):
     base_url = str(req.base_url).rstrip("/")
-    if request.format == "manim":
-        file_url = render_manim_lesson(request.topic, request.model)
-    elif request.format == "p5.js":
-        file_url = render_p5js_lesson(request.topic, request.model)
-    elif request.format == "reveal.js":
-        file_url = render_revealjs_lesson(request.topic, request.model)
-    else:
-        return {"error": "Unsupported format"}
     
+    code = generate_lesson(request.topic, request.model, request.format)
+    
+    if request.format == "manim":
+        file_url = render_manim_lesson(request.topic, request.model, code)
+    elif request.format == "p5.js":
+        file_url = render_p5js_lesson(request.topic, request.model, code)
+    elif request.format == "reveal.js":
+        file_url = render_revealjs_lesson(request.topic, request.model, code)
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported format")
+    
+    db_lesson = Lesson(
+        id=str(uuid.uuid4()),
+        topic=request.topic,
+        model=request.model,
+        format=request.format,
+        url=file_url,
+        code=code
+    )
+
+    session.add(db_lesson)
+    session.commit()
+    session.refresh(db_lesson)
+
     return LessonResponse(
-        url=f"{base_url}{file_url}",
-        code=generate_lesson(request.topic, request.model, request.format)
+        url=f"{base_url}{db_lesson.url}",
+        code=db_lesson.code
     )
 
 @router.get("/lesson", response_model=LessonResponse)
-async def get_existinglesson(topic: str, model: str, format: str, req: Request):
+async def get_lesson(topic: str, model: str, format: str, req: Request, session: Session = Depends(get_session)):
     base_url = str(req.base_url).rstrip("/")
 
-    file_url = check_if_lesson_exists(topic, model, format)
+    statement = select(Lesson).where(
+        Lesson.topic == topic, 
+        Lesson.model == model, 
+        Lesson.format == format
+    ).order_by(desc(Lesson.created_at))
+    results = session.exec(statement)
+    db_lesson = results.first()
 
-    if not file_url:
-        return {"error": "Lesson not foudn. Please use POST to generate it first."}
+    if not db_lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found. Please use POST to generate it first.")
     
     return LessonResponse(
-        url=f"{base_url}{file_url}",
-        code=generate_lesson(topic, model, format)
+        url=f"{base_url}{db_lesson.url}",
+        code=db_lesson.code
     )

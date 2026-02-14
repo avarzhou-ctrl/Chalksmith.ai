@@ -7,3 +7,5 @@ google-genai
 volcengine-python-sdk[ark]
 manim
 httpx
+sqlmodel
+importlib-metadata
