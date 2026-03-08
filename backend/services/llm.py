@@ -515,7 +515,7 @@ Examples:
   %(prog)s "Pythagorean theorem" -m gpt-4o-mini -f reveal.js -o slides.html
   %(prog)s "Quicksort algorithm" -m deepseek-chat -f manim -o animation.py
   %(prog)s "Binary search" -m glm-4.7 -f p5.js -o visualization.html
-  %(prog)s "Neural networks" -m gemini-2.0-flash -f p5.js -o course.html
+  %(prog)s "Neural networks" -m gemini-3-flash-preview -f p5.js -o course.html
   %(prog)s "Machine learning" -m ark-deepseek-chat -f manim -o ml.py
   %(prog)s "Quantum computing" -m ark-deepseek-reasoner -f reveal.js -o quantum.html
 
@@ -539,7 +539,7 @@ Environment variables:
     parser.add_argument(
         "-m", "--model",
         required=True,
-        help="Model to use (gpt-4o, glm-4-flash, deepseek-chat, deepseek-reasoner, gemini-2.0-flash, ark-deepseek-chat, ark-deepseek-reasoner, etc.)"
+        help="Model to use (gpt-4o, glm-4-flash, deepseek-chat, deepseek-reasoner, gemini-3-flash-preview, ark-deepseek-chat, ark-deepseek-reasoner, etc.)"
     )
 
     parser.add_argument(

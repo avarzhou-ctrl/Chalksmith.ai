@@ -1,1 +1,0 @@
-// Manim video renderer for structured lesson content.

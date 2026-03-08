@@ -49,6 +49,7 @@ npm run dev
 
 ### Don't
 - do not add new heavy dependencies without approval
+- do not commit API keys
 - do not use divs when a component exists already 
 - do not use px for spacing; use Tailwind's spacing scale (e.g., p-4, m-2)
 
@@ -62,13 +63,18 @@ Ask first:
 
 ## Documentation
 - After completing any coding or design task, you must update the "# Project Log" section of this file. Include date, action, and files affected. Summarize why changes were made.
-- Format: "**YYYY-MM-DD**: [Brief description of changes]"
+- Format: "**YYYY-MM-DD**: [Brief description of changes with which files were edited]"
 - Ask if you should update the project log after major changes are made.
 
-Example Project Log:
-- **2026-02-23**: Initialized Next.js skeleton. Created `app/generation/page.tsx` with a 60/40 split.
-- **2026-02-23**: Defined Tailwind color palette in `tailwind.config.ts` using Forest Sage (#2D6A4F) and Harvest Gold (#F59E0B).
-- **2026-02-23**: Drafted Origami Fox mascot component in `components/ui/MascotIcon.tsx`.
+### Example Project Log
+- **2026-02-23**: Initialized Next.js skeleton. Created `app/generation/page.tsx` with a 70/30 split.
+- **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
 - **2026-02-23**: Updated AGENTS.md with design system constants and logging requirements.
+- **2026-03-01**: Implemented `Dropdown.tsx` in `frontend/src/components/ui/` featuring state management, a click-outside listener, and a conditional "amber theme" triggered upon value selection. The component includes a disabled state and smooth animations.
+- **2026-03-01**: Summarized existing UI components in `frontend/src/components/ui/`: `Button.tsx` (variant-based styles), `Dropdown.tsx` (stateful selection), and `Textarea.tsx` (chalkboard-themed input).
+- **2026-03-02**: Debugged and updated `frontend/src/components/generation/ModelSelector.tsx`: integrated TypeScript types, aligned model selection with backend `llm.py` support (including Gemini, GPT-4o, DeepSeek, and Ark), and applied modular component architecture. Clarified roles of `Layout` vs `Page` components for orchestration.
+- **2026-03-04**: Fixed syntax and type errors in `InputForm.tsx`, updated `Button.tsx` with loading states and standard event props, and implemented the backend communication layer in `api.ts`. Reverted `page.tsx` to its original state per user request.
+- **2026-03-06**: Reorganized API architecture: migrated client-side utilities to `frontend/src/lib/api.ts`, implemented a server-side proxy in `frontend/src/app/api/lesson/route.ts`, and updated the frontend to use relative internal API paths. Removed redundant `frontend/src/app/api/route.ts`.
+- **2026-03-08**: Completed `EditableTitle.tsx` and implemented `Card.tsx` component. Refactored `frontend/src/app/generation/page.tsx` into a Client Component with a 70/30 split layout, integrating dynamic content rendering for Manim (video) and p5.js/reveal.js (iframe). Updated `globals.css` with corrected Tailwind v4 theme variables.
