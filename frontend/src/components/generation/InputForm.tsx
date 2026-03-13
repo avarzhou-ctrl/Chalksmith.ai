@@ -31,7 +31,7 @@ export default function InputForm({
             </div>
             <Textarea 
                 className="mt-4"
-                placeholder="Describe your topic...<br /> Create a guided reading activity for 4th Grade about the Great Barrier Reef with a focus on vocabulary."
+                placeholder="Describe your topic..."
                 disabled={disabled}
                 value={topic}
                 onChange={(e) => onTopicChange(e.target.value)}

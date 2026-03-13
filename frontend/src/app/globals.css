@@ -1,34 +1,36 @@
 @import "tailwindcss";
 
 @theme {
-    /* Surface colors */
-    --color-primary-bg: #0c0a09; /* stone-950 */
-    --color-secondary-bg: #1c1917; /* stone-800 */
-    --color-surface: #44403c; /* stone-700 */
+  /* Surface colors */
+  --color-primary-bg: #0c0a09; /* stone-950 */
+  --color-secondary-bg: #1c1917; /* stone-800 */
+  --color-surface: #44403c; /* stone-700 */
 
-    /* Typography colors */
-    --color-primary-text: #fafaf9; /* stone-50 */
-    --color-secondary-text: #a8a29e; /* stone-400 */
+  /* Typography colors */
+  --color-primary-text: #fafaf9; /* stone-50 */
+  --color-secondary-text: #a8a29e; /* stone-400 */
 
-    /* Brand colors */
-    --color-accent: #d97706; /* amber-600 */
+  /* Brand colors */
+  --color-accent: #d97706; /* amber-600 */
 
-    /* Border colors */
-    --color-border: #44403c; /* stone-700 */
+  /* Border colors */
+  --color-border: #44403c; /* stone-700 */
 
-    /* Fonts */
-    --font-sans: var(--font-sans);
+  /* Font */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 :root {
   --background: #0c0a09;
   --foreground: #fafaf9;
   --accent: #d97706;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
+@layer base {
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    margin: 0;
+    padding: 0;
+  }
 }

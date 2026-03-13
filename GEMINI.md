@@ -32,7 +32,10 @@
 - Environment: Python virtual environment (.venv).
 
 ### Design Style
-- 
+- **Theme:** "Chalkboard Dark" - utilizing a stone-950/stone-800 background palette.
+- **Accents:** Amber-600 (`#d97706`) used for highlights, primary buttons, and active states.
+- **Typography:** Inter (sans-serif) as the primary font with stone-50/stone-400 text colors.
+- **Layout:** 75/25 split for generation (Preview/Chat).
 
 ## Commands
 ### Backend
@@ -78,3 +81,4 @@ Ask first:
 - **2026-03-04**: Fixed syntax and type errors in `InputForm.tsx`, updated `Button.tsx` with loading states and standard event props, and implemented the backend communication layer in `api.ts`. Reverted `page.tsx` to its original state per user request.
 - **2026-03-06**: Reorganized API architecture: migrated client-side utilities to `frontend/src/lib/api.ts`, implemented a server-side proxy in `frontend/src/app/api/lesson/route.ts`, and updated the frontend to use relative internal API paths. Removed redundant `frontend/src/app/api/route.ts`.
 - **2026-03-08**: Completed `EditableTitle.tsx` and implemented `Card.tsx` component. Refactored `frontend/src/app/generation/page.tsx` into a Client Component with a 70/30 split layout, integrating dynamic content rendering for Manim (video) and p5.js/reveal.js (iframe). Updated `globals.css` with corrected Tailwind v4 theme variables.
+- **2026-03-12**: Fixed Tailwind v4 rendering by renaming `postcss.config.ts` to `postcss.config.mjs` and correcting the theme block in `globals.css`. Relocated `public/` folder to the frontend root for Next.js compatibility. Implemented a 70/30 split UI with integrated chat history and preview state in `frontend/src/app/generation/page.tsx`, and reverted the root `page.tsx` to a placeholder. Refined `EditableTitle.tsx` for seamless header integration.
