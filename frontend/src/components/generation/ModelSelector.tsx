@@ -19,8 +19,8 @@ export default function ModelSelector({ value, onChange, disabled }: ModelSelect
     ];
     
     return (
-        <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-secondary-text uppercase tracking-wider">AI Model</label>
+        <div className="flex flex-col gap-1.5 min-w-0">
+            <label className="text-xs font-semibold text-secondary-text uppercase tracking-wider truncate whitespace-nowrap">AI Model</label>
             <Dropdown
                 options={models}
                 value={value}

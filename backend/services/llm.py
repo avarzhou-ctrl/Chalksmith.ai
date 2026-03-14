@@ -551,11 +551,19 @@ Environment variables:
 
     parser.add_argument(
         "-o", "--output",
-        default=os.path.abspath(os.path.join("static", args.topic)),
         help="Output file path (default: ./static/<topic> with appropriate extension)"
     )
 
     args = parser.parse_args()
+
+    # Determine default output if not provided
+    if not args.output:
+        extension = "py" if args.format == "manim" else "html"
+        # Sanitize topic for filename
+        safe_topic = re.sub(r'[^a-zA-Z0-9_\-]', '_', args.topic)
+        args.output = os.path.join("static", f"{safe_topic}.{extension}")
+    
+    args.output = os.path.abspath(args.output)
 
     try:
         # Generate content

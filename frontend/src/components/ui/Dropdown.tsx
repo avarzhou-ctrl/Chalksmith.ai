@@ -63,11 +63,11 @@ export default function Dropdown({
                 type="button"
                 onClick={handleToggle}
                 disabled={disabled}
-                className={`w-full flex items-center justify-between px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-300 outline-none focus:ring-2 focus:ring-accent/50 ${buttonStyles} ${disabledStyles}`}
+                className={`w-full flex items-center justify-between px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-300 outline-none focus:ring-2 focus:ring-accent/50 ${buttonStyles} ${disabledStyles} min-w-0`}
             >
-                <span>{selectedOption ? selectedOption.label : placeholder}</span>
+                <span className="truncate mr-2">{selectedOption ? selectedOption.label : placeholder}</span>
                 <svg 
-                    className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} 
+                    className={`w-4 h-4 transition-transform duration-300 shrink-0 ${isOpen ? 'rotate-180' : ''}`} 
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24"
@@ -82,7 +82,7 @@ export default function Dropdown({
                         <li key={option.value}>
                             <button
                                 onClick={() => handleSelect(option.value)}
-                                className={`w-full text-left px-4 py-2 text-sm transition-colors duration-200 hover:bg-accent hover:text-primary-text ${
+                                className={`w-full text-left px-4 py-2 text-sm transition-colors duration-200 hover:bg-accent hover:text-primary-text truncate ${
                                     value === option.value ? 'bg-stone-800 text-accent font-semibold' : 'text-secondary-text'
                                 }`}
                             >

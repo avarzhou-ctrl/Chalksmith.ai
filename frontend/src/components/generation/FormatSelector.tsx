@@ -16,8 +16,8 @@ export default function FormatSelector({ value, onChange, disabled }: FormatSele
     ];
     
     return (
-        <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-secondary-text uppercase tracking-wider">Format</label>
+        <div className="flex flex-col gap-1.5 min-w-0">
+            <label className="text-xs font-semibold text-secondary-text uppercase tracking-wider truncate whitespace-nowrap">Format</label>
             <Dropdown
                 options={models}
                 value={value}

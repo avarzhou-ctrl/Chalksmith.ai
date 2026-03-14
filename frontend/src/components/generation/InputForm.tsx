@@ -24,10 +24,14 @@ export default function InputForm({
     disabled 
 }: InputFormProps) {
     return (
-        <div className="flex flex-col gap-6">
-            <div className="flex flex-row md:flex-row gap-4">
-                <ModelSelector value={model} onChange={onModelChange} disabled={disabled} />
-                <FormatSelector value={format} onChange={onFormatChange} disabled={disabled} />
+        <div className="flex flex-col gap-6 w-full min-w-0">
+            <div className="flex flex-row gap-4 min-w-0">
+                <div className="flex-1 min-w-0">
+                    <ModelSelector value={model} onChange={onModelChange} disabled={disabled} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <FormatSelector value={format} onChange={onFormatChange} disabled={disabled} />
+                </div>
             </div>
             <Textarea 
                 className="mt-4"

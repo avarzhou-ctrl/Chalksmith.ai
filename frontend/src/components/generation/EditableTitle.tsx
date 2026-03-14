@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface EditableTitleProps {
     initialTitle?: string;
@@ -10,6 +10,10 @@ interface EditableTitleProps {
 export default function EditableTitle({ initialTitle = "Untitled", onChange }: EditableTitleProps) {
     const [title, setTitle] = useState(initialTitle);
     const [isEditing, setIsEditing] = useState(false);
+
+    useEffect(() => {
+        setTitle(initialTitle);
+    }, [initialTitle]);
     
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
@@ -28,10 +32,10 @@ export default function EditableTitle({ initialTitle = "Untitled", onChange }: E
     };
 
     return (
-        <div className="flex flex-row items-center gap-4 group">
+        <div className="flex flex-row items-center gap-4 group min-w-0 flex-1">
             {isEditing ? (
                 <input
-                    className="text-3xl font-bold bg-secondary-bg text-primary-text border-b-2 border-accent outline-none px-2 py-1 rounded-lg transition-all shadow-inner"
+                    className="text-3xl font-bold bg-secondary-bg text-primary-text border-b-2 border-accent outline-none px-2 py-1 rounded-lg transition-all shadow-inner w-full"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     onBlur={handleBlur}
@@ -39,7 +43,11 @@ export default function EditableTitle({ initialTitle = "Untitled", onChange }: E
                     autoFocus
                 />
             ) : (
-                <h1 className="text-3xl font-bold bg-transparent text-primary-text border-b-2 border-transparent hover:border-accent/30 outline-none px-2 py-1 rounded-lg transition-all cursor-pointer group-hover:bg-surface/20" onDoubleClick={() => setIsEditing(true)}>
+                <h1 
+                    className="text-3xl font-bold bg-transparent text-primary-text border-b-2 border-transparent hover:border-accent/30 outline-none px-2 py-1 rounded-lg transition-all cursor-pointer group-hover:bg-surface/20 truncate w-full" 
+                    onDoubleClick={() => setIsEditing(true)}
+                    title={title}
+                >
                     {title}
                 </h1>
             )}

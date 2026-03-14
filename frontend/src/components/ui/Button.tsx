@@ -25,7 +25,7 @@ export default function Button({
     const combinedClassName = `${baseClasses} ${styles[variant]} ${opacityStyle} ${className}`;
 
     return (
-        <button className={combinedClassName} {...props} disabled={isLoading || props.disabled}>
+        <button {...props} className={combinedClassName} disabled={isLoading || props.disabled}>
             {isLoading && (
                 <span className="mr-2 animate-spin h-4 w-4 border-2 border-primary-text border-t-transparent rounded-full"></span>
             )}
