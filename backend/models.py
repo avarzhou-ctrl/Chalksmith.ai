@@ -8,6 +8,7 @@ class LessonRequest(BaseModel):
     format: str
 
 class LessonResponse(BaseModel):
+    id: str
     url: str
     code: str
 

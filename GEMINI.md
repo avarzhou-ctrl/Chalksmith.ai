@@ -24,12 +24,12 @@
     - `fe/` - a semi-functional draft that you can READ from but do not EDIT.
 - Framework: Next.js (https://nextjs.org/) (React 19)
 - Language: TypeScript (https://www.typescriptlang.org/)
-- Styling: Tailwind CSS (https://tailwindcss.com/) (v4)
+- Styling: Tailwind CSS (https://tailwindcss.com/) (v4) and Framer Motion (animations)
 - Routing: Next.js App Router (located in `src/app/`)
 
 ### Project Structure
-- Monorepo: Separate `backend/` and `frontend/` directories.
-- Environment: Python virtual environment (.venv).
+- Monorepo: Managed via NPM Workspaces (root `package.json`).
+- Environment: Python virtual environment (.venv) for backend, Node.js for frontend.
 
 ### Design Style
 - **Theme:** "Chalkboard Dark" - utilizing a stone-950/stone-800 background palette.
@@ -83,3 +83,10 @@ Ask first:
 - **2026-03-08**: Completed `EditableTitle.tsx` and implemented `Card.tsx` component. Refactored `frontend/src/app/generation/page.tsx` into a Client Component with a 70/30 split layout, integrating dynamic content rendering for Manim (video) and p5.js/reveal.js (iframe). Updated `globals.css` with corrected Tailwind v4 theme variables.
 - **2026-03-12**: Fixed Tailwind v4 rendering by renaming `postcss.config.ts` to `postcss.config.mjs` and correcting the theme block in `globals.css`. Relocated `public/` folder to the frontend root for Next.js compatibility. Implemented a 70/30 split UI with integrated chat history and preview state in `frontend/src/app/generation/page.tsx`, and reverted the root `page.tsx` to a placeholder. Refined `EditableTitle.tsx` for seamless header integration.
 - **2026-03-13**: Debugged and stabilized the resizable panel layout in `frontend/src/app/generation/page.tsx`. Corrected `react-resizable-panels` exports and fixed component nesting. Implemented a "narrow rail" collapse feature for the right interaction panel using the `collapsedSize` prop and imperative `panelRef` API.
+- **2026-03-14**: Configured NPM workspaces in the root `package.json` to resolve cross-package dependency issues and VS Code resolution errors. Stabilized the interaction panel collapse logic using percentage-based thresholds in `onResize` to prevent layout leaking during window resizing. Fixed critical syntax and indentation errors in `page.tsx` and integrated `framer-motion` (installed) for future UI enhancements.
+- **2026-03-17**: Enhanced `InputForm.tsx` by embedding the generate button (CircleArrowUp icon) in the bottom-right of the textarea and implemented a robust disabled state. Added a "View Code/Material" toggle with relative positioning and a custom regex-based syntax highlighter in `frontend/src/app/generation/page.tsx`. Fixed background color issues in the content area for consistent scrolling.
+- **2026-03-23**: Integrated `react-syntax-highlighter` into the "View Code" function in `frontend/src/app/generation/page.tsx`. Added dynamic language support for Manim (Python), p5.js (JavaScript), and Reveal.js (HTML) using the `vscDarkPlus` Prism theme. Replaced sparkle emojis (✨) in the chat history welcome message with `Flame` icons from `lucide-react` styled with the `text-accent` color.
+- **2026-03-23**: Audited backend export strategies; confirmed `render_manim_lesson`, `render_p5js_lesson`, and `render_revealjs_lesson` correctly save assets to the `static/` directory and return valid absolute URLs. Removed the redundant and unused `backend/services/exporters/` directory to streamline the codebase.
+- **2026-03-23**: Implemented a scalable `ExportService` in `backend/services/export.py` using a strategy pattern. Added a new `/content/export` GET endpoint in the backend and updated the `LessonResponse` model to include a unique lesson ID. Enhanced the frontend UI by adding an "Export" button in `frontend/src/app/generation/page.tsx`, allowing users to download generated lesson assets.
+- **2026-03-23**: Fixed `PDFExportStrategy` in `backend/services/export.py` by making the export process asynchronous and correctly implementing the Playwright PDF conversion logic. Installed Chromium for Playwright on the server. Updated `backend/routers/content.py` to await the export preparation.
+- **2026-03-23**: Refined export strategies: `reveal.js` presentations are now converted to PDF format using `playwright` for high-quality downloads, while `p5.js` remains as an interactive HTML export. Added `playwright` to `backend/requirements.txt`.

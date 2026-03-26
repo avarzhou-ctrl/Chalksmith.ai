@@ -5,6 +5,7 @@ export interface LessonRequest {
 }
 
 export interface LessonResponse {
+  id?: string;
   url: string;
   code: string;
 }

@@ -9,3 +9,4 @@ manim
 httpx
 sqlmodel
 importlib-metadata
+playwright

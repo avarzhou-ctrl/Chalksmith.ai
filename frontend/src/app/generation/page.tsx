@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import InputForm from "@/components/generation/InputForm";
 import EditableTitle from "@/components/generation/EditableTitle";
 import Button from "@/components/ui/Button";
 import { createLesson, LessonResponse } from "@/lib/api";
 import { Panel, Group, Separator } from "react-resizable-panels";
-import { PanelRight, ChevronDown } from "lucide-react";
+import { PanelRight, ChevronDown, Code, Eye, Share, Flame, Download, Link } from "lucide-react";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 export default function Page() {
   const [topic, setTopic] = useState('');
@@ -15,7 +17,8 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LessonResponse | null>(null);
-  const [title, setTitle] = useState("Untitled Lesson Plan");
+  const [showCode, setShowCode] = useState(false);
+  const [title, setTitle] = useState("Untitled");
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -42,10 +45,11 @@ export default function Page() {
   }, [messages, loading]);
 
   const generateLesson = async () => {
-    if (!topic || !model || !format) return;
+    if (!topic || !model || !format || loading) return;
 
     setLoading(true);
     setError(null);
+    setShowCode(false);
     setMessages((prev) => [...prev, { role: 'user', content: topic }]);
 
     try {
@@ -62,7 +66,7 @@ export default function Page() {
   }
 
   return (
-    <main className="flex flex-row h-screen w-full bg-primary-bg overflow-hidden font-sans">
+    <main className="flex flex-row h-screen w-full bg-primary-bg overflow-hidden font-sans text-primary-text">
       <Group orientation="horizontal" id="main-layout">
         {/* Left: Preview */}
         <Panel defaultSize="75%" minSize="30%">
@@ -73,37 +77,85 @@ export default function Page() {
                 <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
               </div>
               <EditableTitle initialTitle={title} onChange={setTitle}/>
-              {result && (
-                <div className="flex gap-2 shrink-0">
-                  <span className="text-xs px-2 py-1 bg-surface/50 border border-border rounded-lg text-secondary-text uppercase tracking-tighter shrink-0">{format}</span>
-                  <span className="text-xs px-2 py-1 bg-surface/50 border border-border rounded-lg text-secondary-text uppercase tracking-tighter shrink-0">{model}</span>
-                </div>
-              )}
+              <div className="flex gap-2">
+                {result && (
+                  <a
+                    href={`http://localhost:8000/content/export?id=${result.id}`}
+                    download
+                    className="flex justify-between items-center text-xs gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface/30 hover:bg-surface hover:text-primary-text transition-all duration-200"
+                    title={`Download ${format === 'manim' ? 'Video'
+                                     : format === 'p5.js' ? 'HTML' 
+                                     : 'PDF'}`}
+                  >
+                    <Download size={14} />
+                    <span>Export</span>
+                  </a>
+                )}
+              </div>
             </div>
 
             {/* Content Area */}
-            <div className="flex flex-col flex-1 justify-center items-center px-4 pb-8 relative">
-              <div className="w-full h-full bg-secondary-bg rounded-3xl overflow-hidden border border-border shadow-2xl relative flex flex-col">
+            <div className="flex flex-col flex-1 justify-center items-center px-4 pb-8 relative overflow-hidden">
+              <div className="w-full h-full bg-primary-bg rounded-3xl overflow-auto border border-border shadow-2xl relative flex flex-col">
+                {/* View Code Toggle */}
+                {result && (
+                  <div className="absolute top-4 right-4 z-10">
+                    <button 
+                      onClick={() => setShowCode(!showCode)}
+                      className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border transition-all duration-200 backdrop-blur-md ${
+                        showCode 
+                          ? 'bg-accent/90 text-primary-text border-accent shadow-lg shadow-accent/20' 
+                          : 'bg-surface/80 text-secondary-text border-border hover:bg-surface hover:text-primary-text'
+                      }`}
+                    >
+                      {showCode ? (
+                        <><Eye size={14} /> <span>View Material</span></>
+                      ) : (
+                        <><Code size={14} /> <span>View Code</span></>
+                      )}
+                    </button>
+                  </div>
+                )}
+
                 {result ? (
-                  <div className="flex-1 w-full h-full bg-primary-bg overflow-hidden">
-                    {format === 'manim' ? (
-                      <video
-                        key={result.url}
-                        className="w-full h-full object-contain"
-                        title="Video Preview"
-                        controls
-                        autoPlay
-                      >
-                        <source src={result.url} type="video/mp4" />
-                        Your browser does not support the video tag.
-                      </video>
+                  <div className="flex-1 w-full h-full bg-primary-bg overflow-auto">
+                    {showCode ? (
+                      <div className="min-w-full min-h-full bg-primary-bg p-8 font-mono text-sm">
+                        <SyntaxHighlighter
+                          language={format === 'manim' ? 'python' : format === 'p5.js' ? 'javascript' : 'html'}
+                          style={vscDarkPlus}
+                          customStyle={{
+                            background: 'transparent',
+                            padding: '0',
+                            margin: '0',
+                            fontSize: '0.875rem',
+                          }}
+                        >
+                          {result.code}
+                        </SyntaxHighlighter>
+                      </div>
                     ) : (
-                      <iframe
-                        key={result.url}
-                        src={result.url}
-                        className="w-full h-full border-none bg-white"
-                        title="Interactive Display Preview"
-                      />
+                      <div className="w-full h-full flex flex-col items-center justify-center">
+                        {format === 'manim' ? (
+                          <video
+                            key={result.url}
+                            className="w-full h-full object-contain bg-black"
+                            title="Video Preview"
+                            controls
+                            autoPlay
+                          >
+                            <source src={result.url} type="video/mp4" />
+                            Your browser does not support the video tag.
+                          </video>
+                        ) : (
+                          <iframe
+                            key={result.url}
+                            src={result.url}
+                            className="w-full h-full border-none bg-white"
+                            title="Interactive Display Preview"
+                          />
+                        )}
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -138,7 +190,7 @@ export default function Page() {
           collapsible 
           collapsedSize="75px"
           onResize={(size) => {
-            if (size.asPercentage <= 4) {
+            if (size.asPercentage <= 15) {
               setIsCollapsed(true);
             } else {
               setIsCollapsed(false);
@@ -182,9 +234,9 @@ export default function Page() {
                         <div className="bg-surface/30 p-4 rounded-2xl border border-border/50 text-secondary-text text-sm">
                           <p className="font-semibold mb-2 text-primary-text">Welcome to Chalksmith.ai!</p>
                           <ul className="space-y-2">
-                            <li className="flex gap-2"><span>✨</span> Choose a topic and AI model</li>
-                            <li className="flex gap-2"><span>✨</span> Select your favorite format</li>
-                            <li className="flex gap-2"><span>✨</span> Watch your lesson come to life!</li>
+                            <li className="flex gap-2"><Flame size={16} className="text-accent mt-0.5 shrink-0" /> Choose a topic and AI model</li>
+                            <li className="flex gap-2"><Flame size={16} className="text-accent mt-0.5 shrink-0" /> Select your favorite format</li>
+                            <li className="flex gap-2"><Flame size={16} className="text-accent mt-0.5 shrink-0" /> Watch your lesson come to life!</li>
                           </ul>
                         </div>
                       )}
@@ -222,19 +274,10 @@ export default function Page() {
                         onModelChange={setModel}
                         onFormatChange={setFormat}
                         onTopicChange={setTopic}
+                        onGenerate={generateLesson}
                         disabled={loading}
                       />
                       
-                      <Button 
-                        variant="primary" 
-                        onClick={generateLesson} 
-                        isLoading={loading}
-                        disabled={!topic || loading}
-                        className="w-full h-12 text-lg shadow-lg shadow-accent/20 shrink-0"
-                      >
-                        Generate Material
-                      </Button>
-
                       {error && (
                         <p className="text-xs text-red-500 bg-red-500/10 p-2 rounded border border-red-500/20 text-center">
                           {error}

@@ -5,6 +5,7 @@ from backend.database import get_session
 from backend.models import LessonRequest, LessonResponse, Lesson
 from backend.services.llm import generate_lesson
 from backend.services.render import render_manim_lesson, render_p5js_lesson, render_revealjs_lesson
+from backend.services.export import export_service
 
 router = APIRouter()
 
@@ -37,6 +38,7 @@ async def create_lesson(request: LessonRequest, req: Request, session: Session =
     session.refresh(db_lesson)
 
     return LessonResponse(
+        id=db_lesson.id,
         url=f"{base_url}{db_lesson.url}",
         code=db_lesson.code
     )
@@ -53,10 +55,27 @@ async def get_lesson(topic: str, model: str, format: str, req: Request, session:
     results = session.exec(statement)
     db_lesson = results.first()
 
-    if not db_lesson:
-        raise HTTPException(status_code=404, detail="Lesson not found. Please use POST to generate it first.")
-    
     return LessonResponse(
+        id=db_lesson.id,
         url=f"{base_url}{db_lesson.url}",
         code=db_lesson.code
     )
+
+@router.get("/export")
+async def export_lesson(id: str, session: Session = Depends(get_session)):
+    statement = select(Lesson).where(Lesson.id == id)
+    db_lesson = session.exec(statement).first()
+
+    if not db_lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    try:
+        return await export_service.prepare_export(
+            file_url=db_lesson.url,
+            format_type=db_lesson.format,
+            topic=db_lesson.topic
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
