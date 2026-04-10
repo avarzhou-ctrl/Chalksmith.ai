@@ -6,6 +6,8 @@ class LessonRequest(BaseModel):
     topic: str
     model: str
     format: str
+    lesson_id: str | None = None
+    prompt: str | None = None
 
 class LessonResponse(BaseModel):
     id: str

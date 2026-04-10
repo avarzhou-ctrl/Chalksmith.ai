@@ -13,7 +13,24 @@ router = APIRouter()
 async def create_lesson(request: LessonRequest, req: Request, session: Session = Depends(get_session)):
     base_url = str(req.base_url).rstrip("/")
     
-    code = generate_lesson(request.topic, request.model, request.format)
+    # Check if this is an edit request
+    previous_code = None
+    if request.lesson_id:
+        statement = select(Lesson).where(Lesson.id == request.lesson_id)
+        db_lesson = session.exec(statement).first()
+        if db_lesson:
+            previous_code = db_lesson.code
+            # Ensure we use the correct topic from the original lesson if not provided new prompt
+            if not request.topic:
+                request.topic = db_lesson.topic
+
+    code = generate_lesson(
+        request.topic, 
+        request.model, 
+        request.format, 
+        previous_code=previous_code, 
+        edit_prompt=request.prompt
+    )
     
     if request.format == "manim":
         file_url = render_manim_lesson(request.topic, request.model, code)

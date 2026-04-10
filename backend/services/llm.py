@@ -28,7 +28,7 @@ from dotenv import load_dotenv
 console = Console()
 load_dotenv()  # Load environment variables from .env file if present
 
-def generate_content_with_openai(topic: str, model: str, format_type: str) -> str:
+def generate_content_with_openai(topic: str, model: str, format_type: str, raw_prompt: str = None) -> str:
     """Generate content using OpenAI API (gpt-* models)."""
     from openai import OpenAI
 
@@ -38,7 +38,7 @@ def generate_content_with_openai(topic: str, model: str, format_type: str) -> st
 
     client = OpenAI(api_key=api_key)
 
-    prompt = get_prompt_for_format(topic, format_type)
+    prompt = raw_prompt if raw_prompt else get_prompt_for_format(topic, format_type)
 
     response = client.chat.completions.create(
         model=model,
@@ -52,7 +52,7 @@ def generate_content_with_openai(topic: str, model: str, format_type: str) -> st
     return response.choices[0].message.content
 
 
-def generate_content_with_zhipuai(topic: str, model: str, format_type: str) -> str:
+def generate_content_with_zhipuai(topic: str, model: str, format_type: str, raw_prompt: str = None) -> str:
     """Generate content using ZhipuAI API (glm-* models)."""
     import httpx
     from openai import OpenAI
@@ -71,7 +71,7 @@ def generate_content_with_zhipuai(topic: str, model: str, format_type: str) -> s
         base_url="https://open.bigmodel.cn/api/paas/v4/"
     )
 
-    prompt = get_prompt_for_format(topic, format_type)
+    prompt = raw_prompt if raw_prompt else get_prompt_for_format(topic, format_type)
 
     response = client.chat.completions.create(
         model=model,
@@ -85,7 +85,7 @@ def generate_content_with_zhipuai(topic: str, model: str, format_type: str) -> s
     return response.choices[0].message.content
 
 
-def generate_content_with_deepseek(topic: str, model: str, format_type: str) -> str:
+def generate_content_with_deepseek(topic: str, model: str, format_type: str, raw_prompt: str = None) -> str:
     """Generate content using DeepSeek API."""
     import httpx
     from openai import OpenAI
@@ -102,7 +102,7 @@ def generate_content_with_deepseek(topic: str, model: str, format_type: str) -> 
         base_url="https://api.deepseek.com"
     )
 
-    prompt = get_prompt_for_format(topic, format_type)
+    prompt = raw_prompt if raw_prompt else get_prompt_for_format(topic, format_type)
 
     response = client.chat.completions.create(
         model=model,
@@ -116,7 +116,7 @@ def generate_content_with_deepseek(topic: str, model: str, format_type: str) -> 
     return response.choices[0].message.content
 
 
-def generate_content_with_gemini(topic: str, model: str, format_type: str) -> str:
+def generate_content_with_gemini(topic: str, model: str, format_type: str, raw_prompt: str = None) -> str:
     """Generate content using Google Gemini API."""
     from google import genai
     from google.genai import types
@@ -136,7 +136,7 @@ def generate_content_with_gemini(topic: str, model: str, format_type: str) -> st
     # Initialize client (relying on env vars for proxy)
     client = genai.Client(api_key=api_key)
 
-    prompt = get_prompt_for_format(topic, format_type)
+    prompt = raw_prompt if raw_prompt else get_prompt_for_format(topic, format_type)
 
     # Configure generation - thinking_config is only supported in google-genai >= 1.56.0
     # config = types.GenerateContentConfig(
@@ -151,7 +151,7 @@ def generate_content_with_gemini(topic: str, model: str, format_type: str) -> st
 
     return response.text
 
-def generate_content_with_ark(topic: str, model: str, format_type: str) -> str:
+def generate_content_with_ark(topic: str, model: str, format_type: str, raw_prompt: str = None) -> str:
     """Generate content using ARK Engine (DeepSeek 3.2)."""
     from volcenginesdkarkruntime import Ark
 
@@ -176,7 +176,7 @@ def generate_content_with_ark(topic: str, model: str, format_type: str) -> str:
         timeout=timeout,
     )
 
-    prompt = get_prompt_for_format(topic, format_type)
+    prompt = raw_prompt if raw_prompt else get_prompt_for_format(topic, format_type)
 
     # Use the actual model ID for DeepSeek 3.2
     response = client.chat.completions.create(
@@ -344,8 +344,11 @@ def _spinner(description: str):
     """A simple spinner for console output."""
     return console.status(description, spinner="dots")
 
-def generate_lesson(topic: str, model: str, format_type: str) -> str:
+def generate_lesson(topic: str, model: str, format_type: str, previous_code: str = None, edit_prompt: str = None) -> str:
     """Generate educational content using specified model and format."""
+    if previous_code and edit_prompt:
+        return get_edit_prompt(previous_code, topic, edit_prompt, format_type, model)
+
     provider = detect_provider(model)
     with _spinner(f"Generating lesson about '{topic}' using {model} ({provider}) in {format_type} format..."):
         time.sleep(0.1)  # Allow spinner to start
@@ -362,6 +365,59 @@ def generate_lesson(topic: str, model: str, format_type: str) -> str:
         else:
             raise ValueError(f"Unknown provider: {provider}")
 
+    # Clean code fences from output
+    content = clean_code_fences(content)
+
+    if format_type == "manim":
+        content = ensure_manim_compatibility(content)
+
+    return content
+
+def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, format_type: str, model: str) -> str:
+    """Generate a prompt for code editing based on the current code and edit instructions."""
+    base_instructions = f"""
+    You are an expert code editor specializing in {format_type}. 
+    You will be given the original topic, the current code, and a request to edit the code.
+
+    Your task is to generate the COMPLETE edited code that incorporates the requested changes.
+
+    Guidelines:
+    - Make ONLY the changes requested in the edit prompt.
+    - Preserve all other functionality and structure.
+    - Ensure the code remains complete, valid, and executable.
+    - Maintain the same coding style and conventions.
+    - Output ONLY the complete updated source code, no explanations or markdown.
+    """
+
+    full_prompt = f"""
+    {base_instructions}
+
+    ORIGINAL TOPIC: {original_prompt}
+
+    CURRENT CODE:
+    {current_code}
+
+    EDIT REQUEST: {edit_prompt}
+    
+    Generate the COMPLETE edited code:
+    """
+
+    provider = detect_provider(model)
+    with _spinner(f"Editing lesson using {model} ({provider})..."):
+        time.sleep(0.1)
+        if provider == "openai":
+            content = generate_content_with_openai(original_prompt, model, format_type, raw_prompt=full_prompt)
+        elif provider == "zhipuai":
+            content = generate_content_with_zhipuai(original_prompt, model, format_type, raw_prompt=full_prompt)
+        elif provider == "deepseek":
+            content = generate_content_with_deepseek(original_prompt, model, format_type, raw_prompt=full_prompt)
+        elif provider == "gemini":
+            content = generate_content_with_gemini(original_prompt, model, format_type, raw_prompt=full_prompt)
+        elif provider == "ark":
+            content = generate_content_with_ark(original_prompt, model, format_type, raw_prompt=full_prompt)
+        else:
+            raise ValueError(f"Unknown provider: {provider}")
+    
     # Clean code fences from output
     content = clean_code_fences(content)
 
