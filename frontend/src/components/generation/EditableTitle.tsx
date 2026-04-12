@@ -31,11 +31,14 @@ export default function EditableTitle({ initialTitle = "Untitled", onChange }: E
         if (onChange) onChange(title);
     };
 
+    // Shared styles for alignment and zero layout shift
+    const sharedStyles = "text-3xl font-bold px-3 py-1 rounded-lg border transition-all duration-200 w-full";
+
     return (
         <div className="flex flex-row items-center gap-4 group min-w-0 flex-1">
             {isEditing ? (
                 <input
-                    className="text-3xl font-bold bg-secondary-bg text-primary-text border-b-2 border-accent outline-none px-2 py-1 rounded-lg transition-all shadow-inner w-full"
+                    className={`bg-secondary-bg text-primary-text border-accent ring-1 ring-accent/20 outline-none shadow-lg shadow-accent/5 ${sharedStyles}`}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     onBlur={handleBlur}
@@ -44,7 +47,7 @@ export default function EditableTitle({ initialTitle = "Untitled", onChange }: E
                 />
             ) : (
                 <h1 
-                    className="text-3xl font-bold bg-transparent text-primary-text border-b-2 border-transparent hover:border-accent/30 outline-none px-2 py-1 rounded-lg transition-all cursor-pointer group-hover:bg-surface/20 truncate w-full" 
+                    className={`bg-transparent text-primary-text border-transparent hover:border-accent/30 hover:bg-surface/30 cursor-pointer truncate ${sharedStyles}`} 
                     onDoubleClick={() => setIsEditing(true)}
                     title={title}
                 >

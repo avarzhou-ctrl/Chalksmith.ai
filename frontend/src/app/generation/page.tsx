@@ -6,9 +6,10 @@ import EditableTitle from "@/components/generation/EditableTitle";
 import Button from "@/components/ui/Button";
 import { createLesson, LessonResponse } from "@/lib/api";
 import { Panel, Group, Separator } from "react-resizable-panels";
-import { PanelRight, ChevronDown, Code, Eye, Share, Flame, Download, Link } from "lucide-react";
+import { PanelRight, ChevronDown, Code, Eye, Share, Flame, Download, Link, TriangleAlert } from "lucide-react";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import Modal from "@/components/ui/Modal";
 
 export default function Page() {
   const [topic, setTopic] = useState('');
@@ -357,6 +358,41 @@ export default function Page() {
           </div>
         </Panel>
       </Group>
+
+      {/* Reset Confirmation Modal */}
+      <Modal 
+        isOpen={isResetModalOpen} 
+        onClose={() => setIsResetModalOpen(false)} 
+        title="Clear Canvas?"
+      >
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center mb-4">
+            <TriangleAlert className="text-accent" size={24} />
+          </div>
+          <p className="mb-6 text-center">
+            This will delete your current lesson and chat history. You cannot undo this action.
+          </p>
+          <div className="flex flex-row gap-3 w-full">
+            <Button 
+              variant="secondary" 
+              className="w-full" 
+              onClick={() => setIsResetModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              className="w-full bg-accent hover:bg-amber-700 border-none" 
+              onClick={() => {
+                startNewLesson();
+                setIsResetModalOpen(false);
+              }}
+            >
+              Clear All
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </main>
   );
 }
