@@ -32,7 +32,7 @@ export default function EditableTitle({ initialTitle = "Untitled", onChange }: E
     };
 
     // Shared styles for alignment and zero layout shift
-    const sharedStyles = "text-3xl font-bold px-3 py-1 rounded-lg border transition-all duration-200 w-full";
+    const sharedStyles = "text-3xl font-bold px-3 py-1 rounded-xl border transition-all duration-200 w-full";
 
     return (
         <div className="flex flex-row items-center gap-4 group min-w-0 flex-1">

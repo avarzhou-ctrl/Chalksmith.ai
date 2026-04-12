@@ -126,15 +126,15 @@ export default function Page() {
     <main className="flex flex-row h-screen w-full bg-primary-bg overflow-hidden font-sans text-primary-text">
       <Group orientation="horizontal" id="main-layout">
         {/* Left: Preview */}
-        <Panel defaultSize="75%" minSize="30%">
+        <Panel defaultSize="75%" minSize="50%">
           <div className="flex flex-col h-full bg-primary-bg">
             {/* Header Bar */}
-            <div className="flex flex-row p-4 m-1 gap-4 shrink-0 items-center">
-              <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 overflow-hidden">
+            <div className="flex flex-row p-4 m-1 gap-4 shrink-0 items-end">
+              <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 overflow-hidden mb-1">
                 <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
               </div>
               <EditableTitle initialTitle={title} onChange={setTitle}/>
-              <div className="flex gap-2">
+              <div className="flex gap-2 pb-1">
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -148,7 +148,7 @@ export default function Page() {
                   <a
                     href={`http://localhost:8000/content/export?id=${result.id}`}
                     download
-                    className="flex items-center text-xs font-medium gap-1.5 h-8.5 px-3 py-1.5 rounded border border-border bg-transparent text-secondary-text hover:border-accent hover:text-accent transition-all duration-300"
+                    className="flex items-center text-xs font-medium gap-1.5 h-8.5 px-3 py-1.5 rounded-xl border border-border bg-transparent text-secondary-text hover:border-accent hover:text-accent transition-all duration-300"
                     title={`Download ${format === 'manim' ? 'Video'
                                      : format === 'p5.js' ? 'HTML' 
                                      : 'PDF'}`}
@@ -253,16 +253,16 @@ export default function Page() {
         {/* Right: Interaction Panel */}
         <Panel 
           panelRef={panelRef}
-          collapsible 
+          collapsible={true} 
           collapsedSize="75px"
           onResize={(size) => {
-            if (size.asPercentage <= 15) {
+            if (size.asPercentage < 15) {
               setIsCollapsed(true);
             } else {
               setIsCollapsed(false);
             }
           }}
-          minSize="15%" 
+          minSize="20%" 
           maxSize="50%" 
           defaultSize="25%"
           id="right-panel"
@@ -294,7 +294,7 @@ export default function Page() {
 
                 <Group orientation="vertical" id="interaction-layout">
                   {/* Chat History */}
-                  <Panel minSize="30%">
+                  <Panel minSize="30">
                     <div className="h-full overflow-y-auto px-5 space-y-4 scroll-smooth">
                       {messages.length === 0 && (
                         <div className="bg-surface/30 p-4 rounded-2xl border border-border/50 text-secondary-text text-sm">

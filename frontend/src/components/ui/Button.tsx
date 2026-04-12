@@ -15,7 +15,7 @@ export default function Button({
     className = "",
     ...props
 }: ButtonProps) {
-    const baseClasses = "rounded font-medium transition-colors duration-300 flex items-center justify-center";
+    const baseClasses = "rounded-xl font-medium transition-colors duration-300 flex items-center justify-center";
 
     const styles = {
         primary: "bg-accent text-primary-text hover:bg-amber-700 disabled:bg-stone-800 disabled:text-stone-500",
