@@ -5,6 +5,13 @@ const API_BASE_URL = process.env.API_URL || 'http://localhost:8000';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    if (!body.lesson_id) {
+      delete body.lesson_id;
+    }
+    if(!body.prompt) {
+      delete body.prompt;
+    }
+
     const response = await fetch(`${API_BASE_URL}/content/lesson`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

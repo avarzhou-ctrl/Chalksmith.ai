@@ -2,6 +2,8 @@ export interface LessonRequest {
   topic: string;
   model: string;
   format: string;
+  lesson_id?: string;
+  prompt?: string;
 }
 
 export interface LessonResponse {

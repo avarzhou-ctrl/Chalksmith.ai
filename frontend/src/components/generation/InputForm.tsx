@@ -14,6 +14,7 @@ interface InputFormProps {
     onTopicChange: (value: string) => void;
     onGenerate: () => void;
     disabled?: boolean;
+    isEditMode?: boolean;
 }
 
 export default function InputForm({ 
@@ -24,7 +25,8 @@ export default function InputForm({
     onFormatChange, 
     onTopicChange, 
     onGenerate,
-    disabled 
+    disabled,
+    isEditMode
 }: InputFormProps) {
     return (
         <div className="flex flex-col w-full min-w-0">
@@ -33,12 +35,12 @@ export default function InputForm({
                     <ModelSelector value={model} onChange={onModelChange} disabled={disabled} />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <FormatSelector value={format} onChange={onFormatChange} disabled={disabled} />
+                    <FormatSelector value={format} onChange={onFormatChange} disabled={disabled || isEditMode} />
                 </div>
             </div>
             <div className="relative mt-4 group">
                 <Textarea 
-                    placeholder="Describe your topic..."
+                    placeholder={isEditMode ? "How should I edit this lesson?" : "Describe your topic..."}
                     disabled={disabled}
                     value={topic}
                     onChange={(e) => onTopicChange(e.target.value)}
@@ -56,7 +58,7 @@ export default function InputForm({
                         type="button"
                         onClick={onGenerate}
                         disabled={disabled || !topic.trim()}
-                        className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:text-stone-600 disabled:opacity-50"
+                        className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:opacity-40"
                     >
                         <CircleArrowUp size={20} />
                     </button>

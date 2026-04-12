@@ -54,7 +54,7 @@ export default function Dropdown({
         : "bg-secondary-bg text-secondary-text border-border hover:border-stone-500";
 
     const disabledStyles = disabled 
-        ? "opacity-50 cursor-not-allowed" 
+        ? "opacity-40 cursor-not-allowed" 
         : "cursor-pointer";
 
     return (

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from pydantic import BaseModel
 from sqlmodel import SQLModel, Field
 
@@ -6,8 +7,8 @@ class LessonRequest(BaseModel):
     topic: str
     model: str
     format: str
-    lesson_id: str | None = None
-    prompt: str | None = None
+    lesson_id: Optional[str] = None
+    prompt: Optional[str] = None
 
 class LessonResponse(BaseModel):
     id: str

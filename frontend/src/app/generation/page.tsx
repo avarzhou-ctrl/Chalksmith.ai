@@ -21,7 +21,30 @@ export default function Page() {
   const [title, setTitle] = useState("Untitled");
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [currentlessonID, setCurrentLessonID] = useState<string | null>(null);
+  const [initialTopic, setInitialTopic] = useState<string>('');
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   
+  const handleFormatChange = (newFormat: string) => {
+    setFormat(newFormat);
+    setCurrentLessonID(null); // reset lesson ID when format changes
+  }
+
+  const handleModelChange = (newModel: string) => {
+    setModel(newModel);
+    setCurrentLessonID(null); // reset lesson ID when model changes
+  }
+
+  const startNewLesson = () => {
+    setCurrentLessonID(null);
+    setResult(null);
+    setTopic('');
+    setInitialTopic('');
+    setMessages([]);
+    setTitle("Untitled");
+    setError(null);
+  }
+
   const panelRef = useRef<any>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -53,9 +76,42 @@ export default function Page() {
     setMessages((prev) => [...prev, { role: 'user', content: topic }]);
 
     try {
-      const response = await createLesson({ topic, model, format });
+      let response;
+
+      if (currentlessonID) {
+        // edit mode
+        response = await createLesson({ 
+          topic: initialTopic, 
+          model, 
+          format, 
+          lesson_id: currentlessonID,
+          prompt: topic
+        });
+
+        setMessages((prev) => [...prev, { 
+          role: 'assistant', 
+          content: `Updated your lesson based on: "${topic}".` 
+        }]);
+      } else {
+        // new lesson mode
+        setInitialTopic(topic);
+        response = await createLesson({ topic, model, format });
+        
+        setMessages((prev) => [...prev, { 
+          role: 'assistant', 
+          content: `Success! Created your ${format === 'manim' ? 'video animation' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${topic}".` 
+        }]);
+      }
+
+      // update visuals
       setResult(response);
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Success! Created your ${format === 'manim' ? 'video animation' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${topic}".` }]);
+
+      // save id
+      if (response.id) {
+        setCurrentLessonID(response.id);
+      }
+
+      // clear input box
       setTopic('');
     } catch (err: any) {
       setError(err.message || 'Oops! Failed to generate lesson.');
@@ -78,11 +134,20 @@ export default function Page() {
               </div>
               <EditableTitle initialTitle={title} onChange={setTitle}/>
               <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setIsResetModalOpen(true)}
+                  className="gap-1.5 h-8.5 px-3 py-1.5"
+                >
+                  <Flame size={14} />
+                  <span>Reset</span>
+                </Button>
                 {result && (
                   <a
                     href={`http://localhost:8000/content/export?id=${result.id}`}
                     download
-                    className="flex justify-between items-center text-xs gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface/30 hover:bg-surface hover:text-primary-text transition-all duration-200"
+                    className="flex items-center text-xs font-medium gap-1.5 h-8.5 px-3 py-1.5 rounded border border-border bg-transparent text-secondary-text hover:border-accent hover:text-accent transition-all duration-300"
                     title={`Download ${format === 'manim' ? 'Video'
                                      : format === 'p5.js' ? 'HTML' 
                                      : 'PDF'}`}
@@ -100,20 +165,20 @@ export default function Page() {
                 {/* View Code Toggle */}
                 {result && (
                   <div className="absolute top-4 right-4 z-10">
-                    <button 
+                    <Button 
                       onClick={() => setShowCode(!showCode)}
                       className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border transition-all duration-200 backdrop-blur-md ${
-                        showCode 
-                          ? 'bg-accent/90 text-primary-text border-accent shadow-lg shadow-accent/20' 
+                        showCode
+                          ? 'bg-accent/90 text-primary-text border-accent shadow-lg shadow-accent/20'
                           : 'bg-surface/80 text-secondary-text border-border hover:bg-surface hover:text-primary-text'
-                      }`}
+                        }`}            
                     >
                       {showCode ? (
                         <><Eye size={14} /> <span>View Material</span></>
                       ) : (
                         <><Code size={14} /> <span>View Code</span></>
                       )}
-                    </button>
+                    </Button>
                   </div>
                 )}
 
@@ -271,11 +336,12 @@ export default function Page() {
                         model={model}
                         format={format}
                         topic={topic}
-                        onModelChange={setModel}
-                        onFormatChange={setFormat}
+                        onModelChange={handleModelChange}
+                        onFormatChange={handleFormatChange}
                         onTopicChange={setTopic}
                         onGenerate={generateLesson}
                         disabled={loading}
+                        isEditMode={!!currentlessonID}
                       />
                       
                       {error && (

@@ -6,9 +6,10 @@ interface FormatSelectorProps {
     value: string;
     onChange: (value: string) => void;
     disabled?: boolean;
+    isEditMode?: boolean;
 }
 
-export default function FormatSelector({ value, onChange, disabled }: FormatSelectorProps) {
+export default function FormatSelector({ value, onChange, disabled, isEditMode }: FormatSelectorProps) {
     const models = [
         { label: 'Video', value: 'manim' },
         { label: 'Presentation', value: 'reveal.js' },
@@ -23,7 +24,7 @@ export default function FormatSelector({ value, onChange, disabled }: FormatSele
                 value={value}
                 onChange={onChange}
                 placeholder="Select a format"
-                disabled={disabled}    
+                disabled={disabled || isEditMode}
             />
         </div>
     );
