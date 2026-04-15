@@ -10,11 +10,13 @@ import { PanelRight, ChevronDown, Code, Eye, Share, Flame, Download, Link, Trian
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Modal from "@/components/ui/Modal";
+import { Player } from '@remotion/player';
+import { RemotionVideo } from '@/components/generation/RemotionVideo';
 
 export default function Page() {
   const [topic, setTopic] = useState('');
   const [model, setModel] = useState('gemini-3-flash-preview');
-  const [format, setFormat] = useState('manim');
+  const [format, setFormat] = useState('remotion');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LessonResponse | null>(null);
@@ -100,7 +102,7 @@ export default function Page() {
         
         setMessages((prev) => [...prev, { 
           role: 'assistant', 
-          content: `Success! Created your ${format === 'manim' ? 'video animation' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${topic}".` 
+          content: `Success! Created your ${format === 'remotion' ? 'Remotion video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${topic}".` 
         }]);
       }
 
@@ -149,7 +151,7 @@ export default function Page() {
                     href={`http://localhost:8000/content/export?id=${result.id}`}
                     download
                     className="flex items-center text-xs font-medium gap-1.5 h-8.5 px-3 py-1.5 rounded-xl border border-border bg-transparent text-secondary-text hover:border-accent hover:text-accent transition-all duration-300"
-                    title={`Download ${format === 'manim' ? 'Video'
+                    title={`Download ${format === 'remotion' ? 'Video'
                                      : format === 'p5.js' ? 'HTML' 
                                      : 'PDF'}`}
                   >
@@ -188,7 +190,7 @@ export default function Page() {
                     {showCode ? (
                       <div className="min-w-full min-h-full bg-primary-bg p-8 font-mono text-sm">
                         <SyntaxHighlighter
-                          language={format === 'manim' ? 'python' : format === 'p5.js' ? 'javascript' : 'html'}
+                          language={format === 'remotion' ? 'json' : format === 'p5.js' ? 'javascript' : 'html'}
                           style={vscDarkPlus}
                           customStyle={{
                             background: 'transparent',
@@ -202,17 +204,52 @@ export default function Page() {
                       </div>
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center">
-                        {format === 'manim' ? (
-                          <video
-                            key={result.url}
-                            className="w-full h-full object-contain bg-black"
-                            title="Video Preview"
-                            controls
-                            autoPlay
-                          >
-                            <source src={result.url} type="video/mp4" />
-                            Your browser does not support the video tag.
-                          </video>
+                        {format === 'remotion' ? (
+                          <div className="w-full h-full bg-stone-950 overflow-hidden flex flex-col items-center relative group">
+                            {(() => {
+                              try {
+                                const lessonData = JSON.parse(result.code);
+                                const totalFrames = lessonData.scenes.reduce(
+                                  (acc: number, s: any) => acc + (s.durationInSeconds || 5) * 30, 
+                                  0
+                                );
+
+                                return (
+                                  <Player
+                                    component={RemotionVideo}
+                                    inputProps={{ scenes: lessonData.scenes }}
+                                    durationInFrames={Math.max(1, totalFrames)}
+                                    fps={30}
+                                    compositionWidth={1920}
+                                    compositionHeight={1080}
+                                    style={{ 
+                                      width: '100%', 
+                                      height: '100%',
+                                      backgroundColor: '#0c0a09'
+                                    }}
+                                    controls
+                                    autoPlay
+                                    loop
+                                  />
+                                );
+                              } catch (e) {
+                                return (
+                                  <div className="flex flex-col items-center justify-center h-full p-10 text-center">
+                                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
+                                      <TriangleAlert className="text-red-500" size={32} />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-primary-text mb-2">Blueprint Error</h3>
+                                    <p className="text-secondary-text max-w-sm">
+                                      The AI generated an invalid lesson structure. You can try editing it or generating a new one.
+                                    </p>
+                                    <pre className="mt-6 p-4 bg-black/40 rounded-xl border border-white/5 text-xs text-red-400 font-mono text-left max-w-lg overflow-auto">
+                                      {result.code.substring(0, 500)}...
+                                    </pre>
+                                  </div>
+                                );
+                              }
+                            })()}
+                          </div>
                         ) : (
                           <iframe
                             key={result.url}
@@ -239,7 +276,7 @@ export default function Page() {
                   <div className ="absolute inset-0 bg-primary-bg/80 backdrop-blur-md flex flex-col items-center justify-center z-20">
                     <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin mb-6"></div>
                     <p className="text-accent text-2xl font-bold animate-pulse tracking-wide italic text-center px-8">
-                      Chalksmith.ai is crafting your {format === 'manim' ? 'video' : format === 'p5.js' ? 'interactive display' : 'presentation'}...
+                      Chalksmith.ai is crafting your {format === 'remotion' ? 'video blueprint' : format === 'p5.js' ? 'interactive display' : 'presentation'}...
                     </p>
                   </div>
                 )}

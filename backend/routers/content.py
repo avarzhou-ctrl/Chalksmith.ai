@@ -4,7 +4,7 @@ from sqlmodel import Session, select, desc
 from backend.database import get_session
 from backend.models import LessonRequest, LessonResponse, Lesson
 from backend.services.llm import generate_lesson
-from backend.services.render import render_manim_lesson, render_p5js_lesson, render_revealjs_lesson
+from backend.services.render import render_remotion_lesson, render_p5js_lesson, render_revealjs_lesson
 from backend.services.export import export_service
 
 router = APIRouter()
@@ -32,8 +32,8 @@ async def create_lesson(request: LessonRequest, req: Request, session: Session =
         edit_prompt=request.prompt
     )
     
-    if request.format == "manim":
-        file_url = render_manim_lesson(request.topic, request.model, code)
+    if request.format == "remotion":
+        file_url = render_remotion_lesson(request.topic, request.model, code)
     elif request.format == "p5.js":
         file_url = render_p5js_lesson(request.topic, request.model, code)
     elif request.format == "reveal.js":
@@ -87,7 +87,7 @@ async def export_lesson(id: str, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Lesson not found")
 
     try:
-        return await export_service.prepare_export(
+        return export_service.prepare_export(
             file_url=db_lesson.url,
             format_type=db_lesson.format,
             topic=db_lesson.topic

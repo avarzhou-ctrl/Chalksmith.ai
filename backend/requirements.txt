@@ -5,7 +5,6 @@ rich
 openai
 google-genai
 volcengine-python-sdk
-manim
 httpx
 sqlmodel
 playwright

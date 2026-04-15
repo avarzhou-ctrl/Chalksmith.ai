@@ -11,7 +11,7 @@ interface FormatSelectorProps {
 
 export default function FormatSelector({ value, onChange, disabled, isEditMode }: FormatSelectorProps) {
     const models = [
-        { label: 'Video', value: 'manim' },
+        { label: 'Video', value: 'remotion' },
         { label: 'Presentation', value: 'reveal.js' },
         { label: 'Interactive Display', value: 'p5.js' }
     ];

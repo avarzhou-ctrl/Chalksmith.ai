@@ -195,62 +195,36 @@ def generate_content_with_ark(topic: str, model: str, format_type: str, raw_prom
 def get_prompt_for_format(topic: str, format_type: str) -> str:
     """Generate appropriate prompt based on output format."""
 
-    if format_type == "manim":
+    if format_type == "remotion":
         return f"""
-Create a COMPLETE, EXECUTABLE Python script using **Manim Community Edition (manim>=0.17)** to teach "{topic}".
+Create a structured JSON object to be used as props for a Remotion video template to teach "{topic}".
 
-STRICT REQUIREMENTS (must follow exactly):
-- **STRICT STANDARD LIBRARY ONLY:** Use ONLY classes and methods available in standard Manim Community Edition. DO NOT use third-party plugins or hypothetical classes.
-- **NO Hallucinations:** If you need a complex object (like a list), build it from primitives (`VGroup`, `Text`, etc.).
-- Use **Manim Community Edition**, NOT legacy manimlib
-- Import ONLY with: `from manim import *`
-- Target the **Cairo renderer** (default)
-- Code must run with: `manim -pql scene.py MainScene`
-- Output ONLY valid Python code (no explanations, no markdown)
+STRICT REQUIREMENTS:
+- **Output ONLY valid JSON.** Do not include markdown code fences (```json ... ```), explanations, or any text outside the JSON object.
+- **KaTeX Support:** Use standard LaTeX for ALL mathematical expressions. Wrap them in double backslashes (e.g., "\\\\frac{{a}}{{b}}") to ensure JSON compatibility.
+- **Visual Pacing:** Break the lesson into logical scenes (Introduction, Concepts, Examples, Summary).
+- **Aesthetic:** Clean, high-contrast dark theme (Black background, White text).
+- **Deterministic Animation:** Each scene can have a "physics" profile to control the animation feel.
 
-STRICT CODE STRUCTURE:
-- **Indentation:** Use exactly 4 spaces for indentation. NO tabs.
-- **Method Definitions:** Ensure all methods are defined at the class level (inside the class, but not nested inside other methods).
-- **Execution:** Ensure `construct` calls these methods in order.
-
-FORBIDDEN (do NOT use):
-- **NO Hyphenated Attributes:** Never use hyphens in Python attributes or parameters (e.g., do NOT use `curve-interpolation`). Python uses underscores (`_`).
-- **NO Hallucinated Parameters:** Do not guess parameter names. If unsure, stick to basic parameters like `color`, `font_size`, `radius`, `width`, `height`, `fill_opacity`.
-- `np.PI` or `numpy.PI` (DO NOT USE UPPERCASE PI). **ALWAYS use `np.pi`**.
-- `BulletList`, `Capsule`, `Table` (these are NOT standard Manim Community classes).
-- `.bend()`, `.point_at_angle()` (non-existent methods).
-- TextMobject, TexMobject
-- ShowCreation, ApplyMethod, ReplacementTransform (legacy usage)
-- manimlib imports
-- Code mobject
-- Non-standard colors (e.g., `BROWN`, `CYAN`, `MAGENTA` are NOT defined in Manim Community by default).
-  - Use ONLY: `BLUE`, `GREEN`, `YELLOW`, `RED`, `ORANGE`, `PURPLE`, `GOLD`, `TEAL`, `WHITE`, `BLACK`, `GRAY`.
-  - If you need other colors, define them as hex strings (e.g., `BROWN = "#8B4513"`) at the top of the script.
-
-REQUIRED API STYLE:
-- Use `Text`, `MathTex`, `Paragraph`, `VGroup`, etc.
-- Use `.animate` syntax for transformations
-- Use `Create`, `Write`, `FadeIn`, `FadeOut`, `Transform`
-- Use named colors from the ALLOWED list above.
-
-SCENE STRUCTURE:
-- Define a class named `MainScene(Scene)`
-- Use multiple logical sections (intro → explanation → summary)
-- Clear pacing with `self.wait()`
-- **Visual Diagrams:** For visual topics (e.g., geometry, biology, physics), create relevant diagrams using geometric primitives, arrows, and labels.
-- **Layout Management:** Carefully arrange elements to ensure there is no overlap at all between text, shapes, and labels. Use `VGroup`, `next_to`, and `shift` to ensure everything is clearly separated and legible.
-- **TRANSITIONS:** Clean up the screen between sections. Fade out (`FadeOut`) or remove (`Uncreate`) objects that are no longer relevant before introducing new concepts. Prevent screen clutter.
-
-ROBUSTNESS CHECK:
-- If you are about to use a deprecated or legacy Manim API,
-  STOP and replace it with the correct Manim Community equivalent.
+JSON SCHEMA:
+{{
+  "title": "Lesson Title",
+  "scenes": [
+    {{
+      "id": "unique-id",
+      "type": "title | text | math | point_list",
+      "content": "Main content",
+      "physics": "bouncy | smooth | snappy",
+      "durationInSeconds": 5
+    }}
+  ]
+}}
 
 CONTENT ACCURACY:
-- **Strictly ensure** all scientific, mathematical, and historical information is factually correct and reflects **modern scientific consensus** (e.g., for biology, use modern 3-domain or 6-kingdom classifications if appropriate, unless the specific 5-kingdom Whittaker system is requested).
-- **Verify** equations, chemical formulas, and biological processes. Do not simplify to the point of falsehood.
-- **Detailed Diagrams:** Ensure diagrams are anatomically or structurally representative of the topic (e.g., show proper cell organelles, correct molecular geometry, or accurate physics vectors).
+- Strictly ensure all scientific, mathematical, and historical information is factually correct.
+- Verify equations and processes. Do not simplify to the point of falsehood.
 
-Return ONLY the Python source code.
+Return ONLY the JSON object.
 """
     elif format_type == "reveal.js":
         return f"""Create a complete reveal.js HTML presentation to teach "{topic}".
@@ -368,9 +342,6 @@ def generate_lesson(topic: str, model: str, format_type: str, previous_code: str
     # Clean code fences from output
     content = clean_code_fences(content)
 
-    if format_type == "manim":
-        content = ensure_manim_compatibility(content)
-
     return content
 
 def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, format_type: str, model: str) -> str:
@@ -420,9 +391,6 @@ def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, f
     
     # Clean code fences from output
     content = clean_code_fences(content)
-
-    if format_type == "manim":
-        content = ensure_manim_compatibility(content)
 
     return content
 
@@ -601,7 +569,7 @@ Environment variables:
     parser.add_argument(
         "-f", "--format",
         required=True,
-        choices=["manim", "reveal.js", "p5.js"],
+        choices=["remotion", "reveal.js", "p5.js"],
         help="Output format"
     )
 
@@ -614,7 +582,7 @@ Environment variables:
 
     # Determine default output if not provided
     if not args.output:
-        extension = "py" if args.format == "manim" else "html"
+        extension = "json" if args.format == "remotion" else "html"
         # Sanitize topic for filename
         safe_topic = re.sub(r'[^a-zA-Z0-9_\-]', '_', args.topic)
         args.output = os.path.join("static", f"{safe_topic}.{extension}")
@@ -632,10 +600,11 @@ Environment variables:
         print(f"Successfully generated content and saved to: {args.output}", file=sys.stderr)
         print(f"File size: {len(content)} bytes", file=sys.stderr)
 
-        # Auto-render manim video
-        if args.format == "manim":
-            video_path = render_manim(args.output)
-            print(f"Video rendered: {video_path}", file=sys.stderr)
+        # Auto-render remotion video (placeholder for now)
+        if args.format == "remotion":
+            # video_path = render_remotion(args.output)
+            # print(f"Video rendered: {video_path}", file=sys.stderr)
+            pass
 
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

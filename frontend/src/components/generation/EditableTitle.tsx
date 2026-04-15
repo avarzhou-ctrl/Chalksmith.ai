@@ -48,7 +48,7 @@ export default function EditableTitle({ initialTitle = "Untitled", onChange }: E
             ) : (
                 <h1 
                     className={`bg-transparent text-primary-text border-transparent hover:border-accent/30 hover:bg-surface/30 cursor-pointer truncate ${sharedStyles}`} 
-                    onDoubleClick={() => setIsEditing(true)}
+                    onClick={() => setIsEditing(true)}
                     title={title}
                 >
                     {title}
