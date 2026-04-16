@@ -1,3 +1,4 @@
+// Shared interfaces between frontend and backend to ensure type safety across the stack
 export interface LessonRequest {
   topic: string;
   model: string;
@@ -13,6 +14,7 @@ export interface LessonResponse {
 }
 
 export async function createLesson(request: LessonRequest): Promise<LessonResponse> {
+    // We use internal /api/ routes to proxy requests and handle CORS on the server side
     const response = await fetch('/api/lesson', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -28,6 +30,7 @@ export async function createLesson(request: LessonRequest): Promise<LessonRespon
 }
 
 export async function getLesson(topic: string, model: string, format: string): Promise<LessonResponse> {
+    // Encodes query parameters to safely handle special characters in topics
     const params = new URLSearchParams({ topic, model, format });
     const response = await fetch(`/api/lesson?${params.toString()}`);
 

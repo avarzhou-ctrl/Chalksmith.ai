@@ -14,6 +14,7 @@ import { Player } from '@remotion/player';
 import { RemotionVideo } from '@/components/generation/RemotionVideo';
 
 export default function Page() {
+  // State for lesson configuration and rendering results
   const [topic, setTopic] = useState('');
   const [model, setModel] = useState('gemini-3-flash-preview');
   const [format, setFormat] = useState('remotion');
@@ -22,23 +23,29 @@ export default function Page() {
   const [result, setResult] = useState<LessonResponse | null>(null);
   const [showCode, setShowCode] = useState(false);
   const [title, setTitle] = useState("Untitled");
+
+  // State for chat-like interaction history and iterative editing
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [currentlessonID, setCurrentLessonID] = useState<string | null>(null);
   const [initialTopic, setInitialTopic] = useState<string>('');
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   
   const handleFormatChange = (newFormat: string) => {
+    // Reset lesson context when changing formats as cross-format editing is unsupported
     setFormat(newFormat);
-    setCurrentLessonID(null); // reset lesson ID when format changes
+    setCurrentLessonID(null); 
   }
 
   const handleModelChange = (newModel: string) => {
+    // Reset lesson context when changing models to prevent unexpected context mixing
     setModel(newModel);
-    setCurrentLessonID(null); // reset lesson ID when model changes
+    setCurrentLessonID(null); 
   }
 
   const startNewLesson = () => {
+    // Clears all states to allow starting a fresh generation from scratch
     setCurrentLessonID(null);
     setResult(null);
     setTopic('');
@@ -52,10 +59,12 @@ export default function Page() {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const scrollToBottom = () => {
+    // Standard chat UX to keep newest messages in view
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const togglePanel = () => {
+    // Imperative API for react-resizable-panels to handle manual collapse/expand
     const panel = panelRef.current;
     if (panel) {
       if (panel.isCollapsed()) {
@@ -82,7 +91,7 @@ export default function Page() {
       let response;
 
       if (currentlessonID) {
-        // edit mode
+        // Edit Mode: sends the previous code + new prompt to enable iterative changes
         response = await createLesson({ 
           topic: initialTopic, 
           model, 
@@ -96,32 +105,39 @@ export default function Page() {
           content: `Updated your lesson based on: "${topic}".` 
         }]);
       } else {
-        // new lesson mode
+        // New Lesson Mode: creates a fresh lesson blueprint
         setInitialTopic(topic);
         response = await createLesson({ topic, model, format });
         
         setMessages((prev) => [...prev, { 
           role: 'assistant', 
-          content: `Success! Created your ${format === 'remotion' ? 'Remotion video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${topic}".` 
+          content: `Success! Created your ${format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${topic}".` 
         }]);
       }
 
-      // update visuals
       setResult(response);
 
-      // save id
       if (response.id) {
+        // Persist lesson ID to keep the conversation tied to this specific content
         setCurrentLessonID(response.id);
       }
 
-      // clear input box
       setTopic('');
     } catch (err: any) {
-      setError(err.message || 'Oops! Failed to generate lesson.');
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${err.message || 'Failed to generate lesson.'}` }]);
+      const errorMsg = err.message || 'Oops! Failed to generate lesson.';
+      setError(errorMsg);
+      setIsErrorModalOpen(true); // Open modal for backend/render errors
+      setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${errorMsg}` }]);
     } finally {
       setLoading(false);
     }
+  }
+
+  const prepareFixPrompt = (specificError?: string) => {
+    // Priority: Specific error passed in > Shared error state > Fallback text
+    const msg = specificError || error || "The code failed to render.";
+    setTopic(`The previous generation failed with this error: "${msg}". Please fix the code.`);
+    scrollToBottom();
   }
 
   return (
@@ -151,7 +167,7 @@ export default function Page() {
                     href={`http://localhost:8000/content/export?id=${result.id}`}
                     download
                     className="flex items-center text-xs font-medium gap-1.5 h-8.5 px-3 py-1.5 rounded-xl border border-border bg-transparent text-secondary-text hover:border-accent hover:text-accent transition-all duration-300"
-                    title={`Download ${format === 'remotion' ? 'Video'
+                    title={`Download ${format === 'remotion' || format === 'manim' ? 'Video'
                                      : format === 'p5.js' ? 'HTML' 
                                      : 'PDF'}`}
                   >
@@ -190,7 +206,7 @@ export default function Page() {
                     {showCode ? (
                       <div className="min-w-full min-h-full bg-primary-bg p-8 font-mono text-sm">
                         <SyntaxHighlighter
-                          language={format === 'remotion' ? 'json' : format === 'p5.js' ? 'javascript' : 'html'}
+                          language={format === 'remotion' ? 'json' : format === 'manim' ? 'python' : format === 'p5.js' ? 'javascript' : 'html'}
                           style={vscDarkPlus}
                           customStyle={{
                             background: 'transparent',
@@ -204,11 +220,23 @@ export default function Page() {
                       </div>
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center">
-                        {format === 'remotion' ? (
+                        {format === 'manim' ? (
+                          <video
+                            key={result.url}
+                            className="w-full h-full object-contain bg-black"
+                            title="Video Preview"
+                            controls
+                            autoPlay
+                          >
+                            <source src={result.url} type="video/mp4" />
+                            Your browser does not support the video tag.
+                          </video>
+                        ) : format === 'remotion' ? (
                           <div className="w-full h-full bg-stone-950 overflow-hidden flex flex-col items-center relative group">
                             {(() => {
                               try {
                                 const lessonData = JSON.parse(result.code);
+                                // Total frames calculated from dynamic scenes to tell Remotion when to stop/loop
                                 const totalFrames = lessonData.scenes.reduce(
                                   (acc: number, s: any) => acc + (s.durationInSeconds || 5) * 30, 
                                   0
@@ -232,25 +260,32 @@ export default function Page() {
                                     loop
                                   />
                                 );
-                              } catch (e) {
+                              } catch (e: any) {
+                                // Capture the parsing error so it can be sent back to the LLM
+                                const parseError = e.message || "Invalid JSON structure";
+                                if (error !== parseError) {
+                                  setError(parseError);
+                                }
                                 return (
-                                  <div className="flex flex-col items-center justify-center h-full p-10 text-center">
-                                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
-                                      <TriangleAlert className="text-red-500" size={32} />
-                                    </div>
-                                    <h3 className="text-xl font-bold text-primary-text mb-2">Blueprint Error</h3>
-                                    <p className="text-secondary-text max-w-sm">
-                                      The AI generated an invalid lesson structure. You can try editing it or generating a new one.
-                                    </p>
-                                    <pre className="mt-6 p-4 bg-black/40 rounded-xl border border-white/5 text-xs text-red-400 font-mono text-left max-w-lg overflow-auto">
-                                      {result.code.substring(0, 500)}...
-                                    </pre>
+                                  <div className="flex flex-col items-center justify-center h-full p-10 text-center text-secondary-text">
+                                    <TriangleAlert size={48} className="mb-4 text-accent/50" />
+                                    <p className="mb-4">Failed to load video blueprint.</p>
+                                    <Button 
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setIsErrorModalOpen(true)}
+                                      className="gap-2"
+                                    >
+                                      <TriangleAlert size={14} />
+                                      <span>View Error Details</span>
+                                    </Button>
                                   </div>
                                 );
                               }
                             })()}
                           </div>
                         ) : (
+                          // Iframes used to isolate p5.js and Reveal.js scripts from the main app's runtime
                           <iframe
                             key={result.url}
                             src={result.url}
@@ -276,7 +311,7 @@ export default function Page() {
                   <div className ="absolute inset-0 bg-primary-bg/80 backdrop-blur-md flex flex-col items-center justify-center z-20">
                     <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin mb-6"></div>
                     <p className="text-accent text-2xl font-bold animate-pulse tracking-wide italic text-center px-8">
-                      Chalksmith.ai is crafting your {format === 'remotion' ? 'video blueprint' : format === 'p5.js' ? 'interactive display' : 'presentation'}...
+                      Chalksmith.ai is crafting your {format === 'remotion' ? 'instant video' : format === 'manim' ? 'pro video' : format === 'p5.js' ? 'interactive display' : 'presentation'}...
                     </p>
                   </div>
                 )}
@@ -415,7 +450,7 @@ export default function Page() {
               className="w-full" 
               onClick={() => setIsResetModalOpen(false)}
             >
-              Cancel
+              Close
             </Button>
             <Button 
               variant="primary" 
@@ -426,6 +461,51 @@ export default function Page() {
               }}
             >
               Clear All
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Blueprint Error Modal */}
+      <Modal 
+        isOpen={isErrorModalOpen} 
+        onClose={() => setIsErrorModalOpen(false)} 
+        title="Blueprint Error"
+      >
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+            <TriangleAlert className="text-accent" size={24} />
+          </div>
+          <p className="mb-4 text-center text-sm">
+            Unfortunately Chalksmith generated an invalid lesson because of {error}. Click Auto-Fix to have Chalksmith attempt to correct the issue, or view the source code to debug further.
+          </p>
+          
+          {result && (
+            <div className="w-full mb-6">
+              <p className="text-xs font-semibold text-secondary-text mb-2 uppercase tracking-wider">Source Code:</p>
+              <pre className="p-4 bg-black/40 rounded-xl border border-white/5 text-[10px] text-amber-400 font-mono text-left max-h-40 overflow-auto whitespace-pre-wrap">
+                {result.code.substring(0, 1000)}
+              </pre>
+            </div>
+          )}
+
+          <div className="flex flex-row gap-3 w-full">
+            <Button 
+              variant="secondary" 
+              className="w-full" 
+              onClick={() => setIsErrorModalOpen(false)}
+            >
+              Close
+            </Button>
+            <Button 
+              variant="primary" 
+              className="w-full bg-accent hover:bg-amber-700 border-none gap-2" 
+              onClick={() => {
+                prepareFixPrompt(); 
+                setIsErrorModalOpen(false);
+              }}
+            >
+              Auto-Fix
             </Button>
           </div>
         </div>

@@ -35,6 +35,7 @@ export default function InputForm({
                     <ModelSelector value={model} onChange={onModelChange} disabled={disabled} />
                 </div>
                 <div className="flex-1 min-w-0">
+                    {/* Disabling format change in Edit Mode as changing formats mid-conversation is unsupported */}
                     <FormatSelector value={format} onChange={onFormatChange} disabled={disabled || isEditMode} />
                 </div>
             </div>
@@ -45,6 +46,7 @@ export default function InputForm({
                     value={topic}
                     onChange={(e) => onTopicChange(e.target.value)}
                     onKeyDown={(e) => {
+                        // Standard chat UX: Enter sends, Shift+Enter adds a new line
                         if (e.key === 'Enter' && !e.shiftKey && topic.trim() && !disabled) {
                             e.preventDefault();
                             onGenerate();

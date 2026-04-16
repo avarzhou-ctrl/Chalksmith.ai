@@ -10,3 +10,4 @@ sqlmodel
 playwright
 numpy
 importlib-metadata
+manim

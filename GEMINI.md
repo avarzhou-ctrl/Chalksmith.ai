@@ -27,7 +27,7 @@
 - Styling: Tailwind CSS (https://tailwindcss.com/) (v4) and Framer Motion (animations)
 - Routing: Next.js App Router (located in `src/app/`)
 
-### Project Structure
+### Structure
 - Monorepo: Managed via NPM Workspaces (root `package.json`).
 - Environment: Python virtual environment (.venv) for backend, Node.js for frontend.
 
@@ -36,6 +36,8 @@
 - **Accents:** Amber-600 (`#d97706`) used for highlights, primary buttons, and active states.
 - **Typography:** Inter (sans-serif) as the primary font with stone-50/stone-400 text colors.
 - **Layout:** 75/25 split for generation (Preview/Chat).
+
+###
 
 ## Commands
 ### Backend
@@ -65,6 +67,10 @@ Ask first:
 - deleting files
 
 ## Documentation
+- **Helpful Commenting:** Keep comments concise and focused on "Why" something is being done.
+    - Use single-line explanations that provide context or reasoning.
+    - Document non-obvious dependencies or system-level requirements.
+    - Ensure comments are helpful for anyone who didn't write the code.
 - After completing any coding or design task, you must update the "# Project Log" section of this file. Include date, action, and files affected. Summarize why changes were made.
 - Format: "**YYYY-MM-DD**: [Brief description of changes with which files were edited]"
 - Ask if you should update the project log after major changes are made.
@@ -94,3 +100,8 @@ Ask first:
 - **2026-04-12**: Fixed Python 3.9 compatibility issues in `backend/models.py` by replacing `|` with `Optional`. Resolved Gemini API SSL connection errors by removing redundant and problematic proxy manual environment setting in `backend/services/llm.py`. Fully implemented frontend "Edit Mode" in `frontend/src/app/generation/page.tsx` with `initialTopic` persistence and a "New Lesson" reset feature. Updated `InputForm.tsx` with dynamic mode-aware placeholders and disabled the `FormatSelector` during edits. Added `outline` variant and `size` support to `Button.tsx` to resolve TypeScript assignment errors. Updated `Dropdown.tsx` with refined `disabled` state styling (`text-stone-600`, `opacity-50`). Installed all backend dependencies (FastAPI, SQLModel, LLM SDKs, Manim, Playwright, etc.) and froze them into `backend/requirements.txt`.
 - **2026-04-12**: Recovered project state following a git reset. Re-established NPM workspace structure by creating a root `package.json`. Reinstalled missing frontend dependencies (`react@19`, `react-dom@19`, `react-resizable-panels`, `lucide-react`) to fix broken builds. Restored Tailwind v4 styling by recreating `frontend/postcss.config.mjs`. Recreated the `Modal.tsx` component in `frontend/src/components/ui/` to restore the reset confirmation functionality.
 - **2026-04-15**: Migrated the video generation engine from Manim to Remotion + KaTeX. Updated `llm.py` with a structured JSON prompt and `render.py` to handle `npx remotion render` calls. Implemented a frame-deterministic rendering engine in `RemotionVideo.tsx` using Remotion's native spring physics and `react-katex`. Integrated `@remotion/player` into the frontend for instant live previews. Updated `export.py` and the API router to support MP4 downloads and JSON blueprint fallbacks. Removed obsolete Manim compatibility layers and styling.
+- **2026-04-16**: Resolved TypeScript module declaration error by installing `@types/react-katex`. Fixed a type mismatch in `frontend/src/remotion/Root.tsx` by making `scenes` optional in `RemotionVideoProps`.
+- **2026-04-16**: Fixed critical "Internal Server Error" in Manim generation by recreating the broken Python virtual environment (`.venv`) and repairing local executable paths. 
+- **2026-04-16**: Implemented a "Self-Correction Loop" in `backend/services/render.py` that captures Manim Tracebacks and feeds them back to the LLM for automatic debugging and retries.
+- **2026-04-16**: Automated Manim Community documentation synchronization. Created `backend/services/fetch_docs.py` to scrape `docs.manim.community` and integrated it into the FastAPI `lifespan` event to ensure the LLM always has access to the latest v0.18+ API reference, reducing code hallucinations.
+- **2026-04-16**: Refactored the "Blueprint Error" fallback UI into a dedicated modal matching the "Clear Canvas" design. Cleaned up the preview area with a minimal error state and integrated the "Auto-Fix" functionality directly into the new error modal.

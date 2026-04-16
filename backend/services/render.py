@@ -2,11 +2,122 @@ import uuid
 import os
 import subprocess
 import json
+import re
+import shutil
+import sys
+from pathlib import Path
 from backend.services.llm import generate_lesson
 
 # Get the path to the backend/static directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+def render_manim(script_path: str) -> str:
+    """Render a Manim script to video. Returns the path to the rendered video."""
+    # Build the target .mp4 path based on the input .py script name
+    script_path_obj = Path(script_path).resolve()
+    output_video = script_path_obj.with_suffix('.mp4')
+
+    print(f"Rendering Manim script to video: {output_video}", file=sys.stderr)
+
+    # Load script content to identify the target class for the Manim CLI
+    with open(script_path, 'r') as f:
+        script_content = f.read()
+
+    # Use regex to find the Scene class name so we know what to tell Manim to animate
+    scene_match = re.search(r'class\s+(\w+)\s*\([^\)]*Scene[^\)]*\)', script_content)
+    if not scene_match:
+        # Fallback to any class if strict 'Scene' inheritance check fails
+        scene_match = re.search(r'class\s+(\w+)\s*\(', script_content)
+        
+    if not scene_match:
+        raise ValueError("Could not find Scene class in Manim script")
+
+    scene_name = scene_match.group(1)
+    script_dir = script_path_obj.parent
+    script_name = script_path_obj.name
+
+    # Priority search for Manim binary to support local, venv, and global installs
+    manim_exe = None
+    env_exe = os.getenv("MANIM_EXECUTABLE")
+    if env_exe and os.access(env_exe, os.X_OK):
+        manim_exe = env_exe
+    
+    if not manim_exe:
+        # Check the current .venv bin/ folder for the 'manim' executable
+        python_dir = Path(sys.executable).parent
+        possible_exe = python_dir / "manim"
+        if possible_exe.exists() and os.access(possible_exe, os.X_OK):
+            manim_exe = str(possible_exe)
+            
+    if not manim_exe:
+        # Fallback to system-wide 'manim' command
+        manim_exe = "manim"
+
+    # Execute Manim CLI at medium quality (qm) for a balance of speed and resolution
+    cmd = [manim_exe, "-qm", script_name, scene_name]
+    print(f"Running in {script_dir}: {' '.join(cmd)}", file=sys.stderr)
+
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=script_dir)
+
+    if result.returncode != 0:
+        # Capture stderr to provide debugging context for the LLM self-correction loop
+        error_msg = f"Manim rendering failed with code {result.returncode}.\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
+        print(error_msg, file=sys.stderr)
+        raise RuntimeError(error_msg)
+
+    # Manim creates a deep 'media/videos' structure; we need to find the final .mp4
+    media_dir = script_dir / "media" / "videos"
+    if not media_dir.exists():
+        raise RuntimeError(f"Expected output directory not found: {media_dir}")
+
+    # Recursively search for the final video file, ignoring temporary partial frames
+    mp4_files = list(media_dir.rglob("*.mp4"))
+    mp4_files = [f for f in mp4_files if "partial_movie_files" not in str(f)]
+    
+    if not mp4_files:
+        raise RuntimeError(f"No mp4 files found in {media_dir}")
+
+    # Select the newest file to ensure we don't pick up leftovers from previous runs
+    source_video = max(mp4_files, key=lambda p: p.stat().st_mtime)
+    
+    # Move the file from the messy Manim structure to our clean static/ folder
+    shutil.move(str(source_video), str(output_video))
+
+    print(f"Successfully rendered and moved video to: {output_video}", file=sys.stderr)
+    return str(output_video)
+
+def render_manim_lesson(topic: str, model: str, manim_code: str, session=None) -> str:
+    unique_id = str(uuid.uuid4())
+    script_path = os.path.join(STATIC_DIR, f"manim_{unique_id}.py")
+    
+    with open(script_path, "w") as f:
+        f.write(manim_code)
+        
+    try:
+        video_path = render_manim(script_path)
+        return f"/static/manim_{unique_id}.mp4"
+    except RuntimeError as e:
+        print(f"Manim First Attempt Failed: {str(e)}")
+        
+        # SELF-CORRECTION: Send error back to LLM
+        error_msg = str(e)
+        from backend.services.llm import generate_lesson
+        
+        retry_prompt = f"The previous Manim code failed with this error:\n{error_msg}\n\nPlease fix the code and return only the corrected, full Python script."
+        
+        try:
+            fixed_code = generate_lesson(topic, model, "manim", previous_code=manim_code, edit_prompt=retry_prompt)
+            
+            # Save and try again
+            with open(script_path, "w") as f:
+                f.write(fixed_code)
+            
+            video_path = render_manim(script_path)
+            return f"/static/manim_{unique_id}.mp4"
+        except Exception as retry_err:
+            print(f"Manim Self-Correction Failed: {str(retry_err)}")
+            raise RuntimeError(f"Self-correction failed: {str(retry_err)}")
 
 def render_remotion_lesson(topic: str, model: str, remotion_json: str) -> str:
     unique_id = str(uuid.uuid4())

@@ -15,10 +15,10 @@ interface Scene {
 }
 
 interface RemotionVideoProps {
-    scenes: Scene[];
+    scenes?: Scene[];
 }
 
-// 1. Map physics profiles to Remotion spring configurations
+// Map logical physics names to Remotion spring configurations for consistent animation feel
 const PHYSICS_CONFIGS = {
     bouncy: { stiffness: 100, damping: 10, mass: 1 },
     smooth: { stiffness: 50, damping: 20, mass: 1 },
@@ -41,6 +41,7 @@ export const RemotionVideo: React.FC<RemotionVideoProps> = ({ scenes = [] }) => 
     return (
         <AbsoluteFill className="bg-black text-white font-sans overflow-hidden">
             {scenes.map((scene, index) => {
+                // Calculate scene timing relative to the total timeline to ensure seamless transitions
                 const startFrame = scenes
                     .slice(0, index)
                     .reduce((acc, s) => acc + (s.durationInSeconds || 5) * fps, 0);
@@ -60,7 +61,7 @@ const SceneRenderer: React.FC<{ scene: Scene }> = ({ scene }) => {
     const frame = useCurrentFrame();
     const { fps } = useVideoConfig();
     
-    // 2. Deterministic Entrance Physics
+    // We use spring physics to create a deterministic, frame-stable entrance animation
     const config = PHYSICS_CONFIGS[scene.physics || 'smooth'];
     const entrance = spring({
         frame,
@@ -68,7 +69,7 @@ const SceneRenderer: React.FC<{ scene: Scene }> = ({ scene }) => {
         config,
     });
 
-    // 3. Entrance and Exit Fades (Frame-based)
+    // Interpolate frame values to create smooth opacity and translation transitions
     const opacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: 'clamp' });
     const translateY = interpolate(entrance, [0, 1], [30, 0]);
 
@@ -103,7 +104,7 @@ const SceneRenderer: React.FC<{ scene: Scene }> = ({ scene }) => {
             {scene.type === 'point_list' && (
                 <div className="space-y-10 text-left">
                     {scene.items?.map((item, i) => {
-                        // 4. Staggered Entrance (also frame-deterministic)
+                        // Stagger item entrances by subtracting frames based on their index
                         const itemEntrance = spring({
                             frame: frame - (i * 5),
                             fps,
