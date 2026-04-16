@@ -11,7 +11,9 @@ from backend.services.fetch_docs import fetch_manim_reference
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Ensure database schema is initialized before handling requests
+    print("--- CREATING DATABASE AND TABLES ---")
     create_db_and_tables()
+    print("--- DATABASE CREATION COMPLETE ---")
     
     # Sync Manim docs to provide LLM with latest API reference to reduce hallucinations
     print("--- SYNCING MANIM DOCS ---")

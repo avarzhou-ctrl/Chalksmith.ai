@@ -205,13 +205,22 @@ def get_prompt_for_format(topic: str, format_type: str) -> str:
         except Exception:
             # If documentation is missing or unreadable, proceed with base prompt
             pass
+    
+    base_prompt = f"""You are an expert educational content creator. 
+    
+    Create a concise summary of the key concepts and structure covered in the lesson in 2-3 sentences/bullet points.
+    The summary should be factual and capture the essence of the lesson content.
+    After the summary, type "---CODE_START---" on a new line, then output the complete, executable source code for the lesson.
+    """
 
     if format_type == "remotion":
         return f"""
 Create a structured JSON object to be used as props for a Remotion video template to teach "{topic}".
 
+{base_prompt}
+
 STRICT REQUIREMENTS:
-- **Output ONLY valid JSON.** Do not include markdown code fences (```json ... ```), explanations, or any text outside the JSON object.
+- **Output ONLY valid JSON for the code section.** Do not include markdown code fences (```json ... ```), explanations, or any text outside the JSON object within the code section.
 - **KaTeX Support:** Use standard LaTeX for ALL mathematical expressions. Wrap them in double backslashes (e.g., "\\\\frac{{a}}{{b}}") to ensure JSON compatibility.
 - **Visual Pacing:** Break the lesson into logical scenes (Introduction, Concepts, Examples, Summary).
 - **Aesthetic:** Clean, high-contrast dark theme (Black background, White text).
@@ -234,14 +243,14 @@ JSON SCHEMA:
 CONTENT ACCURACY:
 - Strictly ensure all scientific, mathematical, and historical information is factually correct.
 - Verify equations and processes. Do not simplify to the point of falsehood.
-
-Return ONLY the JSON object.
 """
     elif format_type == "manim":
         return f"""
 {manim_knowledge}
 
 Create a COMPLETE, EXECUTABLE Python script using **Manim Community Edition (manim>=0.17)** to teach "{topic}".
+
+{base_prompt}
 
 STRICT REQUIREMENTS (must follow exactly):
 - **STRICT STANDARD LIBRARY ONLY:** Use ONLY classes and methods available in standard Manim Community Edition. DO NOT use third-party plugins or hypothetical classes.
@@ -307,6 +316,8 @@ Return ONLY the Python source code.
     elif format_type == "reveal.js":
         return f"""Create a complete reveal.js HTML presentation to teach "{topic}".
 
+{base_prompt}
+
 GENERAL:
 - Include complete HTML structure with reveal.js CDN links (use a modern version)
 - Have multiple slides with clear progression
@@ -333,6 +344,8 @@ Return ONLY the HTML code, no explanations."""
 
     elif format_type == "p5.js":
         return f"""Create a COMPLETE interactive p5.js visualization to teach "{topic}".
+
+{base_prompt}
 
 The code should:
 - Include complete HTML structure with p5.js CDN
@@ -424,11 +437,15 @@ def generate_lesson(topic: str, model: str, format_type: str, previous_code: str
             raise ValueError(f"Unknown provider: {provider}")
 
     content = clean_code_fences(content)
+    lesson = {
+        "summary": content.split("---CODE_START---")[0].strip(),
+        "code": content.split("---CODE_START---")[1].strip() if "---CODE_START---" in content else content.strip()
+    }
 
     if format_type == "manim":
-        content = ensure_manim_compatibility(content)
+        lesson["code"] = ensure_manim_compatibility(lesson["code"])
 
-    return content
+    return lesson
 
 def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, format_type: str, model: str) -> str:
     """Constructs a targeted editing prompt to modify existing code."""
@@ -436,8 +453,11 @@ def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, f
     You are an expert code editor specializing in {format_type}. 
     You will be given the original topic, the current code, and a request to edit the code.
 
-    Your task is to generate the COMPLETE edited code that incorporates the requested changes.
-
+    Your task is to generate the COMPLETE edited code that incorporates the requested changes and SUMMARY of changes.
+    Create a concise summary of the key concepts and structure covered in the edited lesson in 2-3 sentences/bullet points.
+    The summary should be factual and capture the essence of the edited lesson.
+    After the summary, type "---CODE_START---" on a new line, then output the complete, executable source code for the lesson.
+    
     Guidelines:
     - Make ONLY the changes requested in the edit prompt.
     - Preserve all other functionality and structure.

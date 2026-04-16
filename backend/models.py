@@ -17,6 +17,7 @@ class LessonResponse(BaseModel):
     id: str
     url: str
     code: str
+    summary: str
 
 class Lesson(SQLModel, table=True):
     # We store the raw 'code' locally to enable future iterative edits
@@ -26,4 +27,5 @@ class Lesson(SQLModel, table=True):
     format: str = Field(index=True)
     url: str
     code: str
+    summary: str
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)

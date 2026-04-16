@@ -79,65 +79,72 @@ export default function Page() {
     scrollToBottom();
   }, [messages, loading]);
 
-  const generateLesson = async () => {
-    if (!topic || !model || !format || loading) return;
+  const generateLesson = async (overridePrompt?: string) => {
+    // If overridePrompt is provided (Auto-Fix), use it; otherwise fallback to the input field 'topic'
+    const activePrompt = overridePrompt || topic;
+    
+    if (!activePrompt || !model || !format || loading) return;
 
     setLoading(true);
     setError(null);
     setShowCode(false);
-    setMessages((prev) => [...prev, { role: 'user', content: topic }]);
+    
+    // Add the prompt to the chat history so the user sees the 'Auto-Fix' request
+    setMessages((prev) => [...prev, { role: 'user', content: activePrompt }]);
 
     try {
-      let response;
+      let response: LessonResponse;
 
       if (currentlessonID) {
-        // Edit Mode: sends the previous code + new prompt to enable iterative changes
+        // Edit Mode: sends previous code + the new/auto-fix prompt
         response = await createLesson({ 
           topic: initialTopic, 
           model, 
           format, 
           lesson_id: currentlessonID,
-          prompt: topic
+          prompt: activePrompt
         });
 
         setMessages((prev) => [...prev, { 
           role: 'assistant', 
-          content: `Updated your lesson based on: "${topic}".` 
+          content: `Updated your lesson based on: "${activePrompt.substring(0, 50)}...".` 
         }]);
       } else {
-        // New Lesson Mode: creates a fresh lesson blueprint
-        setInitialTopic(topic);
-        response = await createLesson({ topic, model, format });
+        // New Lesson Mode
+        setInitialTopic(activePrompt);
+        response = await createLesson({ topic: activePrompt, model, format });
         
         setMessages((prev) => [...prev, { 
           role: 'assistant', 
-          content: `Success! Created your ${format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${topic}".` 
+          content: `Success! Created your ${format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${activePrompt}". ${response.summary}` 
         }]);
       }
 
       setResult(response);
 
       if (response.id) {
-        // Persist lesson ID to keep the conversation tied to this specific content
         setCurrentLessonID(response.id);
       }
 
-      setTopic('');
+      // Only clear the input field if we weren't doing an Auto-Fix (which bypasses the box)
+      if (!overridePrompt) {
+        setTopic('');
+      }
     } catch (err: any) {
       const errorMsg = err.message || 'Oops! Failed to generate lesson.';
       setError(errorMsg);
-      setIsErrorModalOpen(true); // Open modal for backend/render errors
+      setIsErrorModalOpen(true); 
       setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${errorMsg}` }]);
     } finally {
       setLoading(false);
     }
   }
 
-  const prepareFixPrompt = (specificError?: string) => {
-    // Priority: Specific error passed in > Shared error state > Fallback text
-    const msg = specificError || error || "The code failed to render.";
-    setTopic(`The previous generation failed with this error: "${msg}". Please fix the code.`);
-    scrollToBottom();
+  const prepareFixPrompt = () => {
+    // Direct trigger for Auto-Fix without filling the textarea
+    const msg = error || "The code failed to render.";
+    const fixPrompt = `The previous generation failed with this error: "${msg}". Please fix the code and return the complete, corrected version.`;
+    generateLesson(fixPrompt);
   }
 
   return (
@@ -311,7 +318,7 @@ export default function Page() {
                   <div className ="absolute inset-0 bg-primary-bg/80 backdrop-blur-md flex flex-col items-center justify-center z-20">
                     <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin mb-6"></div>
                     <p className="text-accent text-2xl font-bold animate-pulse tracking-wide italic text-center px-8">
-                      Chalksmith.ai is crafting your {format === 'remotion' ? 'instant video' : format === 'manim' ? 'pro video' : format === 'p5.js' ? 'interactive display' : 'presentation'}...
+                      Chalksmith.ai is crafting your {format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation'}...
                     </p>
                   </div>
                 )}
@@ -483,8 +490,8 @@ export default function Page() {
           {result && (
             <div className="w-full mb-6">
               <p className="text-xs font-semibold text-secondary-text mb-2 uppercase tracking-wider">Source Code:</p>
-              <pre className="p-4 bg-black/40 rounded-xl border border-white/5 text-[10px] text-amber-400 font-mono text-left max-h-40 overflow-auto whitespace-pre-wrap">
-                {result.code.substring(0, 1000)}
+              <pre className="p-4 bg-black/40 rounded-xl border border-white/5 text-[10px] text-amber-400 font-mono text-left max-h-80 overflow-auto whitespace-pre-wrap">
+                {result.code}
               </pre>
             </div>
           )}
@@ -505,7 +512,7 @@ export default function Page() {
                 setIsErrorModalOpen(false);
               }}
             >
-              Auto-Fix
+              Auto-fix
             </Button>
           </div>
         </div>

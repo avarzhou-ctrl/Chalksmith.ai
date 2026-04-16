@@ -1,5 +1,7 @@
 import os
 from sqlmodel import create_engine, Session, SQLModel
+# Import models here to register them with SQLModel.metadata
+from backend.models import Lesson
 
 # Using SQLite for local development as it is self-contained and zero-config
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -10,6 +12,8 @@ engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
 
 def create_db_and_tables():
     # Initializes database schema on server startup
+    print(f"DATABASE URL: {sqlite_url}")
+    print(f"REGISTERED TABLES: {SQLModel.metadata.tables.keys()}")
     SQLModel.metadata.create_all(engine)
 
 def get_session():

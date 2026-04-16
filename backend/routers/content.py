@@ -1,3 +1,4 @@
+import code
 import uuid
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlmodel import Session, select, desc
@@ -25,7 +26,7 @@ async def create_lesson(request: LessonRequest, req: Request, session: Session =
                 request.topic = db_lesson.topic
 
     # Calls LLM engine to generate or edit raw source code
-    code = generate_lesson(
+    lesson = generate_lesson(
         request.topic, 
         request.model, 
         request.format, 
@@ -36,13 +37,13 @@ async def create_lesson(request: LessonRequest, req: Request, session: Session =
     # Route to specific renderer based on target format (Video, Interactive, or Slides)
     try:
         if request.format == "remotion":
-            file_url = render_remotion_lesson(request.topic, request.model, code)
+            file_url = render_remotion_lesson(request.topic, request.model, lesson["code"])
         elif request.format == "manim":
-            file_url = render_manim_lesson(request.topic, request.model, code)
+            file_url = render_manim_lesson(request.topic, request.model, lesson["code"])
         elif request.format == "p5.js":
-            file_url = render_p5js_lesson(request.topic, request.model, code)
+            file_url = render_p5js_lesson(request.topic, request.model, lesson["code"])
         elif request.format == "reveal.js":
-            file_url = render_revealjs_lesson(request.topic, request.model, code)
+            file_url = render_revealjs_lesson(request.topic, request.model, lesson["code"])
         else:
             raise HTTPException(status_code=400, detail="Unsupported format")
     except Exception as e:
@@ -55,7 +56,8 @@ async def create_lesson(request: LessonRequest, req: Request, session: Session =
         model=request.model,
         format=request.format,
         url=file_url,
-        code=code
+        code=lesson["code"],
+        summary=lesson["summary"]
     )
 
     session.add(db_lesson)
@@ -65,7 +67,8 @@ async def create_lesson(request: LessonRequest, req: Request, session: Session =
     return LessonResponse(
         id=db_lesson.id,
         url=f"{base_url}{db_lesson.url}",
-        code=db_lesson.code
+        code=db_lesson.code,
+        summary=db_lesson.summary
     )
 
 @router.get("/lesson", response_model=LessonResponse)
@@ -76,7 +79,7 @@ async def get_lesson(topic: str, model: str, format: str, req: Request, session:
     statement = select(Lesson).where(
         Lesson.topic == topic, 
         Lesson.model == model, 
-        Lesson.format == format
+        Lesson.format == format,
     ).order_by(desc(Lesson.created_at))
     results = session.exec(statement)
     db_lesson = results.first()
@@ -84,7 +87,8 @@ async def get_lesson(topic: str, model: str, format: str, req: Request, session:
     return LessonResponse(
         id=db_lesson.id,
         url=f"{base_url}{db_lesson.url}",
-        code=db_lesson.code
+        code=db_lesson.code,
+        summary=db_lesson.summary
     )
 
 @router.get("/export")

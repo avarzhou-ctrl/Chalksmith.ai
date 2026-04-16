@@ -8,9 +8,10 @@ export interface LessonRequest {
 }
 
 export interface LessonResponse {
-  id?: string;
+  id: string;
   url: string;
   code: string;
+  summary: string;
 }
 
 export async function createLesson(request: LessonRequest): Promise<LessonResponse> {
