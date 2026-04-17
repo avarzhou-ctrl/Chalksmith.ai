@@ -87,14 +87,21 @@ def render_manim(script_path: str) -> str:
     print(f"Successfully rendered and moved video to: {output_video}", file=sys.stderr)
     return str(output_video)
 
-def render_manim_lesson(topic: str, model: str, manim_code: str, session=None) -> str:
+def render_manim_lesson(topic: str, model: str, manim_code: str, session=None, on_progress=None) -> str:
     unique_id = str(uuid.uuid4())
     script_path = os.path.join(STATIC_DIR, f"manim_{unique_id}.py")
     
+    if on_progress:
+        # Report progress to the client via SSE before beginning IO-bound file writes
+        on_progress("Writing Manim script...", 65)
+
     with open(script_path, "w") as f:
         f.write(manim_code)
         
     try:
+        if on_progress:
+            # Update client before the blocking subprocess call to Manim CLI
+            on_progress("Rendering video frames with Manim...", 70)
         video_path = render_manim(script_path)
         return f"/static/manim_{unique_id}.mp4"
     except RuntimeError as e:
@@ -104,6 +111,10 @@ def render_manim_lesson(topic: str, model: str, manim_code: str, session=None) -
         error_msg = str(e)
         from backend.services.llm import generate_lesson
         
+        if on_progress:
+            # Inform user of delay due to automatic error recovery sequence
+            on_progress("Auto-correcting Manim syntax error...", 75)
+
         retry_prompt = f"The previous Manim code failed with this error:\n{error_msg}\n\nPlease fix the code and return only the corrected, full Python script."
         
         try:
@@ -113,13 +124,16 @@ def render_manim_lesson(topic: str, model: str, manim_code: str, session=None) -
             with open(script_path, "w") as f:
                 f.write(fixed_code)
             
+            if on_progress:
+                # Update client on final render attempt post-correction
+                on_progress("Re-rendering corrected Manim script...", 80)
             video_path = render_manim(script_path)
             return f"/static/manim_{unique_id}.mp4"
         except Exception as retry_err:
             print(f"Manim Self-Correction Failed: {str(retry_err)}")
             raise RuntimeError(f"Self-correction failed: {str(retry_err)}")
 
-def render_remotion_lesson(topic: str, model: str, remotion_json: str) -> str:
+def render_remotion_lesson(topic: str, model: str, remotion_json: str, on_progress=None) -> str:
     unique_id = str(uuid.uuid4())
     video_filename = f"remotion_{unique_id}.mp4"
     video_path = os.path.join(STATIC_DIR, video_filename)
@@ -127,6 +141,11 @@ def render_remotion_lesson(topic: str, model: str, remotion_json: str) -> str:
     # ALWAYS save the JSON props first (for the frontend player)
     props_filename = f"remotion_{unique_id}.json"
     props_path = os.path.join(STATIC_DIR, props_filename)
+    
+    if on_progress:
+        # Notify UI before starting Remotion data preparation
+        on_progress("Preparing video blueprints...", 65)
+
     with open(props_path, "w") as f:
         f.write(remotion_json)
         
@@ -158,6 +177,10 @@ def render_remotion_lesson(topic: str, model: str, remotion_json: str) -> str:
     print(f"--- STARTING REMOTION RENDER ---", flush=True)
     print(f"Target: {video_path}", flush=True)
 
+    if on_progress:
+        # Report lengthy encoding phase with estimated frame count for user context
+        on_progress(f"Encoding MP4 video ({duration_frames} frames)...", 75)
+
     try:
         # In a production app, use BackgroundTasks. Synchronous here for simplicity.
         process = subprocess.run(
@@ -181,8 +204,12 @@ def render_remotion_lesson(topic: str, model: str, remotion_json: str) -> str:
         print(f"RENDER EXCEPTION: {str(e)}", flush=True)
         return f"/static/{props_filename}"
 
-def render_p5js_lesson(topic: str, model: str, p5js_code: str) -> str:
+def render_p5js_lesson(topic: str, model: str, p5js_code: str, on_progress=None) -> str:
     unique_id = str(uuid.uuid4())
+
+    if on_progress:
+        # Notify client of lightweight static generation phase
+        on_progress("Creating interactive p5.js canvas...", 70)
 
     # Save code to a file first
     file_path = os.path.join(STATIC_DIR, f"p5js_{unique_id}.html")
@@ -191,8 +218,12 @@ def render_p5js_lesson(topic: str, model: str, p5js_code: str) -> str:
     
     return f"/static/p5js_{unique_id}.html"
 
-def render_revealjs_lesson(topic: str, model: str, revealjs_code: str) -> str:
+def render_revealjs_lesson(topic: str, model: str, revealjs_code: str, on_progress=None) -> str:
     unique_id = str(uuid.uuid4())
+
+    if on_progress:
+        # Notify client of lightweight static generation phase
+        on_progress("Compiling presentation slides...", 70)
 
     # Save code to a file first
     file_path = os.path.join(STATIC_DIR, f"revealjs_{unique_id}.html")

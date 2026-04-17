@@ -14,6 +14,13 @@ export interface LessonResponse {
   summary: string;
 }
 
+export interface GenerationStatus {
+    status: 'initializing' | 'loading_context' | 'generating' | 'rendering' | 'finalizing' | 'complete' | 'error';
+    message: string;
+    progress: number;
+    result?: LessonResponse;
+}
+
 export async function createLesson(request: LessonRequest): Promise<LessonResponse> {
     // We use internal /api/ routes to proxy requests and handle CORS on the server side
     const response = await fetch('/api/lesson', {
@@ -28,6 +35,48 @@ export async function createLesson(request: LessonRequest): Promise<LessonRespon
     }
 
     return response.json();
+}
+
+export function generateLessonStreaming(
+    request: LessonRequest,
+    onStatus: (status: GenerationStatus) => void,
+    onError: (error: string) => void
+) {
+    const params = new URLSearchParams();
+    if (request.topic) params.append('topic', request.topic);
+    if (request.model) params.append('model', request.model);
+    if (request.format) params.append('format', request.format);
+    if (request.lesson_id) params.append('lesson_id', request.lesson_id);
+    if (request.prompt) params.append('prompt', request.prompt);
+
+    // EventSource establishes a unidirectional stream for real-time progress updates without the overhead of WebSockets
+    // Note: EventSource only supports GET requests, so payload must be URL-encoded parameters
+    const eventSource = new EventSource(`http://localhost:8000/content/lesson/generate?${params.toString()}`);
+
+    eventSource.onmessage = (event) => {
+        try {
+            const data: GenerationStatus = JSON.parse(event.data);
+            onStatus(data);
+            
+            // Explicitly close the stream to prevent memory leaks and redundant reconnections on success/failure
+            if (data.status === 'complete' || data.status === 'error') {
+                eventSource.close();
+            }
+        } catch (err) {
+            console.error('Failed to parse status update:', err);
+            onError('Internal Error: Failed to parse status update.');
+            eventSource.close();
+        }
+    };
+
+    eventSource.onerror = (error) => {
+        console.error('EventSource Error:', error);
+        onError('Connection Error: Failed to generate lesson.');
+        eventSource.close();
+    };
+
+    // Return a cleanup function for React's useEffect to handle unmounting
+    return () => eventSource.close();
 }
 
 export async function getLesson(topic: string, model: string, format: string): Promise<LessonResponse> {

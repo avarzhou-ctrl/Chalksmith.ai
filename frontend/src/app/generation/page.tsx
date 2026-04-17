@@ -4,9 +4,9 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import InputForm from "@/components/generation/InputForm";
 import EditableTitle from "@/components/generation/EditableTitle";
 import Button from "@/components/ui/Button";
-import { createLesson, LessonResponse } from "@/lib/api";
+import { createLesson, LessonResponse, generateLessonStreaming, GenerationStatus } from "@/lib/api";
 import { Panel, Group, Separator } from "react-resizable-panels";
-import { PanelRight, ChevronDown, Code, Eye, Share, Flame, Download, Link, TriangleAlert } from "lucide-react";
+import { PanelRight, ChevronDown, Code, Eye, Share, Flame, Download, Link, TriangleAlert, CheckCircle2, Loader2 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Modal from "@/components/ui/Modal";
@@ -23,6 +23,9 @@ export default function Page() {
   const [result, setResult] = useState<LessonResponse | null>(null);
   const [showCode, setShowCode] = useState(false);
   const [title, setTitle] = useState("Untitled");
+
+  // Status and progress for streaming generation
+  const [generationStatus, setGenerationStatus] = useState<GenerationStatus | null>(null);
 
   // State for chat-like interaction history and iterative editing
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
@@ -88,54 +91,64 @@ export default function Page() {
     setLoading(true);
     setError(null);
     setShowCode(false);
+    setGenerationStatus({ status: 'initializing', message: 'Starting generation...', progress: 0 });
     
     // Add the prompt to the chat history so the user sees the 'Auto-Fix' request
     setMessages((prev) => [...prev, { role: 'user', content: activePrompt }]);
 
     try {
-      let response: LessonResponse;
-
-      if (currentlessonID) {
-        // Edit Mode: sends previous code + the new/auto-fix prompt
-        response = await createLesson({ 
-          topic: initialTopic, 
+      // Initiate SSE connection to receive real-time progress updates during long-running generation tasks
+      generateLessonStreaming(
+        { 
+          topic: currentlessonID ? initialTopic : activePrompt, 
           model, 
           format, 
-          lesson_id: currentlessonID,
-          prompt: activePrompt
-        });
-
-        setMessages((prev) => [...prev, { 
-          role: 'assistant', 
-          content: `Updated your lesson based on: "${activePrompt.substring(0, 50)}...".` 
-        }]);
-      } else {
-        // New Lesson Mode
-        setInitialTopic(activePrompt);
-        response = await createLesson({ topic: activePrompt, model, format });
-        
-        setMessages((prev) => [...prev, { 
-          role: 'assistant', 
-          content: `Success! Created your ${format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${activePrompt}". ${response.summary}` 
-        }]);
-      }
-
-      setResult(response);
-
-      if (response.id) {
-        setCurrentLessonID(response.id);
-      }
-
-      // Only clear the input field if we weren't doing an Auto-Fix (which bypasses the box)
-      if (!overridePrompt) {
-        setTopic('');
-      }
+          lesson_id: currentlessonID || undefined,
+          prompt: currentlessonID ? activePrompt : undefined
+        },
+        (status) => {
+          // Update status state to drive the progress bar and stage indicators in the UI
+          setGenerationStatus(status);
+          
+          if (status.status === 'complete' && status.result) {
+            setResult(status.result);
+            if (status.result.id) {
+              setCurrentLessonID(status.result.id);
+            }
+            
+            if (currentlessonID) {
+              setMessages((prev) => [...prev, { 
+                role: 'assistant', 
+                content: `Updated your lesson based on: "${activePrompt.substring(0, 50)}...".` 
+              }]);
+            } else {
+              setInitialTopic(activePrompt);
+              setMessages((prev) => [...prev, { 
+                role: 'assistant', 
+                content: `Success! Created your ${format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${activePrompt}". ${status.result.summary}` 
+              }]);
+            }
+            
+            setLoading(false);
+            if (!overridePrompt) setTopic('');
+          } else if (status.status === 'error') {
+            // Escalate internal status errors to the catch block for unified error handling
+            throw new Error(status.message);
+          }
+        },
+        (errMsg) => {
+          // Handle connection-level errors (e.g. timeout or network drop)
+          setError(errMsg);
+          setIsErrorModalOpen(true); 
+          setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${errMsg}` }]);
+          setLoading(false);
+        }
+      );
     } catch (err: any) {
       const errorMsg = err.message || 'Oops! Failed to generate lesson.';
       setError(errorMsg);
       setIsErrorModalOpen(true); 
       setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${errorMsg}` }]);
-    } finally {
       setLoading(false);
     }
   }
@@ -315,11 +328,44 @@ export default function Page() {
                 )}
 
                 {loading && (
-                  <div className ="absolute inset-0 bg-primary-bg/80 backdrop-blur-md flex flex-col items-center justify-center z-20">
-                    <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin mb-6"></div>
-                    <p className="text-accent text-2xl font-bold animate-pulse tracking-wide italic text-center px-8">
-                      Chalksmith.ai is crafting your {format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation'}...
-                    </p>
+                  <div className ="absolute inset-0 bg-primary-bg/90 backdrop-blur-xl flex flex-col items-center justify-center z-50 p-8">
+                    <div className="w-full max-w-md flex flex-col items-center">
+                      <div className="relative mb-12">
+                         <div className="w-24 h-24 border-b-2 border-accent rounded-full animate-spin"></div>
+                         <div className="absolute inset-0 flex items-center justify-center">
+                            <Flame className="text-accent animate-pulse" size={32} />
+                         </div>
+                      </div>
+                      
+                      <h2 className="text-accent text-3xl font-bold mb-2 text-center tracking-tight italic">
+                        Chalksmith.ai
+                      </h2>
+                      
+                      <p className="text-secondary-text text-sm mb-8 text-center font-medium uppercase tracking-widest opacity-80">
+                        Crafting your {format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation'}...
+                      </p>
+
+                      <div className="w-full bg-surface/50 rounded-full h-1.5 mb-4 overflow-hidden border border-border/30">
+                        <div 
+                          className="bg-accent h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(217,119,6,0.5)]" 
+                          style={{ width: `${generationStatus?.progress || 0}%` }}
+                        ></div>
+                      </div>
+
+                      <div className="flex justify-between w-full text-[10px] font-bold uppercase tracking-tighter text-secondary-text mb-12 px-1">
+                        <span className={generationStatus?.progress && generationStatus.progress >= 25 ? 'text-accent' : 'opacity-40'}>Planning</span>
+                        <span className={generationStatus?.progress && generationStatus.progress >= 50 ? 'text-accent' : 'opacity-40'}>Generating</span>
+                        <span className={generationStatus?.progress && generationStatus.progress >= 75 ? 'text-accent' : 'opacity-40'}>Rendering</span>
+                        <span className={generationStatus?.progress && generationStatus.progress >= 100 ? 'text-accent' : 'opacity-40'}>Finishing</span>
+                      </div>
+
+                      <div className="flex items-center gap-3 bg-accent/10 border border-accent/20 px-5 py-3 rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <Loader2 className="text-accent animate-spin" size={16} />
+                        <p className="text-accent text-sm font-medium italic">
+                          {generationStatus?.message || "Preparing..."}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
