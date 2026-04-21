@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import InputForm from "@/components/generation/InputForm";
 import EditableTitle from "@/components/generation/EditableTitle";
 import Button from "@/components/ui/Button";
-import { createLesson, LessonResponse, generateLessonStreaming, GenerationStatus } from "@/lib/api";
+import { createLesson, LessonResponse, generateLessonStreaming, GenerationStatus, deleteLesson } from "@/lib/api";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { PanelRight, ChevronDown, Code, Eye, Share, Flame, Download, Link, TriangleAlert, CheckCircle2, Loader2 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -47,7 +47,16 @@ export default function Page() {
     setCurrentLessonID(null); 
   }
 
-  const startNewLesson = () => {
+  const startNewLesson = async () => {
+    // If we have an active lesson, delete it from the backend to clean up database and storage
+    if (currentlessonID) {
+      try {
+        await deleteLesson(currentlessonID);
+      } catch (err) {
+        console.error("Failed to delete lesson during reset:", err);
+      }
+    }
+
     // Clears all states to allow starting a fresh generation from scratch
     setCurrentLessonID(null);
     setResult(null);

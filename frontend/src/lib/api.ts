@@ -91,3 +91,15 @@ export async function getLesson(topic: string, model: string, format: string): P
 
     return response.json();
 }
+
+export async function deleteLesson(lessonId: string): Promise<void> {
+    // Calls the internal proxy to perform a destructive deletion on the backend
+    const response = await fetch(`/api/lesson?id=${lessonId}`, {
+        method: 'DELETE',
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to delete lesson');
+    }
+}

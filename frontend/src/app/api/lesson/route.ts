@@ -48,3 +48,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ detail: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const lessonId = searchParams.get('id');
+
+    if (!lessonId) {
+      return NextResponse.json({ detail: 'Lesson ID is required' }, { status: 400 });
+    }
+
+    const response = await fetch(`${API_BASE_URL}/content/lesson/${lessonId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error('API Error:', err);
+    return NextResponse.json({ detail: 'Internal Server Error' }, { status: 500 });
+  }
+}

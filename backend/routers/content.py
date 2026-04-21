@@ -1,6 +1,7 @@
 import uuid
 import json
 import asyncio
+import os
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
@@ -11,6 +12,43 @@ from backend.services.render import render_manim_lesson, render_remotion_lesson,
 from backend.services.export import export_service
 
 router = APIRouter()
+
+@router.delete("/lesson/{lesson_id}")
+async def delete_lesson(lesson_id: str, session: Session = Depends(get_session)):
+    # Delete the lesson from the database and remove its associated physical file
+    statement = select(Lesson).where(Lesson.id == lesson_id)
+    db_lesson = session.exec(statement).first()
+
+    if not db_lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    # Construct the absolute path to the static file to remove it
+    # We use a relative path logic consistent with main.py's static mount
+    try:
+        if db_lesson.url:
+            # db_lesson.url looks like "/static/manim_xxx.mp4"
+            # We need to strip the leading /static/ to get the filename
+            filename = db_lesson.url.replace("/static/", "")
+            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            file_path = os.path.join(current_dir, "static", filename)
+            
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            # For Manim/Remotion, we might also have a .py or .json file to clean up
+            if db_lesson.format in ["manim", "remotion"]:
+                ext = ".py" if db_lesson.format == "manim" else ".json"
+                source_file = file_path.rsplit(".", 1)[0] + ext
+                if os.path.exists(source_file):
+                    os.remove(source_file)
+    except Exception as e:
+        # We log and continue as the primary goal is database cleanup
+        print(f"Failed to delete file for lesson {lesson_id}: {e}")
+
+    session.delete(db_lesson)
+    session.commit()
+
+    return {"status": "success", "message": "Lesson deleted successfully"}
 
 @router.get("/lesson/generate")
 async def generate_lesson_stream(
