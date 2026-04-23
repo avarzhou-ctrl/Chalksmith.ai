@@ -1,38 +1,70 @@
 'use client'
 
-import { Folder, Bookmark, Search } from "lucide-react"
+import { Folder, Bookmark, Search, PanelLeft } from "lucide-react"
 import Link from "next/link";
 
-export default function DashboardSidebar() {
+interface DashboardSidebarProps {
+    isCollapsed?: boolean;
+    onToggle?: () => void;
+}
+
+export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSidebarProps) {
     return (
-        <div className="w-64 bg-secondary-bg p-4 border-r border-border">
-            <div className="flex flex-row items-center mb-6">
-                <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 overflow-hidden mb-1">
-                    <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
-                </div>
-                <h1 className="text-lg font-semibold mb-4">Chalksmith.ai</h1>
+        <div className="w-full h-full bg-secondary-bg p-4 flex flex-col relative">
+            {/* Standardized Header Area */}
+            <div className="h-10 mb-8 flex items-center justify-between">
+                {!isCollapsed ? (
+                    <>
+                        <div className="flex items-center min-w-0">
+                            <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 overflow-hidden mr-3 shrink-0">
+                                <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+                            </div>
+                            <h1 className="text-xl font-bold tracking-tight text-primary-text truncate animate-in fade-in duration-300">Chalksmith.ai</h1>
+                        </div>
+                        <button 
+                            className="p-2 hover:bg-surface/50 rounded-lg text-secondary-text transition-all duration-300 ml-2 shrink-0" 
+                            onClick={onToggle}
+                        >
+                            <PanelLeft size={20} />
+                        </button>
+                    </>
+                ) : (
+                    <button 
+                        className="p-2 hover:bg-surface/50 rounded-lg text-secondary-text transition-all duration-300 mx-auto shrink-0" 
+                        onClick={onToggle}
+                    >
+                        <PanelLeft size={20} />
+                    </button>
+                )}
             </div>
-            <nav className="flex flex-col space-y-2">
+
+            {/* Navigation - Spacing must match exactly for stationary icons */}
+            <nav className={`flex flex-col space-y-2 ${isCollapsed ? 'items-center' : ''}`}>
                 <Link
                     href="/dashboard"
-                    className="flex flex_row items-center mb-6 px-3 py-2 rounded-xl text-sm font-medium text-secondary-text hover:bg-accent hover:text-primary-text transition-colors duration-200"
+                    className={`flex items-center rounded-xl text-secondary-text hover:bg-accent hover:text-primary-text transition-all duration-200 group w-full ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}
+                    title={isCollapsed ? "Lessons" : ""}
                 >
-                    <Folder size={24} />
-                    <span className="ml-2">Lessons</span>
+                    <Folder size={20} className={`${!isCollapsed ? 'mr-3' : ''} group-hover:scale-110 transition-transform`} />
+                    {!isCollapsed && <span className="text-sm font-medium">Lessons</span>}
                 </Link>
+                
                 <Link
                     href="/favorites"
-                    className="flex flex_row items-center mb-6 px-3 py-2 rounded-xl text-sm font-medium text-secondary-text hover:bg-accent hover:text-primary-text transition-colors duration-200"
+                    className={`flex items-center rounded-xl text-secondary-text hover:bg-accent hover:text-primary-text transition-all duration-200 group w-full ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}
+                    title={isCollapsed ? "Favorites" : ""}
                 >
-                    <Bookmark size={24} />
-                    <span className="ml-2">Favorites</span>
+                    <Bookmark size={20} className={`${!isCollapsed ? 'mr-3' : ''} group-hover:scale-110 transition-transform`} />
+                    {!isCollapsed && <span className="text-sm font-medium">Favorites</span>}
                 </Link>
+
                 <Link
                     href="/search"
-                    className="flex flex_row items-center mb-6 px-3 py-2 rounded-xl text-sm font-medium text-secondary-text hover:bg-accent hover:text-primary-text transition-colors duration-200"
+                    className={`flex items-center rounded-xl text-secondary-text hover:bg-accent hover:text-primary-text transition-all duration-200 group w-full ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}
+                    title={isCollapsed ? "Search" : ""}
                 >
-                    <Search size={24} />
-                    <span className="ml-2">Search</span>
+                    <Search size={20} className={`${!isCollapsed ? 'mr-3' : ''} group-hover:scale-110 transition-transform`} />
+                    {!isCollapsed && <span className="text-sm font-medium">Search</span>}
                 </Link>
             </nav>
         </div>

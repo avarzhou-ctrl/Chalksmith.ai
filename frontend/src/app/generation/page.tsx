@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useRef, useEffect, useMemo } from "react";
-import InputForm from "@/components/generation/InputForm";
+import { useState, useRef, useEffect } from "react";
 import EditableTitle from "@/components/generation/EditableTitle";
 import Button from "@/components/ui/Button";
-import { createLesson, LessonResponse, generateLessonStreaming, GenerationStatus, deleteLesson } from "@/lib/api";
+import { LessonResponse, generateLessonStreaming, GenerationStatus, deleteLesson } from "@/lib/api";
 import { Panel, Group, Separator } from "react-resizable-panels";
-import { PanelRight, ChevronDown, Code, Eye, Share, Flame, Download, Link, TriangleAlert, CheckCircle2, Loader2 } from "lucide-react";
+import { Eye, Code, Flame, Download, TriangleAlert, Loader2 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Modal from "@/components/ui/Modal";
 import { Player } from '@remotion/player';
 import { RemotionVideo } from '@/components/generation/RemotionVideo';
+import GenerationSidebar from "@/components/ui/GenerationSidebar";
 
 export default function Page() {
   // State for lesson configuration and rendering results
@@ -401,95 +401,23 @@ export default function Page() {
           defaultSize="25%"
           id="right-panel"
         >
-          <div className="flex flex-col h-full bg-secondary-bg border-l border-border overflow-hidden">
-            {isCollapsed ? (
-              <div className="flex flex-col items-center justify-end p-4 m-1 shrink-0">
-                <button
-                  className="p-2 hover:bg-surface/50 rounded-lg text-secondary-text transition-colors" 
-                  onClick={togglePanel}
-                >
-                  <PanelRight size={20} />
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col h-full min-w-0">
-                <div className="flex flex-row items-center justify-between p-4 m-1 gap-4 shrink-0">
-                  <h2 className="text-lg font-semibold text-primary-text truncate whitespace-nowrap" title={title}>{title}</h2>
-                  <button className="text-secondary-text hover:text-primary-text transition-colors">
-                    <ChevronDown size={20} />
-                  </button>
-                  <button 
-                    className="ml-auto p-2 hover:bg-surface/50 rounded-lg text-secondary-text transition-colors" 
-                    onClick={togglePanel}
-                  >
-                    <PanelRight size={20} />
-                  </button>
-                </div>
-
-                <Group orientation="vertical" id="interaction-layout">
-                  {/* Chat History */}
-                  <Panel minSize="30">
-                    <div className="h-full overflow-y-auto px-5 space-y-4 scroll-smooth">
-                      {messages.length === 0 && (
-                        <div className="bg-surface/30 p-4 rounded-2xl border border-border/50 text-secondary-text text-sm">
-                          <p className="font-semibold mb-2 text-primary-text">Welcome to Chalksmith.ai!</p>
-                          <ul className="space-y-2">
-                            <li className="flex gap-2"><Flame size={16} className="text-accent mt-0.5 shrink-0" /> Choose a topic and AI model</li>
-                            <li className="flex gap-2"><Flame size={16} className="text-accent mt-0.5 shrink-0" /> Select your favorite format</li>
-                            <li className="flex gap-2"><Flame size={16} className="text-accent mt-0.5 shrink-0" /> Watch your lesson come to life!</li>
-                          </ul>
-                        </div>
-                      )}
-                      {messages.map((msg, i) => (
-                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[90%] p-4 rounded-2xl text-sm ${
-                            msg.role === 'user' 
-                              ? 'bg-accent text-primary-text rounded-tr-none shadow-lg shadow-accent/10' 
-                              : 'bg-surface/50 text-primary-text rounded-tl-none border border-border/50'
-                          }`}>
-                            {msg.content}
-                          </div>
-                        </div>
-                      ))}
-                      {loading && (
-                        <div className="flex justify-start">
-                          <div className="bg-surface/50 p-4 rounded-2xl rounded-tl-none text-secondary-text text-sm animate-pulse border border-border/50">
-                            Thinking...
-                          </div>
-                        </div>
-                      )}
-                      <div ref={messagesEndRef} />
-                    </div>
-                  </Panel>
-
-                  <Separator className="h-1 bg-border/20 hover:bg-accent/40 transition-colors cursor-row-resize" />
-
-                  {/* Control Panel */}
-                  <Panel minSize="20%" defaultSize="40%">
-                    <div className="h-full p-6 bg-primary-bg/50 border-t border-border flex flex-col gap-6 backdrop-blur-lg overflow-y-auto">
-                      <InputForm
-                        model={model}
-                        format={format}
-                        topic={topic}
-                        onModelChange={handleModelChange}
-                        onFormatChange={handleFormatChange}
-                        onTopicChange={setTopic}
-                        onGenerate={generateLesson}
-                        disabled={loading}
-                        isEditMode={!!currentlessonID}
-                      />
-                      
-                      {error && (
-                        <p className="text-xs text-red-500 bg-red-500/10 p-2 rounded border border-red-500/20 text-center">
-                          {error}
-                        </p>
-                      )}
-                    </div>
-                  </Panel>
-                </Group>
-              </div>
-            )}
-          </div>
+          <GenerationSidebar
+            isCollapsed={isCollapsed}
+            onToggle={togglePanel}
+            title={title}
+            messages={messages}
+            loading={loading}
+            messagesEndRef={messagesEndRef}
+            model={model}
+            format={format}
+            topic={topic}
+            onModelChange={handleModelChange}
+            onFormatChange={handleFormatChange}
+            onTopicChange={setTopic}
+            onGenerate={generateLesson}
+            currentLessonId={currentlessonID}
+            error={error}
+          />
         </Panel>
       </Group>
 
