@@ -58,7 +58,7 @@ export default function InputForm({
                 <div className="absolute bottom-2 right-2">
                     <button
                         type="button"
-                        onClick={onGenerate}
+                        onClick={() => onGenerate()}
                         disabled={disabled || !topic.trim()}
                         className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:opacity-40"
                     >

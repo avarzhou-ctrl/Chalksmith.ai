@@ -7,12 +7,12 @@ from urllib.parse import urlparse
 class ExportStrategy(ABC):
     """Base class to allow swapping export logic (e.g., PDF vs Video) per format"""
     @abstractmethod
-    def export(self, file_path: str, filename: str) -> FileResponse:
+    async def export(self, file_path: str, filename: str) -> FileResponse:
         pass
 
 class FileExportStrategy(ExportStrategy):
     """Serves existing static files directly from the server storage"""
-    def export(self, file_path: str, filename: str) -> FileResponse:
+    async def export(self, file_path: str, filename: str) -> FileResponse:
         # Extract filename to build an absolute filesystem path
         base_filename = os.path.basename(file_path)
         actual_path = os.path.join(STATIC_DIR, base_filename)
@@ -44,7 +44,7 @@ class FileExportStrategy(ExportStrategy):
     
 class PDFExportStrategy(ExportStrategy):
     """Converts HTML-based lessons (Reveal.js) to PDF using a headless browser"""
-    def export(self, file_path: str, filename: str) -> FileResponse:
+    async def export(self, file_path: str, filename: str) -> FileResponse:
         base_filename = os.path.basename(file_path)
         html_path = os.path.join(STATIC_DIR, base_filename)
 
@@ -54,23 +54,23 @@ class PDFExportStrategy(ExportStrategy):
         pdf_path = html_path.replace(".html", ".pdf")
 
         # Playwright used to render CSS/JS animations before capturing the PDF
-        from playwright.sync_api import sync_playwright
+        from playwright.async_api import async_playwright
         
-        with sync_playwright() as p:
+        async with async_playwright() as p:
             try:
-                browser = p.chromium.launch()
-                page = browser.new_page()
+                browser = await p.chromium.launch()
+                page = await browser.new_page()
 
                 # Use file:// protocol to load the local HTML without a web server
                 absolute_html_path = os.path.abspath(html_path)
                 # print-pdf is a Reveal.js specific flag to optimize for printing
-                page.goto(f"file://{absolute_html_path}?print-pdf")
+                await page.goto(f"file://{absolute_html_path}?print-pdf")
 
                 # Wait for transitions and scripts (e.g., KaTeX) to finish rendering
-                page.wait_for_timeout(2000)
+                await page.wait_for_timeout(2000)
 
-                page.pdf(path=pdf_path, format="A4", print_background=True)
-                browser.close()
+                await page.pdf(path=pdf_path, format="A4", print_background=True)
+                await browser.close()
             except Exception as e:
                 print(f"PDF Export error: {e}")
                 # Fallback to serving the HTML if conversion fails
@@ -98,7 +98,7 @@ class ExportService:
     def get_strategy(self, format_type: str) -> ExportStrategy:
         return self.strategies.get(format_type, self._default_strategy)
     
-    def prepare_export(self, file_url: str, format_type: str, topic: str) -> FileResponse:
+    async def prepare_export(self, file_url: str, format_type: str, topic: str) -> FileResponse:
         """Determines the correct extension and triggers the strategy"""
         # Select extension based on the actual file content available
         if format_type == "remotion":
@@ -118,7 +118,7 @@ class ExportService:
         path_to_file = parsed_url.path 
 
         strategy = self.get_strategy(format_type)
-        return strategy.export(path_to_file, filename)
+        return await strategy.export(path_to_file, filename)
     
 # Export service singleton for app-wide use
 export_service = ExportService()

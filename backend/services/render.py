@@ -44,15 +44,30 @@ def render_manim(script_path: str) -> str:
         manim_exe = env_exe
     
     if not manim_exe:
-        # Check the current .venv bin/ folder for the 'manim' executable
+        # Check current python environment's bin folder
         python_dir = Path(sys.executable).parent
         possible_exe = python_dir / "manim"
+        # Support Windows
+        if os.name == 'nt':
+            possible_exe = possible_exe.with_suffix('.exe')
+            
         if possible_exe.exists() and os.access(possible_exe, os.X_OK):
             manim_exe = str(possible_exe)
             
     if not manim_exe:
-        # Fallback to system-wide 'manim' command
-        manim_exe = "manim"
+        # Check project-relative .venv/bin folder as a fallback
+        project_root = Path(BASE_DIR).parent
+        venv_bin = project_root / ".venv" / ("Scripts" if os.name == 'nt' else "bin")
+        possible_exe = venv_bin / "manim"
+        if os.name == 'nt':
+            possible_exe = possible_exe.with_suffix('.exe')
+            
+        if possible_exe.exists() and os.access(possible_exe, os.X_OK):
+            manim_exe = str(possible_exe)
+
+    if not manim_exe:
+        # Fallback to system-wide 'manim' command using shutil.which for robustness
+        manim_exe = shutil.which("manim") or "manim"
 
     # Execute Manim CLI at medium quality (qm) for a balance of speed and resolution
     cmd = [manim_exe, "-qm", script_name, scene_name]
@@ -118,7 +133,8 @@ def render_manim_lesson(topic: str, model: str, manim_code: str, session=None, o
         retry_prompt = f"The previous Manim code failed with this error:\n{error_msg}\n\nPlease fix the code and return only the corrected, full Python script."
         
         try:
-            fixed_code = generate_lesson(topic, model, "manim", previous_code=manim_code, edit_prompt=retry_prompt)
+            lesson_result = generate_lesson(topic, model, "manim", previous_code=manim_code, edit_prompt=retry_prompt)
+            fixed_code = lesson_result["code"]
             
             # Save and try again
             with open(script_path, "w") as f:

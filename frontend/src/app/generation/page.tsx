@@ -92,10 +92,10 @@ export default function Page() {
   }, [messages, loading]);
 
   const generateLesson = async (overridePrompt?: string) => {
-    // If overridePrompt is provided (Auto-Fix), use it; otherwise fallback to the input field 'topic'
-    const activePrompt = overridePrompt || topic;
+    // If overridePrompt is provided and is a string (Auto-Fix), use it; otherwise fallback to 'topic'
+    const activePrompt = typeof overridePrompt === 'string' ? overridePrompt : topic;
     
-    if (!activePrompt || !model || !format || loading) return;
+    if (!activePrompt || typeof activePrompt !== 'string' || !model || !format || loading) return;
 
     setLoading(true);
     setError(null);
@@ -388,7 +388,7 @@ export default function Page() {
         <Panel 
           panelRef={panelRef}
           collapsible={true} 
-          collapsedSize="75px"
+          collapsedSize="80px"
           onResize={(size) => {
             if (size.asPercentage < 15) {
               setIsCollapsed(true);

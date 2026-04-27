@@ -27,7 +27,7 @@ export default function Dashboard() {
         <Panel 
           panelRef={panelRef}
           collapsible={true} 
-          collapsedSize="75px"
+          collapsedSize="80px"
           onResize={(size) => {
             if (size.asPercentage < 15) {
               setIsCollapsed(true);
@@ -50,8 +50,7 @@ export default function Dashboard() {
         <Panel minSize="50%" defaultSize="80%" id="content-panel">
             <div className="flex flex-col h-full bg-primary-bg p-8 overflow-y-auto">
                 <header className="mb-8">
-                    <h2 className="text-3xl font-bold tracking-tight text-primary-text mb-2">My Lessons</h2>
-                    <p className="text-secondary-text">Manage and view all your generated chalksmith creations.</p>
+                    <h2 className="text-3xl font-bold tracking-tight text-primary-text mb-2">Lessons</h2>
                 </header>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

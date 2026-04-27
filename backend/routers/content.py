@@ -268,7 +268,7 @@ async def export_lesson(id: str, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Lesson not found")
 
     try:
-        return export_service.prepare_export(
+        return await export_service.prepare_export(
             file_url=db_lesson.url,
             format_type=db_lesson.format,
             topic=db_lesson.topic

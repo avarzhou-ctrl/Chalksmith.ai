@@ -389,6 +389,10 @@ def clean_code_fences(content: str) -> str:
     # Handle trailing fences
     if content.rstrip().endswith('```'):
         content = content.rstrip()[:-3].rstrip()
+    
+    # Also clean up common trailing markers if they leak into the code section
+    if "---CODE_END---" in content:
+        content = content.split("---CODE_END---")[0].strip()
 
     return content
 
@@ -415,7 +419,22 @@ def _spinner(description: str):
 # CORE GENERATION LOGIC
 # -----------------------------------------------------------------------------
 
-def generate_lesson(topic: str, model: str, format_type: str, previous_code: str = None, edit_prompt: str = None) -> str:
+def parse_llm_response(content: str) -> dict:
+    """Parses the raw LLM response into a summary and code."""
+    content = clean_code_fences(content)
+    if "---CODE_START---" in content:
+        parts = content.split("---CODE_START---")
+        return {
+            "summary": parts[0].strip(),
+            "code": parts[1].strip()
+        }
+    else:
+        return {
+            "summary": "Generated lesson.",
+            "code": content.strip()
+        }
+
+def generate_lesson(topic: str, model: str, format_type: str, previous_code: str = None, edit_prompt: str = None) -> dict:
     """Entry point for both fresh generation and iterative editing."""
     if previous_code and edit_prompt:
         return get_edit_prompt(previous_code, topic, edit_prompt, format_type, model)
@@ -436,18 +455,14 @@ def generate_lesson(topic: str, model: str, format_type: str, previous_code: str
         else:
             raise ValueError(f"Unknown provider: {provider}")
 
-    content = clean_code_fences(content)
-    lesson = {
-        "summary": content.split("---CODE_START---")[0].strip(),
-        "code": content.split("---CODE_START---")[1].strip() if "---CODE_START---" in content else content.strip()
-    }
+    lesson = parse_llm_response(content)
 
     if format_type == "manim":
         lesson["code"] = ensure_manim_compatibility(lesson["code"])
 
     return lesson
 
-def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, format_type: str, model: str) -> str:
+def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, format_type: str, model: str) -> dict:
     """Constructs a targeted editing prompt to modify existing code."""
     base_instructions = f"""
     You are an expert code editor specializing in {format_type}. 
@@ -463,7 +478,6 @@ def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, f
     - Preserve all other functionality and structure.
     - Ensure the code remains complete, valid, and executable.
     - Maintain the same coding style and conventions.
-    - Output ONLY the complete updated source code, no explanations or markdown.
     """
 
     full_prompt = f"""
@@ -495,9 +509,12 @@ def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, f
         else:
             raise ValueError(f"Unknown provider: {provider}")
     
-    content = clean_code_fences(content)
+    lesson = parse_llm_response(content)
+    
+    if format_type == "manim":
+        lesson["code"] = ensure_manim_compatibility(lesson["code"])
 
-    return content
+    return lesson
 
 # -----------------------------------------------------------------------------
 # COMPATIBILITY LAYERS
