@@ -35,6 +35,19 @@ export default function Page() {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   
+  // Ref to track the active EventSource cleanup function for mid-generation cancellation
+  const generationCleanupRef = useRef<(() => void) | null>(null);
+
+  const stopGeneration = () => {
+    // Aborts the SSE connection and stops UI loading states immediately
+    if (generationCleanupRef.current) {
+      generationCleanupRef.current();
+      generationCleanupRef.current = null;
+    }
+    setLoading(false);
+    setGenerationStatus(null);
+  };
+
   const handleFormatChange = (newFormat: string) => {
     // Reset lesson context when changing formats as cross-format editing is unsupported
     setFormat(newFormat);
@@ -48,6 +61,9 @@ export default function Page() {
   }
 
   const startNewLesson = async () => {
+    // Ensure any ongoing generation is halted before clearing state
+    stopGeneration();
+
     // If we have an active lesson, delete it from the backend to clean up database and storage
     if (currentlessonID) {
       try {
@@ -91,6 +107,15 @@ export default function Page() {
     scrollToBottom();
   }, [messages, loading]);
 
+  useEffect(() => {
+    // Safety cleanup: ensure connections are closed if the user navigates away mid-generation
+    return () => {
+      if (generationCleanupRef.current) {
+        generationCleanupRef.current();
+      }
+    };
+  }, []);
+
   const generateLesson = async (overridePrompt?: string) => {
     // If overridePrompt is provided and is a string (Auto-Fix), use it; otherwise fallback to 'topic'
     const activePrompt = typeof overridePrompt === 'string' ? overridePrompt : topic;
@@ -107,7 +132,7 @@ export default function Page() {
 
     try {
       // Initiate SSE connection to receive real-time progress updates during long-running generation tasks
-      generateLessonStreaming(
+      const cleanup = generateLessonStreaming(
         { 
           topic: currentlessonID ? initialTopic : activePrompt, 
           model, 
@@ -139,6 +164,7 @@ export default function Page() {
             }
             
             setLoading(false);
+            generationCleanupRef.current = null;
             if (!overridePrompt) setTopic('');
           } else if (status.status === 'error') {
             // Escalate internal status errors to the catch block for unified error handling
@@ -151,14 +177,20 @@ export default function Page() {
           setIsErrorModalOpen(true); 
           setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${errMsg}` }]);
           setLoading(false);
+          generationCleanupRef.current = null;
         }
       );
+
+      // Store the cleanup function so we can manually abort if the user clicks Stop or Reset
+      generationCleanupRef.current = cleanup;
+
     } catch (err: any) {
       const errorMsg = err.message || 'Oops! Failed to generate lesson.';
       setError(errorMsg);
       setIsErrorModalOpen(true); 
       setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${errorMsg}` }]);
       setLoading(false);
+      generationCleanupRef.current = null;
     }
   }
 
@@ -185,6 +217,7 @@ export default function Page() {
                 <Button 
                   variant="outline" 
                   size="sm" 
+                  title="Reset Canvas"
                   onClick={() => setIsResetModalOpen(true)}
                   className="gap-1.5 h-8.5 px-3 py-1.5"
                 >
@@ -368,11 +401,13 @@ export default function Page() {
                         <span className={generationStatus?.progress && generationStatus.progress >= 100 ? 'text-accent' : 'opacity-40'}>Finishing</span>
                       </div>
 
-                      <div className="flex items-center gap-3 bg-accent/10 border border-accent/20 px-5 py-3 rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <Loader2 className="text-accent animate-spin" size={16} />
-                        <p className="text-accent text-sm font-medium italic">
-                          {generationStatus?.message || "Preparing..."}
-                        </p>
+                      <div className="flex flex-col items-center gap-6">
+                        <div className="flex items-center gap-3 bg-accent/10 border border-accent/20 px-5 py-3 rounded-2xl animate-in fade-in slide-in-from-bottom-2 duration-500">
+                          <Loader2 className="text-accent animate-spin" size={16} />
+                          <p className="text-accent text-sm font-medium italic">
+                            {generationStatus?.message || "Preparing..."}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -415,8 +450,10 @@ export default function Page() {
             onFormatChange={handleFormatChange}
             onTopicChange={setTopic}
             onGenerate={generateLesson}
+            onStopGenerate={stopGeneration}
             currentLessonId={currentlessonID}
             error={error}
+            generationStatus={generationStatus}
           />
         </Panel>
       </Group>

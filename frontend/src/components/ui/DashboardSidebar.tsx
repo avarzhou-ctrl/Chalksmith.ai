@@ -23,6 +23,7 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
                         </div>
                         <button 
                             className="p-2 hover:bg-surface/50 rounded-lg text-secondary-text transition-all duration-300 ml-2 shrink-0" 
+                            title="Collapse Sidebar"
                             onClick={onToggle}
                         >
                             <PanelLeft size={20} />

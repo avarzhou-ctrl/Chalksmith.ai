@@ -3,6 +3,7 @@
 import { PanelRight, ChevronDown, Flame, Loader2 } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import InputForm from "../generation/InputForm";
+import { GenerationStatus } from "@/lib/api";
 
 interface GenerationSidebarProps {
   isCollapsed: boolean;
@@ -18,8 +19,10 @@ interface GenerationSidebarProps {
   onFormatChange: (format: string) => void;
   onTopicChange: (topic: string) => void;
   onGenerate: (override?: string) => void;
+  onStopGenerate: () => void;
   currentLessonId: string | null;
   error: string | null;
+  generationStatus: GenerationStatus | null;
 }
 
 export default function GenerationSidebar({
@@ -36,8 +39,10 @@ export default function GenerationSidebar({
   onFormatChange,
   onTopicChange,
   onGenerate,
+  onStopGenerate,
   currentLessonId,
-  error
+  error,
+  generationStatus
 }: GenerationSidebarProps) {
   return (
     <div className="flex flex-col h-full bg-secondary-bg border-l border-border overflow-hidden">
@@ -55,6 +60,7 @@ export default function GenerationSidebar({
                 </button>
                 <button 
                   className="p-2 hover:bg-surface/50 rounded-lg text-secondary-text transition-all duration-300" 
+                  title="Collapse Sidebar"
                   onClick={onToggle}
                 >
                   <PanelRight size={20} />
@@ -123,8 +129,10 @@ export default function GenerationSidebar({
                 onFormatChange={onFormatChange}
                 onTopicChange={onTopicChange}
                 onGenerate={onGenerate}
+                onStopGenerate={onStopGenerate}
                 disabled={loading}
                 isEditMode={!!currentLessonId}
+                generationStatus={generationStatus}
               />
               
               {error && (

@@ -41,48 +41,7 @@ class FileExportStrategy(ExportStrategy):
             media_type=media_type,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
-    
-class PDFExportStrategy(ExportStrategy):
-    """Converts HTML-based lessons (Reveal.js) to PDF using a headless browser"""
-    async def export(self, file_path: str, filename: str) -> FileResponse:
-        base_filename = os.path.basename(file_path)
-        html_path = os.path.join(STATIC_DIR, base_filename)
 
-        if not os.path.exists(html_path):
-            raise FileNotFoundError(f"HTML file not found at: {html_path}")
-        
-        pdf_path = html_path.replace(".html", ".pdf")
-
-        # Playwright used to render CSS/JS animations before capturing the PDF
-        from playwright.async_api import async_playwright
-        
-        async with async_playwright() as p:
-            try:
-                browser = await p.chromium.launch()
-                page = await browser.new_page()
-
-                # Use file:// protocol to load the local HTML without a web server
-                absolute_html_path = os.path.abspath(html_path)
-                # print-pdf is a Reveal.js specific flag to optimize for printing
-                await page.goto(f"file://{absolute_html_path}?print-pdf")
-
-                # Wait for transitions and scripts (e.g., KaTeX) to finish rendering
-                await page.wait_for_timeout(2000)
-
-                await page.pdf(path=pdf_path, format="A4", print_background=True)
-                await browser.close()
-            except Exception as e:
-                print(f"PDF Export error: {e}")
-                # Fallback to serving the HTML if conversion fails
-                return FileResponse(path=html_path, filename=filename.replace(".pdf", ".html"))
-
-        return FileResponse(
-            path=pdf_path,
-            filename=filename,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=\"{filename}\""}
-        )
-    
 class ExportService:
     """Orchestrates different export strategies based on lesson format"""
     def __init__(self):
@@ -91,7 +50,7 @@ class ExportService:
             "remotion": FileExportStrategy(),
             "manim": FileExportStrategy(),
             "p5js": FileExportStrategy(),
-            "reveal.js": PDFExportStrategy()
+            "reveal.js": FileExportStrategy()
         }
         self._default_strategy = FileExportStrategy()
 
@@ -105,8 +64,6 @@ class ExportService:
             extension = ".json" if ".json" in file_url else ".mp4"
         elif format_type == "manim":
             extension = ".mp4"
-        elif format_type == "reveal.js":
-            extension = ".pdf"
         else:
             extension = ".html"
 

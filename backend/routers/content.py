@@ -96,6 +96,7 @@ async def generate_lesson_stream(
             
             loop = asyncio.get_event_loop()
             # Run LLM generation in an executor to avoid blocking the main async event loop during long API calls
+            # LLM API calls are currently synchronous, but we check for disconnection before moving to rendering
             lesson = await loop.run_in_executor(
                 None, 
                 lambda: generate_lesson(
@@ -107,40 +108,58 @@ async def generate_lesson_stream(
                 )
             )
 
+            if await req.is_disconnected():
+                print("Client disconnected after LLM generation. Aborting.")
+                return
+
             # Stage 3: Rendering
             yield f"data: {json.dumps({'status': 'rendering', 'message': f'Rendering {format} assets...', 'progress': 60})}\n\n"
             
-            # Start rendering in a background thread to prevent UI freezing while sub-processes (like npx remotion) run
-            render_task = loop.run_in_executor(
-                None,
-                lambda: (
-                    render_remotion_lesson(active_topic, model, lesson["code"], on_progress=status_callback) if format == "remotion" else
-                    render_manim_lesson(active_topic, model, lesson["code"], on_progress=status_callback) if format == "manim" else
-                    render_p5js_lesson(active_topic, model, lesson["code"], on_progress=status_callback) if format == "p5.js" else
-                    render_revealjs_lesson(active_topic, model, lesson["code"], on_progress=status_callback) if format == "reveal.js" else
-                    None
-                )
-            )
+            # Start rendering as an async task to allow for clean cancellation if the client disconnects
+            if format == "remotion":
+                render_task = asyncio.create_task(render_remotion_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
+            elif format == "manim":
+                render_task = asyncio.create_task(render_manim_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
+            elif format == "p5.js":
+                render_task = asyncio.create_task(render_p5js_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
+            elif format == "reveal.js":
+                render_task = asyncio.create_task(render_revealjs_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
+            else:
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Unsupported format'})}\n\n"
+                return
 
-            # Continuously poll the queue with a timeout to yield real-time rendering updates while waiting for completion
-            while not render_task.done():
-                try:
-                    # Wait for an update or a timeout to check if the task is done
-                    msg, prog = await asyncio.wait_for(queue.get(), timeout=0.1)
-                    yield f"data: {json.dumps({'status': 'rendering', 'message': msg, 'progress': prog})}\n\n"
-                except asyncio.TimeoutError:
-                    continue
-            
-            # Exhaust the queue of any remaining messages to ensure no final progress updates are missed
-            while not queue.empty():
-                msg, prog = queue.get_nowait()
-                yield f"data: {json.dumps({'status': 'rendering', 'message': msg, 'progress': prog})}\n\n"
-
+            # Continuously poll for progress updates while monitoring the connection state
             try:
+                while not render_task.done():
+                    if await req.is_disconnected():
+                        print(f"Client disconnected during {format} rendering. Cancelling task.")
+                        render_task.cancel()
+                        # Wait a moment for the task to receive the cancellation and clean up its subprocesses
+                        try:
+                            await asyncio.wait_for(render_task, timeout=2.0)
+                        except (asyncio.CancelledError, asyncio.TimeoutError):
+                            pass
+                        return
+                    
+                    try:
+                        # Non-blocking check of the progress queue
+                        msg, prog = await asyncio.wait_for(queue.get(), timeout=0.1)
+                        yield f"data: {json.dumps({'status': 'rendering', 'message': msg, 'progress': prog})}\n\n"
+                    except asyncio.TimeoutError:
+                        continue
+                
+                # Exhaust the queue of any remaining messages to ensure no final progress updates are missed
+                while not queue.empty():
+                    msg, prog = queue.get_nowait()
+                    yield f"data: {json.dumps({'status': 'rendering', 'message': msg, 'progress': prog})}\n\n"
+
                 file_url = await render_task
                 if file_url is None:
-                    yield f"data: {json.dumps({'status': 'error', 'message': 'Unsupported format'})}\n\n"
+                    yield f"data: {json.dumps({'status': 'error', 'message': 'Rendering failed'})}\n\n"
                     return
+            except asyncio.CancelledError:
+                render_task.cancel()
+                raise
             except Exception as e:
                 yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
                 return
@@ -193,24 +212,28 @@ async def create_lesson(request: LessonRequest, req: Request, session: Session =
                 request.topic = db_lesson.topic
 
     # Calls LLM engine to generate or edit raw source code
-    lesson = generate_lesson(
-        request.topic, 
-        request.model, 
-        request.format, 
-        previous_code=previous_code, 
-        edit_prompt=request.prompt
+    loop = asyncio.get_event_loop()
+    lesson = await loop.run_in_executor(
+        None,
+        lambda: generate_lesson(
+            request.topic, 
+            request.model, 
+            request.format, 
+            previous_code=previous_code, 
+            edit_prompt=request.prompt
+        )
     )
     
     # Route to specific renderer based on target format (Video, Interactive, or Slides)
     try:
         if request.format == "remotion":
-            file_url = render_remotion_lesson(request.topic, request.model, lesson["code"])
+            file_url = await render_remotion_lesson(request.topic, request.model, lesson["code"])
         elif request.format == "manim":
-            file_url = render_manim_lesson(request.topic, request.model, lesson["code"])
+            file_url = await render_manim_lesson(request.topic, request.model, lesson["code"])
         elif request.format == "p5.js":
-            file_url = render_p5js_lesson(request.topic, request.model, lesson["code"])
+            file_url = await render_p5js_lesson(request.topic, request.model, lesson["code"])
         elif request.format == "reveal.js":
-            file_url = render_revealjs_lesson(request.topic, request.model, lesson["code"])
+            file_url = await render_revealjs_lesson(request.topic, request.model, lesson["code"])
         else:
             raise HTTPException(status_code=400, detail="Unsupported format")
     except Exception as e:

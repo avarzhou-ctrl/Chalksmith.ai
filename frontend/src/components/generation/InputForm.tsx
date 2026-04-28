@@ -1,9 +1,10 @@
 'use client'
 
+import { GenerationStatus } from '@/lib/api';
 import FormatSelector from './FormatSelector';
 import ModelSelector from './ModelSelector';
 import Textarea from '@/components/ui/Textarea';
-import { CircleArrowUp } from 'lucide-react';
+import { CircleArrowUp, CirclePause } from 'lucide-react';
 
 interface InputFormProps {
     model: string;
@@ -13,8 +14,10 @@ interface InputFormProps {
     onFormatChange: (value: string) => void;
     onTopicChange: (value: string) => void;
     onGenerate: () => void;
+    onStopGenerate: () => void;
     disabled?: boolean;
     isEditMode?: boolean;
+    generationStatus: GenerationStatus | null;
 }
 
 export default function InputForm({ 
@@ -25,8 +28,10 @@ export default function InputForm({
     onFormatChange, 
     onTopicChange, 
     onGenerate,
+    onStopGenerate,
     disabled,
-    isEditMode
+    isEditMode,
+    generationStatus
 }: InputFormProps) {
     return (
         <div className="flex flex-col w-full min-w-0">
@@ -56,14 +61,26 @@ export default function InputForm({
                 />
 
                 <div className="absolute bottom-2 right-2">
-                    <button
-                        type="button"
-                        onClick={() => onGenerate()}
-                        disabled={disabled || !topic.trim()}
-                        className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:opacity-40"
-                    >
-                        <CircleArrowUp size={20} />
-                    </button>
+                    {disabled ? (
+                        <button
+                            type="button"
+                            title="Stop Generation"
+                            onClick={() => onStopGenerate()}
+                            className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors"
+                        >
+                            <CirclePause size={20} />
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            title="Start Generation"
+                            onClick={() => onGenerate()}
+                            disabled={!topic.trim()}
+                            className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:opacity-40"
+                        >
+                            <CircleArrowUp size={20} />
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

@@ -1,5 +1,6 @@
 import uuid
 import os
+import asyncio
 import subprocess
 import json
 import re
@@ -12,7 +13,7 @@ from backend.services.llm import generate_lesson
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-def render_manim(script_path: str) -> str:
+async def render_manim(script_path: str) -> str:
     """Render a Manim script to video. Returns the path to the rendered video."""
     # Build the target .mp4 path based on the input .py script name
     script_path_obj = Path(script_path).resolve()
@@ -73,11 +74,25 @@ def render_manim(script_path: str) -> str:
     cmd = [manim_exe, "-qm", script_name, scene_name]
     print(f"Running in {script_dir}: {' '.join(cmd)}", file=sys.stderr)
 
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=script_dir)
+    # Use asyncio.create_subprocess_exec to allow for task cancellation
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        cwd=script_dir
+    )
 
-    if result.returncode != 0:
+    try:
+        stdout, stderr = await process.communicate()
+    except asyncio.CancelledError:
+        # If the client disconnects, terminate the subprocess immediately
+        process.terminate()
+        await process.wait()
+        raise
+
+    if process.returncode != 0:
         # Capture stderr to provide debugging context for the LLM self-correction loop
-        error_msg = f"Manim rendering failed with code {result.returncode}.\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
+        error_msg = f"Manim rendering failed with code {process.returncode}.\nSTDOUT: {stdout.decode()}\nSTDERR: {stderr.decode()}"
         print(error_msg, file=sys.stderr)
         raise RuntimeError(error_msg)
 
@@ -102,7 +117,7 @@ def render_manim(script_path: str) -> str:
     print(f"Successfully rendered and moved video to: {output_video}", file=sys.stderr)
     return str(output_video)
 
-def render_manim_lesson(topic: str, model: str, manim_code: str, session=None, on_progress=None) -> str:
+async def render_manim_lesson(topic: str, model: str, manim_code: str, session=None, on_progress=None) -> str:
     unique_id = str(uuid.uuid4())
     script_path = os.path.join(STATIC_DIR, f"manim_{unique_id}.py")
     
@@ -115,9 +130,9 @@ def render_manim_lesson(topic: str, model: str, manim_code: str, session=None, o
         
     try:
         if on_progress:
-            # Update client before the blocking subprocess call to Manim CLI
+            # Update client before the async subprocess call to Manim CLI
             on_progress("Rendering video frames with Manim...", 70)
-        video_path = render_manim(script_path)
+        video_path = await render_manim(script_path)
         return f"/static/manim_{unique_id}.mp4"
     except RuntimeError as e:
         print(f"Manim First Attempt Failed: {str(e)}")
@@ -133,7 +148,12 @@ def render_manim_lesson(topic: str, model: str, manim_code: str, session=None, o
         retry_prompt = f"The previous Manim code failed with this error:\n{error_msg}\n\nPlease fix the code and return only the corrected, full Python script."
         
         try:
-            lesson_result = generate_lesson(topic, model, "manim", previous_code=manim_code, edit_prompt=retry_prompt)
+            # LLM call is still synchronous for now, run in executor if needed
+            loop = asyncio.get_event_loop()
+            lesson_result = await loop.run_in_executor(
+                None, 
+                lambda: generate_lesson(topic, model, "manim", previous_code=manim_code, edit_prompt=retry_prompt)
+            )
             fixed_code = lesson_result["code"]
             
             # Save and try again
@@ -143,13 +163,13 @@ def render_manim_lesson(topic: str, model: str, manim_code: str, session=None, o
             if on_progress:
                 # Update client on final render attempt post-correction
                 on_progress("Re-rendering corrected Manim script...", 80)
-            video_path = render_manim(script_path)
+            video_path = await render_manim(script_path)
             return f"/static/manim_{unique_id}.mp4"
         except Exception as retry_err:
             print(f"Manim Self-Correction Failed: {str(retry_err)}")
             raise RuntimeError(f"Self-correction failed: {str(retry_err)}")
 
-def render_remotion_lesson(topic: str, model: str, remotion_json: str, on_progress=None) -> str:
+async def render_remotion_lesson(topic: str, model: str, remotion_json: str, on_progress=None) -> str:
     unique_id = str(uuid.uuid4())
     video_filename = f"remotion_{unique_id}.mp4"
     video_path = os.path.join(STATIC_DIR, video_filename)
@@ -198,21 +218,31 @@ def render_remotion_lesson(topic: str, model: str, remotion_json: str, on_progre
         on_progress(f"Encoding MP4 video ({duration_frames} frames)...", 75)
 
     try:
-        # In a production app, use BackgroundTasks. Synchronous here for simplicity.
-        process = subprocess.run(
-            cmd, 
-            cwd=frontend_dir, 
-            capture_output=True, 
-            text=True, 
-            timeout=180 # 3 min timeout
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=frontend_dir
         )
         
+        try:
+            # 3 minute timeout
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=180)
+        except asyncio.TimeoutError:
+            process.terminate()
+            await process.wait()
+            raise RuntimeError("Remotion render timed out")
+        except asyncio.CancelledError:
+            process.terminate()
+            await process.wait()
+            raise
+
         if process.returncode == 0 and os.path.exists(video_path):
             print(f"RENDER SUCCESS: {video_filename}", flush=True)
             return f"/static/{video_filename}"
         else:
             print(f"RENDER FAILED (Code {process.returncode})", flush=True)
-            print(f"STDERR: {process.stderr}", flush=True)
+            print(f"STDERR: {stderr.decode()}", flush=True)
             # Fallback: Serve the JSON so the frontend player can still work
             return f"/static/{props_filename}"
             
@@ -220,7 +250,7 @@ def render_remotion_lesson(topic: str, model: str, remotion_json: str, on_progre
         print(f"RENDER EXCEPTION: {str(e)}", flush=True)
         return f"/static/{props_filename}"
 
-def render_p5js_lesson(topic: str, model: str, p5js_code: str, on_progress=None) -> str:
+async def render_p5js_lesson(topic: str, model: str, p5js_code: str, on_progress=None) -> str:
     unique_id = str(uuid.uuid4())
 
     if on_progress:
@@ -234,7 +264,7 @@ def render_p5js_lesson(topic: str, model: str, p5js_code: str, on_progress=None)
     
     return f"/static/p5js_{unique_id}.html"
 
-def render_revealjs_lesson(topic: str, model: str, revealjs_code: str, on_progress=None) -> str:
+async def render_revealjs_lesson(topic: str, model: str, revealjs_code: str, on_progress=None) -> str:
     unique_id = str(uuid.uuid4())
 
     if on_progress:
