@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import DashboardSidebar from "@/components/ui/DashboardSidebar";
 import { Group, Panel, Separator } from "react-resizable-panels";
+import { CirclePlus } from "lucide-react";
 
 export default function Dashboard() {
   const panelRef = useRef<any>(null);
@@ -55,14 +56,12 @@ export default function Dashboard() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {/* Placeholder for lesson cards */}
-                    <div className="h-64 rounded-3xl border border-border bg-surface/30 border-dashed flex flex-col items-center justify-center p-6 text-center">
-                        <p className="text-secondary-text mb-4 italic">No lessons yet.</p>
-                        <a 
-                          href="/generation" 
-                          className="px-6 py-2.5 bg-accent text-primary-text rounded-xl font-semibold shadow-lg shadow-accent/20 hover:bg-amber-700 transition-all duration-300 transform hover:-translate-y-1"
-                        >
-                          Create First Lesson
-                        </a>
+                    <div 
+                      onClick={() => (window.location.href = "/generation")}
+                      className="h-64 rounded-3xl border border-border hover:border-accent bg-surface/30 border-dashed flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-all duration-300 ease-in-out hover:bg-surface/40 group"
+                    >
+                      <CirclePlus className="text-accent/80 group-hover:text-accent transition-transform duration-300" size={60} />
+                      <p className="mt-4 text-lg text-primary-text/80 group-hover:text-primary-text transition-colors duration-300">Create New Lesson</p>
                     </div>
                 </div>
             </div>

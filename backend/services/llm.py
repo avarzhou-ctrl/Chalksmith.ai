@@ -464,9 +464,27 @@ def generate_lesson(topic: str, model: str, format_type: str, previous_code: str
 
 def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, format_type: str, model: str) -> dict:
     """Constructs a targeted editing prompt to modify existing code."""
+    
+    # Detect if this is an automated fix (system-triggered) or a user-requested change
+    is_auto_fix = "Traceback" in edit_prompt or "error" in edit_prompt.lower()
+    
+    if is_auto_fix:
+        mode_instruction = f"""
+        ### SELF-CORRECTION MODE ###
+        The previous code generated for the topic "{original_prompt}" failed to run.
+        Your goal is to FIX the code so it executes perfectly, while keeping the content focused on the original topic.
+        Do NOT change the topic. Do NOT treat the error message as a new lesson topic.
+        """
+    else:
+        mode_instruction = f"""
+        ### USER EDIT MODE ###
+        The user wants to modify the existing lesson about "{original_prompt}".
+        Incorporate the requested changes while preserving the rest of the lesson structure.
+        """
+
     base_instructions = f"""
     You are an expert code editor specializing in {format_type}. 
-    You will be given the original topic, the current code, and a request to edit the code.
+    {mode_instruction}
 
     Your task is to generate the COMPLETE edited code that incorporates the requested changes and SUMMARY of changes.
     Create a concise summary of the key concepts and structure covered in the edited lesson in 2-3 sentences/bullet points.
@@ -474,8 +492,7 @@ def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, f
     After the summary, type "---CODE_START---" on a new line, then output the complete, executable source code for the lesson.
     
     Guidelines:
-    - Make ONLY the changes requested in the edit prompt.
-    - Preserve all other functionality and structure.
+    - Preserve all other functionality and structure not mentioned in the edit/fix request.
     - Ensure the code remains complete, valid, and executable.
     - Maintain the same coding style and conventions.
     """
@@ -488,9 +505,10 @@ def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, f
     CURRENT CODE:
     {current_code}
 
-    EDIT REQUEST: {edit_prompt}
+    {"SYSTEM ERROR LOG (FIX THIS)" if is_auto_fix else "USER EDIT REQUEST"}: 
+    {edit_prompt}
     
-    Generate the COMPLETE edited code:
+    Generate the COMPLETE {"corrected" if is_auto_fix else "edited"} code:
     """
 
     provider = detect_provider(model)

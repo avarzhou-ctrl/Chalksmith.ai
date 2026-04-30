@@ -3,7 +3,7 @@
 import { GenerationStatus } from '@/lib/api';
 import FormatSelector from './FormatSelector';
 import ModelSelector from './ModelSelector';
-import Textarea from '@/components/ui/Textarea';
+import TextArea from '@/components/ui/TextArea';
 import { CircleArrowUp, CirclePause } from 'lucide-react';
 
 interface InputFormProps {
@@ -45,7 +45,7 @@ export default function InputForm({
                 </div>
             </div>
             <div className="relative mt-4 group">
-                <Textarea 
+                <TextArea 
                     placeholder={isEditMode ? "How should I edit this lesson?" : "Describe your topic..."}
                     disabled={disabled}
                     value={topic}

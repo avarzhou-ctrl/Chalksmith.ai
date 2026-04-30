@@ -1,11 +1,11 @@
 'use client'
 
-interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
 
 export default function Textarea({
     className = "",
     ...props
-}: TextareaProps & { className?: string }) {
+}: TextAreaProps & { className?: string }) {
         return (
             <textarea
                 className={`

@@ -117,57 +117,79 @@ async def render_manim(script_path: str) -> str:
     print(f"Successfully rendered and moved video to: {output_video}", file=sys.stderr)
     return str(output_video)
 
+def extract_traceback(error_output: str) -> str:
+    """Extracts only the relevant Python traceback or error message from Manim output."""
+    # Look for the standard Python traceback start
+    if "Traceback (most recent call last):" in error_output:
+        return "Traceback (most recent call last):" + error_output.split("Traceback (most recent call last):")[-1]
+    
+    # Fallback: Look for specific Manim Error lines in stderr
+    lines = error_output.splitlines()
+    error_lines = [l for l in lines if "ERROR" in l or "Exception" in l or "Error" in l]
+    if error_lines:
+        # Return the last few error-related lines for context
+        return "\n".join(error_lines[-5:])
+        
+    # Final fallback: Return the last 1000 characters
+    return error_output[-1000:]
+
 async def render_manim_lesson(topic: str, model: str, manim_code: str, session=None, on_progress=None) -> str:
     unique_id = str(uuid.uuid4())
     script_path = os.path.join(STATIC_DIR, f"manim_{unique_id}.py")
     
-    if on_progress:
-        # Report progress to the client via SSE before beginning IO-bound file writes
-        on_progress("Writing Manim script...", 65)
+    max_retries = 2
+    current_code = manim_code
 
-    with open(script_path, "w") as f:
-        f.write(manim_code)
-        
-    try:
+    for attempt in range(max_retries + 1):
         if on_progress:
-            # Update client before the async subprocess call to Manim CLI
-            on_progress("Rendering video frames with Manim...", 70)
-        video_path = await render_manim(script_path)
-        return f"/static/manim_{unique_id}.mp4"
-    except RuntimeError as e:
-        print(f"Manim First Attempt Failed: {str(e)}")
-        
-        # SELF-CORRECTION: Send error back to LLM
-        error_msg = str(e)
-        from backend.services.llm import generate_lesson
-        
-        if on_progress:
-            # Inform user of delay due to automatic error recovery sequence
-            on_progress("Auto-correcting Manim syntax error...", 75)
+            if attempt == 0:
+                on_progress("Writing Manim script...", 65)
+            else:
+                on_progress(f"Auto-correcting Manim syntax error (Attempt {attempt}/{max_retries})...", 70 + (attempt * 10))
 
-        retry_prompt = f"The previous Manim code failed with this error:\n{error_msg}\n\nPlease fix the code and return only the corrected, full Python script."
-        
+        with open(script_path, "w") as f:
+            f.write(current_code)
+            
         try:
-            # LLM call is still synchronous for now, run in executor if needed
-            loop = asyncio.get_event_loop()
-            lesson_result = await loop.run_in_executor(
-                None, 
-                lambda: generate_lesson(topic, model, "manim", previous_code=manim_code, edit_prompt=retry_prompt)
-            )
-            fixed_code = lesson_result["code"]
-            
-            # Save and try again
-            with open(script_path, "w") as f:
-                f.write(fixed_code)
-            
             if on_progress:
-                # Update client on final render attempt post-correction
-                on_progress("Re-rendering corrected Manim script...", 80)
-            video_path = await render_manim(script_path)
+                on_progress("Rendering video frames with Manim...", 70 + (attempt * 5))
+            await render_manim(script_path)
             return f"/static/manim_{unique_id}.mp4"
-        except Exception as retry_err:
-            print(f"Manim Self-Correction Failed: {str(retry_err)}")
-            raise RuntimeError(f"Self-correction failed: {str(retry_err)}")
+        except RuntimeError as e:
+            if attempt >= max_retries:
+                print(f"Manim failed after {max_retries} retries: {str(e)}")
+                raise RuntimeError(f"Manim failed after {max_retries} retries. Final error: {extract_traceback(str(e))}")
+            
+            # SELF-CORRECTION: Extract relevant traceback and send back to LLM
+            error_msg = str(e)
+            traceback = extract_traceback(error_msg)
+            print(f"Manim Attempt {attempt+1} Failed. Traceback extracted: {traceback}")
+            
+            from backend.services.llm import generate_lesson
+            
+            # Specific guiderails for Manim Community v0.18+
+            retry_prompt = (
+                f"The previous Manim code failed with this error:\n\n{traceback}\n\n"
+                "Please fix the code. CRITICAL: Ensure you are using Manim Community (v0.18+) syntax. "
+                "Common fixes to apply:\n"
+                "- Use 'Create' instead of 'ShowCreation'\n"
+                "- Use 'Uncreate' instead of 'UnshowCreation'\n"
+                "- Use 'FadeIn' / 'FadeOut' instead of 'FadeInFrom', etc.\n"
+                "- Use 'ReplacementTransform' instead of 'Transform' if swapping objects\n"
+                "- Ensure all imports are 'from manim import *'\n"
+                "Return only the corrected, full Python script."
+            )
+            
+            try:
+                loop = asyncio.get_event_loop()
+                lesson_result = await loop.run_in_executor(
+                    None, 
+                    lambda: generate_lesson(topic, model, "manim", previous_code=current_code, edit_prompt=retry_prompt)
+                )
+                current_code = lesson_result["code"]
+            except Exception as llm_err:
+                print(f"LLM failed to generate a fix: {str(llm_err)}")
+                raise RuntimeError(f"Failed to generate fix: {str(llm_err)}")
 
 async def render_remotion_lesson(topic: str, model: str, remotion_json: str, on_progress=None) -> str:
     unique_id = str(uuid.uuid4())
