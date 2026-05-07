@@ -281,6 +281,23 @@ async def get_lesson(topic: str, model: str, format: str, req: Request, session:
         summary=db_lesson.summary
     )
 
+@router.get("/lessons", response_model=list[LessonResponse])
+async def list_lessons(req: Request, session: Session = Depends(get_session)):
+    # Lists all existing lessons, sorted by creation date (newest first) for the dashboard
+    base_url = str(req.base_url).rstrip("/")
+    statement = select(Lesson).order_by(desc(Lesson.created_at))
+    db_lessons = session.exec(statement).all()
+    db_lessons = session.exec(select(Lesson).order_by(desc(Lesson.created_at))).all()
+
+    return [
+        LessonResponse(
+            id=lesson.id,
+            url=f"{base_url}{lesson.url}",
+            code=lesson.code,
+            summary=lesson.summary
+        ) for lesson in db_lessons
+    ]
+
 @router.get("/export")
 async def export_lesson(id: str, session: Session = Depends(get_session)):
     # Triggers export service to convert lesson to static formats like PDF/MP4

@@ -10,9 +10,9 @@ interface DashboardSidebarProps {
 
 export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSidebarProps) {
     return (
-        <div className="w-full h-full bg-secondary-bg p-4 flex flex-col relative">
+        <div className="w-full h-full bg-secondary-bg pt-4 px-4 pb-2 flex flex-col relative">
             {/* Constant Header Area */}
-            <div className="h-10 mb-8 flex items-center justify-between">
+            <div className="h-10 mb-2 flex items-center justify-between">
                 {!isCollapsed ? (
                     <>
                         <div className="flex items-center min-w-0">

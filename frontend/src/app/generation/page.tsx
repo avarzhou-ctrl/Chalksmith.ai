@@ -11,7 +11,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Modal from "@/components/ui/Modal";
 import { Player } from '@remotion/player';
 import { RemotionVideo } from '@/components/generation/RemotionVideo';
-import GenerationSidebar from "@/components/ui/GenerationSidebar";
+import GenerationSidebar from "@/components/generation/GenerationSidebar";
 
 export default function Page() {
   // State for lesson configuration and rendering results
@@ -217,12 +217,12 @@ export default function Page() {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  title="Reset Canvas"
+                  title="Create new canvas"
                   onClick={() => setIsResetModalOpen(true)}
                   className="gap-1.5 h-8.5 px-3 py-1.5"
                 >
                   <Flame size={14} />
-                  <span>Reset</span>
+                  <span>Create New</span>
                 </Button>
                 {result && (
                   <a
@@ -458,11 +458,11 @@ export default function Page() {
         </Panel>
       </Group>
 
-      {/* Reset Confirmation Modal */}
+      {/* Create New Confirmation Modal */}
       <Modal 
         isOpen={isResetModalOpen} 
         onClose={() => setIsResetModalOpen(false)} 
-        title="Clear Canvas?"
+        title="Create new canvas?"
       >
         <div className="flex flex-col items-center">
           <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center mb-4">
@@ -487,7 +487,7 @@ export default function Page() {
                 setIsResetModalOpen(false);
               }}
             >
-              Clear All
+              Create New
             </Button>
           </div>
         </div>

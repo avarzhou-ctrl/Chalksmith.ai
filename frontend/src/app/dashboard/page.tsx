@@ -1,13 +1,31 @@
 'use client'
 
-import { useState, useRef } from "react";
-import DashboardSidebar from "@/components/ui/DashboardSidebar";
+import { useState, useRef, useEffect } from "react";
+import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { CirclePlus } from "lucide-react";
 
 export default function Dashboard() {
   const panelRef = useRef<any>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [lessons, storeLessons] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Fetch lessons from the backend API when the component mounts
+    const fetchLessons = async () => {
+      try {
+        const response = await fetch('/api/lessons');
+        if (!response.ok) {
+          throw new Error('Failed to fetch lessons');
+        }
+        const data = await response.json();
+        storeLessons(data);
+      } catch (error) {
+        console.error('Error fetching lessons:', error);
+      }
+    };
+    fetchLessons();
+  }, []);
 
   const togglePanel = () => {
     // Imperative API for react-resizable-panels to handle manual collapse/expand
@@ -50,7 +68,7 @@ export default function Dashboard() {
         {/* Right: Main Content */}
         <Panel minSize="50%" defaultSize="80%" id="content-panel">
             <div className="flex flex-col h-full bg-primary-bg p-8 overflow-y-auto">
-                <header className="mb-8">
+                <header className="mb-2">
                     <h2 className="text-3xl font-bold tracking-tight text-primary-text mb-2">Lessons</h2>
                 </header>
                 
@@ -58,10 +76,10 @@ export default function Dashboard() {
                     {/* Placeholder for lesson cards */}
                     <div 
                       onClick={() => (window.location.href = "/generation")}
-                      className="h-64 rounded-3xl border border-border hover:border-accent bg-surface/30 border-dashed flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-all duration-300 ease-in-out hover:bg-surface/40 group"
+                      className="h-50 w-75 rounded-3xl border border-border hover:border-accent bg-surface/30 border-dashed flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-all duration-300 ease-in-out hover:bg-surface/40 group"
                     >
-                      <CirclePlus className="text-accent/80 group-hover:text-accent transition-transform duration-300" size={60} />
-                      <p className="mt-4 text-lg text-primary-text/80 group-hover:text-primary-text transition-colors duration-300">Create New Lesson</p>
+                      <CirclePlus className="text-accent/80 group-hover:text-accent transition-all duration-300 ease-in-out" size={55} />
+                      <p className="mt-4 text-lg text-primary-text/80 group-hover:text-primary-text transition-all duration-300 ease-in-out">Create New Lesson</p>
                     </div>
                 </div>
             </div>

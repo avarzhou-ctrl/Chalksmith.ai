@@ -2,7 +2,7 @@
 
 import { PanelRight, ChevronDown, Flame, Loader2 } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import InputForm from "../generation/InputForm";
+import InputForm from "./InputForm";
 import { GenerationStatus } from "@/lib/api";
 
 interface GenerationSidebarProps {
