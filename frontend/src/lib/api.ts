@@ -14,6 +14,13 @@ export interface LessonResponse {
   summary: string;
 }
 
+export interface LessonListItem extends LessonResponse {
+  topic: string;
+  model: string;
+  format: string;
+  created_at: string;
+}
+
 export interface GenerationStatus {
     status: 'initializing' | 'loading_context' | 'generating' | 'rendering' | 'finalizing' | 'complete' | 'error';
     message: string;
@@ -92,7 +99,7 @@ export async function getLesson(topic: string, model: string, format: string): P
     return response.json();
 }
 
-export async function fetchLessons(): Promise<LessonResponse[]> {
+export async function fetchLessons(): Promise<LessonListItem[]> {
     const response = await fetch('/api/lessons', {
         method: 'GET',
     });

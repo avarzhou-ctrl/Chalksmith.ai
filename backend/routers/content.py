@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
 from backend.database import get_session
-from backend.models import LessonRequest, LessonResponse, Lesson
+from backend.models import LessonRequest, LessonResponse, LessonListResponse, Lesson
 from backend.services.llm import generate_lesson
 from backend.services.render import render_manim_lesson, render_remotion_lesson, render_p5js_lesson, render_revealjs_lesson
 from backend.services.export import export_service
@@ -281,20 +281,22 @@ async def get_lesson(topic: str, model: str, format: str, req: Request, session:
         summary=db_lesson.summary
     )
 
-@router.get("/lessons", response_model=list[LessonResponse])
+@router.get("/lessons", response_model=list[LessonListResponse])
 async def list_lessons(req: Request, session: Session = Depends(get_session)):
     # Lists all existing lessons, sorted by creation date (newest first) for the dashboard
     base_url = str(req.base_url).rstrip("/")
-    statement = select(Lesson).order_by(desc(Lesson.created_at))
-    db_lessons = session.exec(statement).all()
     db_lessons = session.exec(select(Lesson).order_by(desc(Lesson.created_at))).all()
 
     return [
-        LessonResponse(
+        LessonListResponse(
             id=lesson.id,
+            topic=lesson.topic,
+            model=lesson.model,
+            format=lesson.format,
             url=f"{base_url}{lesson.url}",
             code=lesson.code,
-            summary=lesson.summary
+            summary=lesson.summary,
+            created_at=lesson.created_at
         ) for lesson in db_lessons
     ]
 

@@ -145,9 +145,10 @@ export default function Page() {
           setGenerationStatus(status);
           
           if (status.status === 'complete' && status.result) {
-            setResult(status.result);
-            if (status.result.id) {
-              setCurrentLessonID(status.result.id);
+            const completedLesson = status.result;
+            setResult(completedLesson);
+            if (completedLesson.id) {
+              setCurrentLessonID(completedLesson.id);
             }
             
             if (currentlessonID) {
@@ -159,7 +160,7 @@ export default function Page() {
               setInitialTopic(activePrompt);
               setMessages((prev) => [...prev, { 
                 role: 'assistant', 
-                content: `Success! Created your ${format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${activePrompt}". ${status.result.summary}` 
+                content: `Success! Created your ${format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${activePrompt}". ${completedLesson.summary}` 
               }]);
             }
             

@@ -19,6 +19,13 @@ class LessonResponse(BaseModel):
     code: str
     summary: str
 
+class LessonListResponse(LessonResponse):
+    # Dashboard views need enough metadata to label and filter saved lessons
+    topic: str
+    model: str
+    format: str
+    created_at: datetime
+
 class Lesson(SQLModel, table=True):
     # We store the raw 'code' locally to enable future iterative edits
     id: str = Field(primary_key=True)
