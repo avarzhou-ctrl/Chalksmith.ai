@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import EditableTitle from "@/components/generation/EditableTitle";
 import Button from "@/components/ui/Button";
-import { LessonResponse, generateLessonStreaming, GenerationStatus, deleteLesson } from "@/lib/api";
+import { LessonResponse, generateLessonStreaming, GenerationStatus, deleteLesson, fetchLessonById } from "@/lib/api";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { Eye, Code, Flame, Download, TriangleAlert, Loader2 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -114,6 +114,48 @@ export default function Page() {
         generationCleanupRef.current();
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const lessonId = new URLSearchParams(window.location.search).get('lessonId');
+
+    if (!lessonId) return;
+
+    const loadSavedLesson = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const lesson = await fetchLessonById(lessonId);
+
+        setTitle(lesson.topic);
+        setTopic('');
+        setInitialTopic(lesson.topic);
+        setModel(lesson.model);
+        setFormat(lesson.format);
+        setCurrentLessonID(lesson.id);
+        setResult({
+          id: lesson.id,
+          url: lesson.url,
+          code: lesson.code,
+          summary: lesson.summary,
+        });
+        setMessages([
+          {
+            role: 'assistant',
+            content: lesson.summary || `Loaded "${lesson.topic}".`,
+          },
+        ]);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load lesson.';
+        setError(errorMsg);
+        setIsErrorModalOpen(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSavedLesson();
   }, []);
 
   const generateLesson = async (overridePrompt?: string) => {

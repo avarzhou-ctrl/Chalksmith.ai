@@ -30,7 +30,7 @@ export interface GenerationStatus {
 
 export async function createLesson(request: LessonRequest): Promise<LessonResponse> {
     // We use internal /api/ routes to proxy requests and handle CORS on the server side
-    const response = await fetch('/api/lesson', {
+    const response = await fetch('/api/lesson-record', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
@@ -89,7 +89,7 @@ export function generateLessonStreaming(
 export async function getLesson(topic: string, model: string, format: string): Promise<LessonResponse> {
     // Encodes query parameters to safely handle special characters in topics
     const params = new URLSearchParams({ topic, model, format });
-    const response = await fetch(`/api/lesson?${params.toString()}`);
+    const response = await fetch(`/api/lesson-record?${params.toString()}`);
 
     if (!response.ok) {
         const error = await response.json();
@@ -99,8 +99,21 @@ export async function getLesson(topic: string, model: string, format: string): P
     return response.json();
 }
 
+export async function fetchLessonById(lessonId: string): Promise<LessonListItem> {
+    const response = await fetch(`/api/lesson-record?id=${lessonId}`, {
+        method: 'GET',
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to fetch lesson');
+    }
+
+    return response.json();
+}
+
 export async function fetchLessons(): Promise<LessonListItem[]> {
-    const response = await fetch('/api/lessons', {
+    const response = await fetch('/api/lesson-list', {
         method: 'GET',
     });
 
@@ -114,7 +127,7 @@ export async function fetchLessons(): Promise<LessonListItem[]> {
 
 export async function deleteLesson(lessonId: string): Promise<void> {
     // Calls the internal proxy to perform a destructive deletion on the backend
-    const response = await fetch(`/api/lesson?id=${lessonId}`, {
+    const response = await fetch(`/api/lesson-record?id=${lessonId}`, {
         method: 'DELETE',
     });
 
@@ -125,7 +138,7 @@ export async function deleteLesson(lessonId: string): Promise<void> {
 }
 
 export async function renameLesson(lessonId: string, newTitle: string): Promise<void> {
-    const response = await fetch(`/api/lesson?id=${lessonId}`, {
+    const response = await fetch(`/api/lesson-record?id=${lessonId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newTitle }),
