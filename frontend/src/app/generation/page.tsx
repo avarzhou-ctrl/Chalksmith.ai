@@ -253,7 +253,9 @@ export default function Page() {
             {/* Header Bar */}
             <div className="flex flex-row p-4 m-1 gap-4 shrink-0 items-end">
               <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center shadow-lg shadow-accent/20 overflow-hidden mb-1">
-                <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+                <a href="/dashboard">
+                  <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+                </a>
               </div>
               <EditableTitle initialTitle={title} onChange={setTitle}/>
               <div className="flex gap-2 pb-1">
@@ -269,7 +271,7 @@ export default function Page() {
                 </Button>
                 {result && (
                   <a
-                    href={`http://localhost:8000/content/export?id=${result.id}`}
+                    href={`/content/export?id=${result.id}`}
                     download
                     className="flex items-center text-xs font-medium gap-1.5 h-8.5 px-3 py-1.5 rounded-xl border border-border bg-transparent text-secondary-text hover:border-accent hover:text-accent transition-all duration-300"
                     title={`Download ${format === 'remotion' || format === 'manim' ? 'Video'
