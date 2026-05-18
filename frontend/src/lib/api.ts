@@ -123,3 +123,16 @@ export async function deleteLesson(lessonId: string): Promise<void> {
         throw new Error(error.detail || 'Failed to delete lesson');
     }
 }
+
+export async function renameLesson(lessonId: string, newTitle: string): Promise<void> {
+    const response = await fetch(`/api/lesson?id=${lessonId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to rename lesson');
+    }
+}

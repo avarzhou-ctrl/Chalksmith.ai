@@ -92,3 +92,33 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ detail: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const lessonId = searchParams.get('id');
+
+    if (!lessonId) {
+      return NextResponse.json({ detail: 'Lesson ID is required' }, { status: 400 });
+    }
+
+    const body = await request.json();
+
+    const response = await fetch(`${API_BASE_URL}/content/lesson/${lessonId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return NextResponse.json(error, { status: response.status });
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error('API Error:', err);
+    return NextResponse.json({ detail: 'Internal Server Error' }, { status: 500 });
+  }
+}

@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import { TriangleAlert } from "lucide-react";
 import React from "react";
 import EditableTitle from "@/components/generation/EditableTitle";
+import { renameLesson } from "@/lib/api";
 
 interface LessonCardProps {
     id: string;
@@ -28,6 +29,8 @@ export default function LessonCard({
     onDelete,
 }: LessonCardProps) {
     const [displayTitle, setDisplayTitle] = React.useState(title);
+    const [renameError, setRenameError] = React.useState<string | null>(null);
+    const [isRenaming, setIsRenaming] = React.useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
     const [isActionsOpen, setIsActionsOpen] = React.useState(false);
     const actionsRef = React.useRef<HTMLDivElement>(null);
@@ -80,7 +83,27 @@ export default function LessonCard({
 
     const openRenameModal = () => {
         setIsActionsOpen(false);
+        setRenameError(null);
         setIsRenameModalOpen(true);
+    };
+
+    const handleRenameLesson = async (newTitle: string) => {
+        const trimmedTitle = newTitle.trim();
+
+        if (!trimmedTitle || trimmedTitle === displayTitle) {
+            return;
+        }
+
+        try {
+            setRenameError(null);
+            setIsRenaming(true);
+            await renameLesson(id, trimmedTitle);
+            setDisplayTitle(trimmedTitle);
+        } catch (error) {
+            setRenameError(error instanceof Error ? error.message : 'Failed to rename lesson');
+        } finally {
+            setIsRenaming(false);
+        }
     };
 
     return (
@@ -181,14 +204,21 @@ export default function LessonCard({
                 title="Rename lesson?"
             >
                 <div className="flex flex-col items-center">
-                    <EditableTitle initialTitle={displayTitle} onChange={setDisplayTitle}/>
+                    <EditableTitle
+                        initialTitle={displayTitle}
+                        onChange={handleRenameLesson}
+                    />
+                    {renameError && (
+                        <p className="mt-3 text-sm text-red-300">{renameError}</p>
+                    )}
                     <div className="mb-3 mt-6 flex w-full flex-row gap-3">
                         <Button 
                             variant="primary" 
                             className="w-full" 
+                            disabled={isRenaming}
                             onClick={() => setIsRenameModalOpen(false)}
                         >
-                            Close
+                            {isRenaming ? 'Saving...' : 'Close'}
                         </Button>
                     </div>
                 </div>

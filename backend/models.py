@@ -12,6 +12,9 @@ class LessonRequest(BaseModel):
     lesson_id: Optional[str] = None
     prompt: Optional[str] = None
 
+class LessonRenameRequest(BaseModel):
+    title: str
+
 class LessonResponse(BaseModel):
     # Standardized API response containing the public URL and source code
     id: str

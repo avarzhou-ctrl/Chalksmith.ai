@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
 from backend.database import get_session
-from backend.models import LessonRequest, LessonResponse, LessonListResponse, Lesson
+from backend.models import LessonRequest, LessonRenameRequest, LessonResponse, LessonListResponse, Lesson
 from backend.services.llm import generate_lesson
 from backend.services.render import render_manim_lesson, render_remotion_lesson, render_p5js_lesson, render_revealjs_lesson
 from backend.services.export import export_service
@@ -22,12 +22,10 @@ async def delete_lesson(lesson_id: str, session: Session = Depends(get_session))
     if not db_lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
-    # Construct the absolute path to the static file to remove it
-    # We use a relative path logic consistent with main.py's static mount
+    # Construct the absolute path 
     try:
         if db_lesson.url:
-            # db_lesson.url looks like "/static/manim_xxx.mp4"
-            # We need to strip the leading /static/ to get the filename
+            # Strip the leading /static/ to get the filename
             filename = db_lesson.url.replace("/static/", "")
             current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             file_path = os.path.join(current_dir, "static", filename)
@@ -49,6 +47,26 @@ async def delete_lesson(lesson_id: str, session: Session = Depends(get_session))
     session.commit()
 
     return {"status": "success", "message": "Lesson deleted successfully"}
+
+@router.patch("/lesson/{lesson_id}")
+async def edit_lesson_title(lesson_id: str, request: LessonRenameRequest, session: Session = Depends(get_session)):
+    # Simple endpoint to update the lesson's topic/title for better organization
+    new_title = request.title.strip()
+    if not new_title:
+        raise HTTPException(status_code=400, detail="Lesson title cannot be empty")
+
+    statement = select(Lesson).where(Lesson.id == lesson_id)
+    db_lesson = session.exec(statement).first()
+
+    if not db_lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    db_lesson.topic = new_title
+    session.add(db_lesson)
+    session.commit()
+    session.refresh(db_lesson)
+
+    return {"status": "success", "message": "Lesson title updated successfully", "new_title": db_lesson.topic}
 
 @router.get("/lesson/generate")
 async def generate_lesson_stream(
