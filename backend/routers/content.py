@@ -60,13 +60,35 @@ async def edit_lesson_title(lesson_id: str, request: LessonRenameRequest, sessio
 
     if not db_lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
-
+    
     db_lesson.topic = new_title
     session.add(db_lesson)
     session.commit()
     session.refresh(db_lesson)
 
     return {"status": "success", "message": "Lesson title updated successfully", "new_title": db_lesson.topic}
+
+@router.get("/lesson/{lesson_id}")
+async def get_lesson_by_id(lesson_id: str, req: Request, session: Session = Depends(get_session)):
+    # Retrieve a specific lesson by its unique ID, used for loading lessons in the dashboard
+    base_url = str(req.base_url).rstrip("/")
+
+    statement = select(Lesson).where(Lesson.id == lesson_id)
+    db_lesson = session.exec(statement).first()
+
+    if not db_lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    
+    return LessonListResponse(
+        id=db_lesson.id,
+        topic=db_lesson.topic,
+        model=db_lesson.model,
+        format=db_lesson.format,
+        url=f"{base_url}{db_lesson.url}",
+        code=db_lesson.code,
+        summary=db_lesson.summary,
+        created_at=db_lesson.created_at
+    )
 
 @router.get("/lesson/generate")
 async def generate_lesson_stream(

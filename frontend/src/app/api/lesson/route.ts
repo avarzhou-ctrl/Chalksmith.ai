@@ -49,24 +49,6 @@ export async function GET(request: Request) {
   }
 }
 
-export async function FETCH(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const response = await fetch(`${API_BASE_URL}/content/lesson?${searchParams.toString()}`);
-
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json(error, { status: response.status });
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (err) {
-    console.error('API Error:', err);
-    return NextResponse.json({ detail: 'Internal Server Error' }, { status: 500 });
-  }
-}
-
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
