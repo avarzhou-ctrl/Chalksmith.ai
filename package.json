@@ -7,5 +7,8 @@
   ],
   "dependencies": {
     "react-latex-next": "^3.0.0"
+  },
+  "devDependencies": {
+    "@vercel/build-utils": "^13.26.5"
   }
 }

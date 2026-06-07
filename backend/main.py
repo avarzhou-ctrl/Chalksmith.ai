@@ -34,11 +34,8 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Allowed origins for development (localhost) and production
 origins = [
-    "http://localhost",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3001",
+    "https://chalksmith.ai",
+    "https://www.chalksmith.ai"
 ]
 
 app.add_middleware(

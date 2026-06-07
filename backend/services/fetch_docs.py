@@ -8,7 +8,6 @@ def fetch_manim_reference():
     
     try:
         response = httpx.get(url, timeout=10)
-        # Using BeautifulSoup as requested
         soup = BeautifulSoup(response.text, 'html.parser')
         
         # Get class names and short descriptions from the table of contents
