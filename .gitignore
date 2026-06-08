@@ -29,3 +29,5 @@ frontend/yarn-error.log*
 frontend/*.tsbuildinfo
 frontend/next-env.d.ts
 node_modules
+.vercel
+.env*
