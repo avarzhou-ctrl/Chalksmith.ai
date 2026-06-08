@@ -61,7 +61,7 @@ export default function Home() {
               </PrimaryCtaLink>
               <a
                 href="#content"
-                className="rounded-lg border border-stone-700 px-6 py-3 text-base font-medium text-stone-200 transition-colors hover:border-accent hover:text-amber-300"
+                className="rounded-lg border border-stone-700 px-6 py-3 text-base font-medium text-stone-200 transition-colors hover:border-accent hover:text-accent"
               >
                 View examples
               </a>
