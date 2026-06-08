@@ -75,7 +75,7 @@ export default function Home() {
 
         <section id="about" className="mx-auto w-full max-w-6xl px-4 py-16 text-center sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-stone-50 sm:text-5xl">The Educator&apos;s Dilemma</h2>
-          <div className="mt-10 grid gap-5 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-start">
+          <div className="mt-10 grid gap-5 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
             {[
               ['5 hours', 'per week collecting resources.'],
               ['7 hours', 'per week building from scratch.'],
@@ -86,7 +86,7 @@ export default function Home() {
                   <p className="text-4xl font-bold text-accent">{value}</p>
                   <p className="mx-auto mt-3 max-w-48 text-base leading-6 text-stone-200">{label}</p>
                 </div>
-                {index < 2 && <p className="hidden pt-8 text-4xl font-bold text-stone-50 md:block">{index === 0 ? '+' : '='}</p>}
+                {index < 2 && <p className="hidden text-4xl font-bold text-stone-50 md:block">{index === 0 ? '+' : '='}</p>}
               </div>
             ))}
           </div>
