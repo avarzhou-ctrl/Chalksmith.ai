@@ -25,6 +25,49 @@ from dotenv import load_dotenv
 console = Console()
 load_dotenv()  # Load environment variables from .env file if present
 
+LLM_REGION_ERROR_MESSAGE = (
+    "This AI model is not available from your current country or region. "
+    "Please try a different model, connect from a supported region, or contact Chalksmith support if this seems wrong."
+)
+
+
+class LLMAccessError(RuntimeError):
+    """Raised when an LLM provider blocks access because of location or account availability."""
+
+
+def is_region_access_error(error: Exception) -> bool:
+    error_parts = [str(error)]
+
+    for attr in ("message", "body", "response"):
+        value = getattr(error, attr, None)
+        if value:
+            error_parts.append(str(value))
+
+    error_text = " ".join(error_parts).lower()
+    region_error_patterns = [
+        "unsupported_country_region_territory",
+        "unsupported country",
+        "unsupported region",
+        "country, region, or territory",
+        "not available in your country",
+        "not available in your region",
+        "not supported in your country",
+        "user location is not supported",
+        "location is not supported",
+        "geographic location",
+        "geo-restricted",
+        "regional restrictions",
+    ]
+
+    return any(pattern in error_text for pattern in region_error_patterns)
+
+
+def raise_llm_error(error: Exception):
+    if is_region_access_error(error):
+        raise LLMAccessError(LLM_REGION_ERROR_MESSAGE) from error
+
+    raise error
+
 # -----------------------------------------------------------------------------
 # LLM PROVIDER IMPLEMENTATIONS
 # -----------------------------------------------------------------------------
@@ -440,20 +483,23 @@ def generate_lesson(topic: str, model: str, format_type: str, previous_code: str
         return get_edit_prompt(previous_code, topic, edit_prompt, format_type, model)
 
     provider = detect_provider(model)
-    with _spinner(f"Generating lesson about '{topic}' using {model} ({provider}) in {format_type} format..."):
-        time.sleep(0.1)
-        if provider == "openai":
-            content = generate_content_with_openai(topic, model, format_type)
-        elif provider == "zhipuai":
-            content = generate_content_with_zhipuai(topic, model, format_type)
-        elif provider == "deepseek":
-            content = generate_content_with_deepseek(topic, model, format_type)
-        elif provider == "gemini":
-            content = generate_content_with_gemini(topic, model, format_type)
-        elif provider == "ark":
-            content = generate_content_with_ark(topic, model, format_type)
-        else:
-            raise ValueError(f"Unknown provider: {provider}")
+    try:
+        with _spinner(f"Generating lesson about '{topic}' using {model} ({provider}) in {format_type} format..."):
+            time.sleep(0.1)
+            if provider == "openai":
+                content = generate_content_with_openai(topic, model, format_type)
+            elif provider == "zhipuai":
+                content = generate_content_with_zhipuai(topic, model, format_type)
+            elif provider == "deepseek":
+                content = generate_content_with_deepseek(topic, model, format_type)
+            elif provider == "gemini":
+                content = generate_content_with_gemini(topic, model, format_type)
+            elif provider == "ark":
+                content = generate_content_with_ark(topic, model, format_type)
+            else:
+                raise ValueError(f"Unknown provider: {provider}")
+    except Exception as error:
+        raise_llm_error(error)
 
     lesson = parse_llm_response(content)
 
@@ -512,20 +558,23 @@ def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, f
     """
 
     provider = detect_provider(model)
-    with _spinner(f"Editing lesson using {model} ({provider})..."):
-        time.sleep(0.1)
-        if provider == "openai":
-            content = generate_content_with_openai(original_prompt, model, format_type, raw_prompt=full_prompt)
-        elif provider == "zhipuai":
-            content = generate_content_with_zhipuai(original_prompt, model, format_type, raw_prompt=full_prompt)
-        elif provider == "deepseek":
-            content = generate_content_with_deepseek(original_prompt, model, format_type, raw_prompt=full_prompt)
-        elif provider == "gemini":
-            content = generate_content_with_gemini(original_prompt, model, format_type, raw_prompt=full_prompt)
-        elif provider == "ark":
-            content = generate_content_with_ark(original_prompt, model, format_type, raw_prompt=full_prompt)
-        else:
-            raise ValueError(f"Unknown provider: {provider}")
+    try:
+        with _spinner(f"Editing lesson using {model} ({provider})..."):
+            time.sleep(0.1)
+            if provider == "openai":
+                content = generate_content_with_openai(original_prompt, model, format_type, raw_prompt=full_prompt)
+            elif provider == "zhipuai":
+                content = generate_content_with_zhipuai(original_prompt, model, format_type, raw_prompt=full_prompt)
+            elif provider == "deepseek":
+                content = generate_content_with_deepseek(original_prompt, model, format_type, raw_prompt=full_prompt)
+            elif provider == "gemini":
+                content = generate_content_with_gemini(original_prompt, model, format_type, raw_prompt=full_prompt)
+            elif provider == "ark":
+                content = generate_content_with_ark(original_prompt, model, format_type, raw_prompt=full_prompt)
+            else:
+                raise ValueError(f"Unknown provider: {provider}")
+    except Exception as error:
+        raise_llm_error(error)
     
     lesson = parse_llm_response(content)
     

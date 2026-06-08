@@ -209,9 +209,6 @@ export default function Page() {
             setLoading(false);
             generationCleanupRef.current = null;
             if (!overridePrompt) setTopic('');
-          } else if (status.status === 'error') {
-            // Escalate internal status errors to the catch block for unified error handling
-            throw new Error(status.message);
           }
         },
         (errMsg) => {

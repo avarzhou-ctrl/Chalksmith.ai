@@ -65,10 +65,17 @@ export function generateLessonStreaming(
     eventSource.onmessage = (event) => {
         try {
             const data: GenerationStatus = JSON.parse(event.data);
+
+            if (data.status === 'error') {
+                eventSource.close();
+                onError(data.message || 'This lesson could not be generated.');
+                return;
+            }
+
             onStatus(data);
             
             // Explicitly close the stream to prevent memory leaks and redundant reconnections on success/failure
-            if (data.status === 'complete' || data.status === 'error') {
+            if (data.status === 'complete') {
                 eventSource.close();
             }
         } catch (err) {
