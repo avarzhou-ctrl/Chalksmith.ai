@@ -60,7 +60,7 @@ export default function Home() {
                 <ArrowRight size={18} />
               </PrimaryCtaLink>
               <a
-                href="#content"
+                href="#examples"
                 className="rounded-lg border border-stone-700 px-6 py-3 text-base font-medium text-stone-200 transition-colors hover:border-accent hover:text-accent"
               >
                 View examples
@@ -95,7 +95,7 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+        <section id="why_choose_chalksmith" className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-stone-50 sm:text-5xl">Why choose Chalksmith?</h2>
           <div className="mt-8 grid gap-6">
             <article className="grid gap-6 rounded-lg border border-stone-800 bg-secondary-bg p-5 md:grid-cols-[0.8fr_1.2fr]">
@@ -128,7 +128,7 @@ export default function Home() {
                 </div>
                 <div className="min-h-56 border border-stone-700 bg-stone-200 p-4 text-stone-900">
                   <div className="grid h-full place-items-center text-center text-sm font-semibold">
-                    <span>Syllabus upload preview</span>
+                    <span>Coming soon!</span>
                   </div>
                 </div>
               </article>
@@ -159,18 +159,18 @@ export default function Home() {
           </div>
         </section>
         
-        <section className="mx-auto w-full max-w-6xl px-4 py-16 text-center sm:px-6 lg:px-8">
+        <section id="examples" className="mx-auto w-full max-w-6xl px-4 py-16 text-center sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-stone-50 sm:text-5xl">Examples</h2>
           
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-4 pb-40 pt-8 sm:px-6 lg:px-8">
-          <div className="text-left">
+        <section id="call_to_action" className="mx-auto w-full max-w-6xl px-4 pb-40 pt-8 sm:px-6 lg:px-8">
+          <div className="text-left rounded-lg border border-stone-800 bg-secondary-bg p-5 md:grid-cols-[0.8fr_1.2fr]">
             <h2 className="mt-5 text-3xl font-bold text-stone-50 sm:text-5xl">
               Stop spending 12 hours a week on slide decks.
             </h2>
             <p className="mt-4 text-2xl font-semibold text-accent">Try Chalksmith.ai today.</p>
-            <div className="mt-7 inline-flex">
+            <div className="mt-7 mb-4 inline-flex">
               <PrimaryCtaLink href="/generation" size="lg">
                 Build a lesson now
                 <ArrowRight size={18} />

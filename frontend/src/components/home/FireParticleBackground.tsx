@@ -3,14 +3,13 @@
 import { useEffect, useRef } from 'react';
 
 type Particle = {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
+  baseX: number;
+  baseY: number;
+  drift: number;
+  phase: number;
+  amplitude: number;
   size: number;
-  life: number;
-  maxLife: number;
-  hue: number;
+  opacity: number;
 };
 
 export default function FireParticleBackground() {
@@ -25,16 +24,37 @@ export default function FireParticleBackground() {
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const particles: Particle[] = [];
-    const pointer = {
-      x: window.innerWidth / 2,
-      y: window.innerHeight * 0.72,
-      active: false,
-    };
 
     let animationFrame = 0;
     let width = 0;
     let height = 0;
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+    const seedParticles = () => {
+      particles.length = 0;
+
+      const columnCount = Math.ceil(width / (width < 768 ? 34 : 28));
+      const rowCount: number = width < 768 ? 7 : 10;
+      const verticalPadding = height * 0.12;
+      const bandHeight = Math.max(1, height - verticalPadding * 2);
+
+      for (let row = 0; row < rowCount; row += 1) {
+        const rowProgress = rowCount === 1 ? 0 : row / (rowCount - 1);
+        const baseY = verticalPadding + bandHeight * rowProgress;
+
+        for (let column = 0; column < columnCount; column += 1) {
+          particles.push({
+            baseX: (column / columnCount) * width + (Math.random() - 0.5) * 12,
+            baseY: baseY + (Math.random() - 0.5) * 28,
+            drift: 5 + Math.random() * 10,
+            phase: Math.random() * Math.PI * 2,
+            amplitude: 10 + Math.random() * 22,
+            size: 0.9 + Math.random() * 1.8,
+            opacity: 0.12 + Math.random() * 0.22,
+          });
+        }
+      }
+    };
 
     const resize = () => {
       width = window.innerWidth;
@@ -44,96 +64,50 @@ export default function FireParticleBackground() {
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      seedParticles();
+
+      if (prefersReducedMotion) {
+        draw();
+      }
     };
 
-    const createParticle = (x: number, y: number, intensity = 1) => {
-      const spread = pointer.active ? 16 : 34;
-      particles.push({
-        x: x + (Math.random() - 0.5) * spread,
-        y: y + (Math.random() - 0.5) * 10,
-        vx: (Math.random() - 0.5) * 0.7 * intensity,
-        vy: -(0.65 + Math.random() * 1.65) * intensity,
-        size: 1.4 + Math.random() * 3.6,
-        life: 0,
-        maxLife: 54 + Math.random() * 56,
-        hue: 24 + Math.random() * 28,
-      });
-    };
+    const draw = (time = 0) => {
+      const seconds = time / 1000;
 
-    const draw = () => {
       context.clearRect(0, 0, width, height);
-      context.fillStyle = 'rgba(12, 10, 9, 0.28)';
+      context.fillStyle = 'rgba(12, 10, 9, 0.34)';
       context.fillRect(0, 0, width, height);
 
-      if (!prefersReducedMotion) {
-        const baseY = height + 8;
-        const baseCount = width < 768 ? 3 : 5;
-
-        for (let index = 0; index < baseCount; index += 1) {
-          createParticle(Math.random() * width, baseY, 0.72);
-        }
-
-        if (pointer.active) {
-          for (let index = 0; index < 4; index += 1) {
-            createParticle(pointer.x, pointer.y, 1.12);
-          }
-        }
-      }
-
-      for (let index = particles.length - 1; index >= 0; index -= 1) {
-        const particle = particles[index];
-        particle.life += 1;
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        particle.vx += (Math.random() - 0.5) * 0.08;
-        particle.vy -= 0.006;
-
-        const progress = particle.life / particle.maxLife;
-        const opacity = Math.max(0, 1 - progress);
-        const radius = particle.size * (1 - progress * 0.45);
+      for (const particle of particles) {
+        const wrapWidth = width + 80;
+        const x = ((particle.baseX + seconds * particle.drift) % wrapWidth) - 40;
+        const wave = Math.sin(x * 0.018 + particle.phase + seconds * 0.28);
+        const secondaryWave = Math.cos(x * 0.008 + particle.phase * 0.7 + seconds * 0.12);
+        const y = particle.baseY + wave * particle.amplitude + secondaryWave * 6;
+        const pulse = 0.75 + Math.sin(seconds * 0.42 + particle.phase) * 0.25;
 
         context.beginPath();
-        context.fillStyle = `hsla(${particle.hue}, 96%, ${56 + progress * 18}%, ${opacity * 0.42})`;
-        context.shadowColor = `hsla(${particle.hue}, 98%, 54%, ${opacity * 0.72})`;
-        context.shadowBlur = 14;
-        context.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
+        context.fillStyle = `rgba(217, 119, 6, ${particle.opacity * pulse})`;
+        context.shadowColor = `rgba(217, 119, 6, ${particle.opacity * 0.9})`;
+        context.shadowBlur = 8;
+        context.arc(x, y, particle.size, 0, Math.PI * 2);
         context.fill();
         context.shadowBlur = 0;
-
-        if (particle.life >= particle.maxLife || particle.y < -24) {
-          particles.splice(index, 1);
-        }
       }
 
-      animationFrame = window.requestAnimationFrame(draw);
-    };
-
-    const updatePointer = (event: PointerEvent) => {
-      pointer.x = event.clientX;
-      pointer.y = event.clientY;
-      pointer.active = true;
-    };
-
-    const releasePointer = () => {
-      pointer.active = false;
+      if (!prefersReducedMotion) {
+        animationFrame = window.requestAnimationFrame(draw);
+      }
     };
 
     resize();
     draw();
 
     window.addEventListener('resize', resize);
-    window.addEventListener('pointermove', updatePointer);
-    window.addEventListener('pointerdown', updatePointer);
-    window.addEventListener('pointerleave', releasePointer);
-    window.addEventListener('blur', releasePointer);
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
       window.removeEventListener('resize', resize);
-      window.removeEventListener('pointermove', updatePointer);
-      window.removeEventListener('pointerdown', updatePointer);
-      window.removeEventListener('pointerleave', releasePointer);
-      window.removeEventListener('blur', releasePointer);
     };
   }, []);
 

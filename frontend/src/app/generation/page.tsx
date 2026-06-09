@@ -421,7 +421,7 @@ export default function Page() {
                          </div>
                       </div>
                       
-                      <h2 className="text-accent text-3xl font-bold mb-2 text-center tracking-tight italic">
+                      <h2 className="text-accent text-3xl font-bold mb-2 text-center tracking-tight">
                         Chalksmith.ai
                       </h2>
                       
