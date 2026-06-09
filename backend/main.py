@@ -42,9 +42,10 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 load_dotenv(os.path.join(current_dir, ".env.local"))
 
 default_origins = [
-    origin.strip()
-    for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
-    if origin.strip()
+    "http://localhost:3000",
+    "https://chalksmith.ai",
+    "https://www.chalksmith.ai",
+    "https://app.chalksmith.ai",
 ]
 
 env_origins = [

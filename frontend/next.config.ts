@@ -1,6 +1,18 @@
 import type { NextConfig } from 'next';
 import path from 'path';
 
+const requiredEnvVars = [
+  'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
+] as const;
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    throw new Error(
+      `Missing required frontend environment variable: ${envVar}. Add it in Vercel Project Settings > Environment Variables and redeploy.`
+    );
+  }
+}
+
 const nextConfig: NextConfig = {
   turbopack: {
     // Sets the filesystem root for module resolution
