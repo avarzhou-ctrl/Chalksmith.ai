@@ -1,11 +1,25 @@
 'use client'
 
-import { useUser } from '@clerk/nextjs'
-import { UserRound } from 'lucide-react'
+import { SignUpButton, useUser } from '@clerk/nextjs'
+import { LogIn, UserRound } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ProfileLink() {
-  const { user } = useUser()
+  const { isLoaded, isSignedIn, user } = useUser()
+
+  if (!isLoaded || !isSignedIn) {
+    return (
+      <SignUpButton mode="modal">
+        <button
+          type="button"
+          className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700"
+        >
+          Create Account
+          <LogIn className="size-4" aria-hidden="true" />
+        </button>
+      </SignUpButton>
+    )
+  }
 
   return (
     <Link

@@ -1,5 +1,7 @@
+'use client';
+
 import Link from 'next/link';
-import { Show, SignUpButton } from '@clerk/nextjs';
+import { SignUpButton, useUser } from '@clerk/nextjs';
 import { ArrowRight, Braces, FileCode2, Layers3, Upload, LogIn } from 'lucide-react';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700';
@@ -21,23 +23,24 @@ function PrimaryCtaLink({ href, children, size = 'md' }: { href: string; childre
 }
 
 function BuildLessonCta() {
+  const { isLoaded, isSignedIn } = useUser();
+
+  if (isLoaded && isSignedIn) {
+    return (
+      <PrimaryCtaLink href="/generation" size="lg">
+        Build a lesson now
+        <ArrowRight size={18} />
+      </PrimaryCtaLink>
+    );
+  }
+
   return (
-    <>
-      <Show when="signed-out">
-        <SignUpButton mode="modal">
-          <button type="button" className={`${ctaBaseClasses} ${ctaSizeClasses.lg}`}>
-            Build a lesson now
-            <ArrowRight size={18} />
-          </button>
-        </SignUpButton>
-      </Show>
-      <Show when="signed-in">
-        <PrimaryCtaLink href="/generation" size="lg">
-          Build a lesson now
-          <ArrowRight size={18} />
-        </PrimaryCtaLink>
-      </Show>
-    </>
+    <SignUpButton mode="modal">
+      <button type="button" className={`${ctaBaseClasses} ${ctaSizeClasses.lg}`}>
+        Build a lesson now
+        <ArrowRight size={18} />
+      </button>
+    </SignUpButton>
   );
 }
 
