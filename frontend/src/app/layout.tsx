@@ -6,7 +6,7 @@ import './globals.css'
 
 import Link from 'next/link'
 import { LogIn } from 'lucide-react'
-import ProfileLink from '../components/layout/ProfileLink'
+import ProfileLink from '@/components/layout/ProfileLink'
 
 const inter = Inter({
   variable: '--font-inter',
