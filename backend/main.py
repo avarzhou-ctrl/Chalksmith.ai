@@ -36,15 +36,27 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 # Allowed origins for development (localhost) and production
 load_dotenv(os.path.join(current_dir, ".env.local"))
 
-origins = [
-    origin.strip()
-    for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
-    if origin.strip()
+def _parse_origins(value: str) -> list[str]:
+    # CORS origin matching is exact, so normalize trailing slashes from env values.
+    return [origin.strip().rstrip("/") for origin in value.split(",") if origin.strip()]
+
+default_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
+
+origins = list(dict.fromkeys([
+    *default_origins,
+    *_parse_origins(os.getenv("FRONTEND_ORIGINS", "")),
+    *_parse_origins(os.getenv("FRONTEND_URL", "")),
+]))
+
+origin_regex = os.getenv("FRONTEND_ORIGIN_REGEX") or None
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=origin_regex,
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,

@@ -6,6 +6,7 @@
     "frontend"
   ],
   "dependencies": {
+    "@clerk/nextjs": "^7.4.3",
     "react-latex-next": "^3.0.0"
   },
   "devDependencies": {

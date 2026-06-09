@@ -1,51 +1,51 @@
 import Link from 'next/link';
+import { Show, SignUpButton } from '@clerk/nextjs';
 import { ArrowRight, Braces, FileCode2, Layers3, Upload, LogIn } from 'lucide-react';
-import FireParticleBackground from '@/components/home/FireParticleBackground';
+
+const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700';
+const ctaSizeClasses = {
+  sm: 'px-3 py-1.5 text-xs',
+  md: 'px-4 py-2 text-sm',
+  lg: 'px-6 py-3 text-base',
+};
 
 function PrimaryCtaLink({ href, children, size = 'md' }: { href: string; children: React.ReactNode; size?: 'sm' | 'md' | 'lg' }) {
-  const sizeClasses = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base',
-  };
-
   return (
     <Link
       href={href}
-      className={`flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700 ${sizeClasses[size]}`}
+      className={`${ctaBaseClasses} ${ctaSizeClasses[size]}`}
     >
       {children}
     </Link>
   );
 }
 
+function BuildLessonCta() {
+  return (
+    <>
+      <Show when="signed-out">
+        <SignUpButton mode="modal">
+          <button type="button" className={`${ctaBaseClasses} ${ctaSizeClasses.lg}`}>
+            Build a lesson now
+            <ArrowRight size={18} />
+          </button>
+        </SignUpButton>
+      </Show>
+      <Show when="signed-in">
+        <PrimaryCtaLink href="/generation" size="lg">
+          Build a lesson now
+          <ArrowRight size={18} />
+        </PrimaryCtaLink>
+      </Show>
+    </>
+  );
+}
+
 export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-primary-bg text-primary-text">
-      <FireParticleBackground />
       <div className="relative z-10">
-        <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-3" aria-label="Chalksmith.ai home">
-            <span className="grid size-10 place-items-center rounded-lg border border-stone-700 bg-stone-50 text-stone-950">
-              <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
-            </span>
-            <span className="hidden text-md font-semibold text-stone-50 sm:inline">Chalksmith.ai</span>
-          </Link>
-          <nav className="flex items-center gap-10 text-sm font-medium text-stone-300">
-            <a className="transition-colors hover:text-stone-50" href="#content">
-              Content
-            </a>
-            <a className="transition-colors hover:text-stone-50" href="#about">
-              About us
-            </a>
-          </nav>
-          <PrimaryCtaLink href="/generation" size="md">
-            Login
-            <LogIn size={18} />
-          </PrimaryCtaLink>
-        </header>
-
-        <section className="mx-auto grid min-h-[32rem] w-full max-w-5xl place-items-center px-4 pb-6 pt-10 text-center sm:min-h-[36rem] sm:px-6 lg:px-8">
+        <section id="landing" className="mx-auto grid min-h-[32rem] w-full max-w-5xl place-items-center px-4 pb-6 pt-10 text-center sm:min-h-[36rem] sm:px-6 lg:px-8">
           <div>
             <h1 className="mx-auto max-w-4xl text-4xl font-bold leading-tight text-stone-50 sm:text-5xl lg:text-6xl">
               Forge stunning STEM animations in minutes.
@@ -55,10 +55,7 @@ export default function Home() {
               animations grounded in your curriculum.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <PrimaryCtaLink href="/generation" size="lg">
-                Build a lesson now
-                <ArrowRight size={18} />
-              </PrimaryCtaLink>
+              <BuildLessonCta />
               <a
                 href="#examples"
                 className="rounded-lg border border-stone-700 px-6 py-3 text-base font-medium text-stone-200 transition-colors hover:border-accent hover:text-accent"
@@ -171,10 +168,7 @@ export default function Home() {
             </h2>
             <p className="mt-4 text-2xl font-semibold text-accent">Try Chalksmith.ai today.</p>
             <div className="mt-7 mb-4 inline-flex">
-              <PrimaryCtaLink href="/generation" size="lg">
-                Build a lesson now
-                <ArrowRight size={18} />
-              </PrimaryCtaLink>
+              <BuildLessonCta />
             </div>
           </div>
         </section>

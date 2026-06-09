@@ -1,6 +1,3 @@
-// Shared interfaces between frontend and backend to ensure type safety across the stack
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
 export interface LessonRequest {
   topic: string;
   model: string;
@@ -60,7 +57,7 @@ export function generateLessonStreaming(
 
     // EventSource establishes a unidirectional stream for real-time progress updates without the overhead of WebSockets
     // Note: EventSource only supports GET requests, so payload must be URL-encoded parameters
-    const eventSource = new EventSource(`${API_BASE_URL}/content/lesson/generate?${params.toString()}`);
+    const eventSource = new EventSource(`/api/lesson-generate?${params.toString()}`);
 
     eventSource.onmessage = (event) => {
         try {
