@@ -1,13 +1,15 @@
 .venv/
+.env.local/
 
 # === Backend (Python/FastAPI) ===
-backend/.env/
+backend/.env
 backend/__pycache__/
 backend/*.py[cod]
 backend/.pytest_cache/
 backend/*.db
 
 # === Frontend (Next.js/Javascript) ===
+frontend/.env.local
 frontend/node_modules/
 frontend/.next/
 frontend/out/

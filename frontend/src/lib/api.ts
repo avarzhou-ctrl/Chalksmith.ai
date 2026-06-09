@@ -1,5 +1,5 @@
 // Shared interfaces between frontend and backend to ensure type safety across the stack
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export interface LessonRequest {
   topic: string;
