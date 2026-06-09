@@ -1,28 +1,12 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next'
-import { ClerkProvider, Show, SignUpButton, UserButton } from '@clerk/nextjs'
+import { ClerkProvider, Show, SignUpButton } from '@clerk/nextjs'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
-import Link from 'next/link';
-import { LogIn } from 'lucide-react';
-
-function PrimaryCtaLink({ href, children, size = 'md' }: { href: string; children: React.ReactNode; size?: 'sm' | 'md' | 'lg' }) {
-  const sizeClasses = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base',
-  };
-
-  return (
-    <Link
-      href={href}
-      className={`flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700 ${sizeClasses[size]}`}
-    >
-      {children}
-    </Link>
-  );
-}
+import Link from 'next/link'
+import { LogIn } from 'lucide-react'
+import ProfileLink from '@/components/layout/ProfileLink'
 
 const inter = Inter({
   variable: '--font-inter',
@@ -34,7 +18,7 @@ export const metadata: Metadata = {
   description: 'AI-powered tool for creating educational content.',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
@@ -43,14 +27,17 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} bg-primary-bg text-primary-text antialiased`}>
         <ClerkProvider>
-          <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
+          <header
+            data-site-header
+            className="sticky top-0 z-50 mx-auto flex w-full max-w-7xl items-center justify-between border-b border-stone-800 bg-primary-bg/90 px-4 py-5 backdrop-blur sm:px-6 lg:px-8"
+          >
             <Link href="/" className="flex items-center gap-3" aria-label="Chalksmith.ai home">
               <span className="grid size-10 place-items-center rounded-lg border border-stone-700 bg-stone-50 text-stone-950">
-                <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+                <img src="/logo.png" alt="Logo" className="h-8 w-8 object-contain" />
               </span>
               <span className="hidden text-md font-semibold text-stone-50 sm:inline">Chalksmith.ai</span>
             </Link>
-            <nav className="flex items-center gap-10 text-sm font-medium text-stone-300">
+            <nav className="hidden items-center gap-10 text-sm font-medium text-stone-300 sm:flex">
               <a className="transition-colors hover:text-stone-50" href="#content">
                 Content
               </a>
@@ -60,14 +47,17 @@ export default function RootLayout({
             </nav>
             <Show when="signed-out">
               <SignUpButton mode="modal">
-                <button className="flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700 ${sizeClasses[size]} px-4 py-2 text-sm">
+                <button
+                  type="button"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700"
+                >
                   Create Account
-                  <LogIn className="size-4" />
+                  <LogIn className="size-4" aria-hidden="true" />
                 </button>
               </SignUpButton>
             </Show>
             <Show when="signed-in">
-              <UserButton />
+              <ProfileLink />
             </Show>
           </header>
           {children}

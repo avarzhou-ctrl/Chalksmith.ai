@@ -242,7 +242,7 @@ export default function Page() {
   }
 
   return (
-    <main className="flex flex-row h-screen w-full bg-primary-bg overflow-hidden font-sans text-primary-text">
+    <main className="app-route-without-site-header flex flex-row h-screen w-full bg-primary-bg overflow-hidden font-sans text-primary-text">
       <Group orientation="horizontal" id="main-layout">
         {/* Left: Preview */}
         <Panel defaultSize="75%" minSize="50%">
