@@ -1,6 +1,5 @@
 import os
 from contextlib import asynccontextmanager
-from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -42,22 +41,11 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 # Allowed origins for development (localhost) and production
 load_dotenv(os.path.join(current_dir, ".env.local"))
 
-def _parse_origins(value: str) -> list[str]:
-    # CORS origin matching is exact, so normalize trailing slashes from env values.
-    return [origin.strip().rstrip("/") for origin in value.split(",") if origin.strip()]
-
-default_origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+origins = [
+    origin.strip()
+    for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
+    if origin.strip()
 ]
-
-origins = list(dict.fromkeys([
-    *default_origins,
-    *_parse_origins(os.getenv("FRONTEND_ORIGINS", "")),
-    *_parse_origins(os.getenv("FRONTEND_URL", "")),
-]))
-
-origin_regex = os.getenv("FRONTEND_ORIGIN_REGEX") or None
 
 app.add_middleware(
     CORSMiddleware,
