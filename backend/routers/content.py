@@ -210,7 +210,10 @@ async def generate_lesson_stream(
             yield f"data: {json.dumps({'status': 'complete', 'result': result.dict(), 'progress': 100})}\n\n"
 
         except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+            import traceback
+            error_detail = traceback.format_exc()
+            print(f"CRITICAL ERROR IN SSE STREAM: {error_detail}")
+            yield f"data: {json.dumps({'status': 'error', 'message': str(e), 'detail': error_detail})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

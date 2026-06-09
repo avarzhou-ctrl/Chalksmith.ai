@@ -31,6 +31,12 @@ static_dir = os.path.join(current_dir, "static")
 if not os.path.exists(static_dir):
     os.makedirs(static_dir)
 
+# Check if static directory is writable
+if not os.access(static_dir, os.W_OK):
+    print(f"CRITICAL: Static directory {static_dir} is NOT writable. File generation will fail.")
+else:
+    print(f"SUCCESS: Static directory {static_dir} is writable.")
+
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Allowed origins for development (localhost) and production
