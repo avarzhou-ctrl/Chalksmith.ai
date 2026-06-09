@@ -2,8 +2,8 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from backend.routers import content
 from backend.database import create_db_and_tables
 from backend.services.fetch_docs import fetch_manim_reference
@@ -38,14 +38,23 @@ else:
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Allowed origins for development (localhost) and production
+# Allowed origins for development (localhost) and production.
 load_dotenv(os.path.join(current_dir, ".env.local"))
 
-origins = [
+default_origins = [
     origin.strip()
     for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
     if origin.strip()
 ]
+
+env_origins = [
+    origin.strip()
+    for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+origins = list(dict.fromkeys(default_origins + env_origins))
+origin_regex = r"^https://chalksmith-ai-[a-z0-9-]+\.vercel\.app$"
 
 app.add_middleware(
     CORSMiddleware,

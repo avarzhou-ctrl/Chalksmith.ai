@@ -6,6 +6,7 @@ openai
 google-genai
 volcengine-python-sdk
 httpx
+beautifulsoup4
 sqlmodel
 playwright
 numpy
