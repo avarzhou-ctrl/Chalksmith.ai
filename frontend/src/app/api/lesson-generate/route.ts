@@ -1,3 +1,4 @@
+import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
 const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -6,6 +7,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const upstreamUrl = new URL('/content/lesson/generate', API_BASE_URL);
     searchParams.forEach((value, key) => {
@@ -14,7 +20,11 @@ export async function GET(request: Request) {
 
     const response = await fetch(upstreamUrl, {
       cache: 'no-store',
-      headers: { Accept: 'text/event-stream' },
+      headers: {
+        Accept: 'text/event-stream',
+        'X-Chalksmith-Secret': process.env.INTERNAL_BACKEND_SECRET || '',
+        'X-User-Id': userId,
+      },
     });
 
     if (!response.ok) {

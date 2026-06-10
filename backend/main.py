@@ -1,13 +1,15 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Header, HTTPException, status
+from fastapi import Depends, FastAPI, Header, HTTPException, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from backend.routers import content
-from backend.database import create_db_and_tables
+from sqlmodel import Session
+from backend.routers import lesson
+from backend.database import create_db_and_tables, get_session
 from backend.services.fetch_docs import fetch_manim_reference
+from backend.services.usage import ensure_can_create_lesson, record_new_lesson_usage, validate_internal_request
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -61,7 +63,7 @@ app.add_middleware(
     allow_credentials=True,
 )
 
-app.include_router(content.router, prefix="/content")
+app.include_router(lesson.router, prefix="/content")
 
 INTERNAL_SECRET = os.environ.get("INTERNAL_BACKEND_SECRET")
 
@@ -72,14 +74,14 @@ class GenerationRequest(BaseModel):
 async def process_generation(
     payload: GenerationRequest, 
     x_chalksmith_secret: str = Header(None, alias="X-Chalksmith-Secret"),
-    x_user_id: str = Header(None, alias="X-User-Id")
+    x_user_id: str = Header(None, alias="X-User-Id"),
+    db: Session = Depends(get_session)
 ):
     # Confirm the request came directly from your secure Vercel server instance
-    if not x_chalksmith_secret or x_chalksmith_secret != INTERNAL_SECRET:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden: Direct unverified access pathways blocked."
-        )
-        
-    print(True, f"Securely processing request for user: {x_user_id}")
-    return {"status": "success", "engine_output": "Vector data compiled successfully."}
+    validate_internal_request(x_chalksmith_secret)
+    ensure_can_create_lesson(db, x_user_id)
+
+    # If checks pass
+    user = record_new_lesson_usage(db, x_user_id)
+
+    return {"status": "success", "engine_output": "Vector data compiled successfully.", "current_usage": user.monthly_used}

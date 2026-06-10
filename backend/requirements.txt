@@ -8,6 +8,7 @@ volcengine-python-sdk
 httpx
 beautifulsoup4
 sqlmodel
+psycopg[binary]
 playwright
 numpy
 importlib-metadata

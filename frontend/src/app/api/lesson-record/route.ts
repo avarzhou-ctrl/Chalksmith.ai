@@ -1,9 +1,15 @@
+import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
 const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function POST(request: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     if (!body.lesson_id) {
       delete body.lesson_id;
@@ -14,7 +20,11 @@ export async function POST(request: Request) {
 
     const response = await fetch(`${API_BASE_URL}/content/lesson`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Chalksmith-Secret': process.env.INTERNAL_BACKEND_SECRET || '',
+        'X-User-Id': userId,
+      },
       body: JSON.stringify(body),
     });
 

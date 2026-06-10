@@ -3,6 +3,9 @@ from typing import Optional
 from pydantic import BaseModel
 from sqlmodel import SQLModel, Field
 
+def current_usage_month() -> str:
+    return datetime.utcnow().strftime("%Y-%m")
+
 class LessonRequest(BaseModel):
     # lesson_id is provided for iterative edits; null for new lessons
     # prompt contains instructions for changes to existing code
@@ -39,3 +42,10 @@ class Lesson(SQLModel, table=True):
     code: str
     summary: str
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+class User(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    email: str = Field(unique=True, index=True)
+    subscription: str = Field(default="free")
+    monthly_used: int = Field(default=0)
+    usage_month: str = Field(default_factory=current_usage_month, index=True)
