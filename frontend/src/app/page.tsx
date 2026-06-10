@@ -198,9 +198,7 @@ export default function Home() {
                 <h3 className="font-semibold text-stone-50">Legal</h3>
                 <ul className="mt-4 space-y-3">
                   <li><a className="hover:text-accent" href="/privacy">Privacy Policy</a></li>
-                  <li><a className="hover:text-accent" href="/terms">Terms of Use</a></li>
-                  <li><a className="hover:text-accent" href="/student-privacy">Student Privacy</a></li>
-                  <li><a className="hover:text-accent" href="/accessibility">Accessibility</a></li>
+                  <li><a className="hover:text-accent" href="/terms">Terms of Service</a></li>
                 </ul>
               </div>
               <div>
