@@ -35,6 +35,7 @@ class LessonListResponse(LessonResponse):
 class Lesson(SQLModel, table=True):
     # We store the raw 'code' locally to enable future iterative edits
     id: str = Field(primary_key=True)
+    user_id: str = Field(index=True, foreign_key="user.id")
     topic: str = Field(index=True)
     model: str = Field(index=True)
     format: str = Field(index=True)

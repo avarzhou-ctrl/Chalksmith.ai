@@ -43,6 +43,11 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('id');
     const endpoint = lessonId
@@ -51,6 +56,10 @@ export async function GET(request: Request) {
 
     const response = await fetch(endpoint, {
       cache: 'no-store',
+      headers: {
+        'X-Chalksmith-Secret': process.env.INTERNAL_BACKEND_SECRET || '',
+        'X-User-Id': userId,
+      },
     });
 
     if (!response.ok) {
@@ -68,6 +77,11 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('id');
 
@@ -77,6 +91,10 @@ export async function DELETE(request: Request) {
 
     const response = await fetch(`${API_BASE_URL}/content/lesson/${lessonId}`, {
       method: 'DELETE',
+      headers: {
+        'X-Chalksmith-Secret': process.env.INTERNAL_BACKEND_SECRET || '',
+        'X-User-Id': userId,
+      },
     });
 
     if (!response.ok) {
@@ -94,6 +112,11 @@ export async function DELETE(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const lessonId = searchParams.get('id');
 
@@ -105,7 +128,11 @@ export async function PATCH(request: Request) {
 
     const response = await fetch(`${API_BASE_URL}/content/lesson/${lessonId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Chalksmith-Secret': process.env.INTERNAL_BACKEND_SECRET || '',
+        'X-User-Id': userId,
+      },
       body: JSON.stringify(body),
     });
 

@@ -22,6 +22,7 @@ engine = create_engine(DATABASE_URL, echo=True)
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
     ensure_usage_month_column()
+    ensure_lesson_user_id_column()
 
 def ensure_usage_month_column():
     inspector = inspect(engine)
@@ -36,6 +37,20 @@ def ensure_usage_month_column():
     with engine.begin() as connection:
         # create_all does not alter existing tables, so this keeps early Neon prototypes compatible.
         connection.execute(text(f"ALTER TABLE \"user\" ADD COLUMN usage_month VARCHAR DEFAULT '{month}'"))
+
+def ensure_lesson_user_id_column():
+    inspector = inspect(engine)
+    if "lesson" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("lesson")}
+    if "user_id" in columns:
+        return
+
+    with engine.begin() as connection:
+        # Existing lessons cannot be safely assigned to a user automatically.
+        connection.execute(text("ALTER TABLE lesson ADD COLUMN user_id VARCHAR"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_lesson_user_id ON lesson (user_id)"))
 
 # Dependency for managing sessions per API request
 def get_session():
