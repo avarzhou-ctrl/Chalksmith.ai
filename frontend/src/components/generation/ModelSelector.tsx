@@ -12,10 +12,10 @@ export default function ModelSelector({ value, onChange, disabled }: ModelSelect
     const models = [
         { label: 'Gemini 3 Flash', value: 'gemini-3-flash-preview' },
         { label: 'Gemini 3 Pro', value: 'gemini-3-pro-preview' },
-        { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
-        { label: 'GPT-4o', value: 'gpt-4o' },
-        { label: 'DeepSeek Chat', value: 'deepseek-chat' },
-        { label: 'DeepSeek Reasoner', value: 'deepseek-reasoner' }
+        // { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
+        // { label: 'GPT-4o', value: 'gpt-4o' },
+        // { label: 'DeepSeek Chat', value: 'deepseek-chat' },
+        // { label: 'DeepSeek Reasoner', value: 'deepseek-reasoner' }
     ];
     
     return (
