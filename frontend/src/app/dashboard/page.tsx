@@ -83,7 +83,7 @@ export default function Dashboard() {
             appearance={{
               elements: {
                 userButtonBox: "m-4",
-                userButtonAvatarBox: "size-10",
+                userButtonAvatarBox: "size-20",
                 userButtonAvatarImage: "p-[2x]"
               }
             }}
