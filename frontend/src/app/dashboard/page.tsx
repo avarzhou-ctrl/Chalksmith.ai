@@ -8,6 +8,7 @@ import type { LessonListItem } from "@/lib/api";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { CirclePlus } from "lucide-react";
 import Link from "next/link";
+import { UserButton } from "@clerk/nextjs";
 
 export default function Dashboard() {
   const panelRef = useRef<any>(null);
@@ -77,6 +78,16 @@ export default function Dashboard() {
           className="bg-secondary-bg border-r border-border h-full flex flex-col"
           >
           <DashboardSidebar isCollapsed={isCollapsed} onToggle={togglePanel} />
+
+          <UserButton
+            appearance={{
+              elements: {
+                userButtonBox: "m-4",
+                userButtonAvatarBox: "size-10",
+                userButtonAvatarImage: "p-[2x]"
+              }
+            }}
+          />
         </Panel>
 
         <Separator className="w-1 bg-border/20 hover:bg-accent/40 transition-colors cursor-col-resize shadow-[inset_0_0_1px_rgba(255,255,255,0.05)]" />

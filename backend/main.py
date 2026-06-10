@@ -1,9 +1,10 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from pydantic import BaseModel
 from backend.routers import content
 from backend.database import create_db_and_tables
 from backend.services.fetch_docs import fetch_manim_reference
@@ -48,13 +49,7 @@ default_origins = [
     "https://app.chalksmith.ai",
 ]
 
-env_origins = [
-    origin.strip()
-    for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
-    if origin.strip()
-]
-
-origins = list(dict.fromkeys(default_origins + env_origins))
+origins = list(dict.fromkeys(default_origins))
 origin_regex = r"^https://chalksmith-ai-[a-z0-9-]+\.vercel\.app$"
 
 app.add_middleware(
@@ -67,3 +62,24 @@ app.add_middleware(
 )
 
 app.include_router(content.router, prefix="/content")
+
+INTERNAL_SECRET = os.environ.get("INTERNAL_BACKEND_SECRET")
+
+class GenerationRequest(BaseModel):
+    prompt: str
+
+@app.post("/lesson")
+async def process_generation(
+    payload: GenerationRequest, 
+    x_chalksmith_secret: str = Header(None, alias="X-Chalksmith-Secret"),
+    x_user_id: str = Header(None, alias="X-User-Id")
+):
+    # Confirm the request came directly from your secure Vercel server instance
+    if not x_chalksmith_secret or x_chalksmith_secret != INTERNAL_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Direct unverified access pathways blocked."
+        )
+        
+    print(True, f"Securely processing request for user: {x_user_id}")
+    return {"status": "success", "engine_output": "Vector data compiled successfully."}

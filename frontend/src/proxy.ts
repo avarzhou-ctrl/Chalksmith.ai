@@ -3,8 +3,13 @@ import { NextResponse } from 'next/server'
 
 const APP_HOST = 'app.chalksmith.ai'
 const MARKETING_HOSTS = new Set(['chalksmith.ai', 'www.chalksmith.ai'])
-const isProtectedRoute = createRouteMatcher(['/generation(.*)', '/dashboard(.*)', '/home(.*)'])
-
+const isProtectedRoute = createRouteMatcher([
+  '/generation(.*)', 
+  '/dashboard(.*)', 
+  '/home(.*)',
+  '/api/generate(.*)'
+]);
+ 
 export default clerkMiddleware(async (auth, request) => {
   const url = request.nextUrl.clone()
   const host = request.headers.get('host')?.split(':')[0]
@@ -65,6 +70,6 @@ export const config = {
     // Always run for Clerk's auto-proxy path
     '/__clerk/:path*',
     // Always run for API routes
-    '/(api|trpc)(.*)',
+    '/(api|trpc)(.*)'
   ],
 }

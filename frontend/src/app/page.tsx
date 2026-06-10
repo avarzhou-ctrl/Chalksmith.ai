@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { SignUpButton, useUser } from '@clerk/nextjs';
-import { ArrowRight, Braces, FileCode2, Layers3, Upload, LogIn } from 'lucide-react';
+import { ArrowRight, Braces, FileCode2, Layers3, Upload } from 'lucide-react';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700';
 const ctaSizeClasses = {
@@ -48,23 +48,26 @@ export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-primary-bg text-primary-text">
       <div className="relative z-10">
-        <section id="landing" className="mx-auto grid min-h-[32rem] w-full max-w-5xl place-items-center px-4 pb-6 pt-10 text-center sm:min-h-[36rem] sm:px-6 lg:px-8">
-          <div>
-            <h1 className="mx-auto max-w-4xl text-4xl font-bold leading-tight text-stone-50 sm:text-5xl lg:text-6xl">
-              Forge stunning STEM animations in minutes.
-            </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-stone-300">
-              Upload your syllabus or describe a lesson, select a teaching format, and let AI build visual
-              animations grounded in your curriculum.
-            </p>
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <BuildLessonCta />
-              <a
-                href="#examples"
-                className="rounded-lg border border-stone-700 px-6 py-3 text-base font-medium text-stone-200 transition-colors hover:border-accent hover:text-accent"
-              >
-                View examples
-              </a>
+        <section id="landing" className="relative isolate grid min-h-[32rem] w-full overflow-hidden bg-black px-4 pb-6 pt-10 text-center sm:min-h-[36rem] sm:px-6 lg:px-8">
+          <div className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.72)_0%,rgba(0,0,0,0.52)_32%,rgba(0,0,0,0.14)_66%,rgba(0,0,0,0.84)_100%)]" />
+          <div className="relative z-10 mx-auto grid w-full max-w-5xl place-items-center">
+            <div>
+              <h1 className="mx-auto max-w-4xl text-4xl font-bold leading-tight text-stone-50 sm:text-5xl lg:text-6xl">
+                Forge stunning STEM animations in minutes.
+              </h1>
+              <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-stone-300">
+                Upload your syllabus or describe a lesson, select a teaching format, and let AI build visual
+                animations grounded in your curriculum.
+              </p>
+              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <BuildLessonCta />
+                <a
+                  href="#examples"
+                  className="rounded-lg border border-stone-700 px-6 py-3 text-base font-medium text-stone-200 transition-colors hover:border-accent hover:text-accent"
+                >
+                  View examples
+                </a>
+              </div>
             </div>
           </div>
         </section>

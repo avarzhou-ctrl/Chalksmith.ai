@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.4.3",
     "@remotion/cli": "^4.0.448",
     "@remotion/player": "^4.0.448",
     "@remotion/renderer": "^4.0.448",
@@ -24,16 +25,17 @@
     "react-syntax-highlighter": "^16.1.1",
     "remotion": "^4.0.448",
     "tailwindcss": "^4.2.1",
-    "@clerk/nextjs": "^7.4.3"
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-katex": "^3.0.4",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "@types/three": "^0.184.1",
     "typescript": "^5"
   },
-    "optionalDependencies": {
+  "optionalDependencies": {
     "@tailwindcss/oxide-linux-arm64-musl": "^4.0.1",
     "@tailwindcss/oxide-linux-x64-musl": "^4.0.1",
     "lightningcss-linux-arm64-musl": "^1.29.1",
