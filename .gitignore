@@ -6,6 +6,7 @@ backend/__pycache__/
 backend/*.py[cod]
 backend/.pytest_cache/
 backend/*.db
+backend/static/
 
 # === Frontend (Next.js/Javascript) ===
 frontend/node_modules/
