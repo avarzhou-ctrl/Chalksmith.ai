@@ -7,7 +7,8 @@
   ],
   "dependencies": {
     "@clerk/nextjs": "^7.4.3",
-    "react-latex-next": "^3.0.0"
+    "react-latex-next": "^3.0.0",
+    "svix": "^1.95.2"
   },
   "devDependencies": {
     "@vercel/build-utils": "^13.26.5"

@@ -20,10 +20,11 @@ def get_user_or_404(session: Session, user_id: Optional[str]) -> User:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
     user = session.get(User, user_id)
+    
     if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
+        raise HTTPException(status_code=404, detail="User not found.") 
 
-    # Rest user's counter
+    # Reset user's counter
     month = current_usage_month()
     if user.usage_month != month:
         user.usage_month = month
