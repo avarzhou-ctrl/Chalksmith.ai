@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Teaching Elapsed Time - Interactive Learning</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f5f7fb;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #canvas-container {
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      overflow: hidden;
+      background-color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<script>
+let shSlider, smSlider, ehSlider, emSlider;
+let playButton;
+let isAnimating = false;
+let animProgress = 0.0; // 0.0 to 1.0
+let animSpeed = 0.005;
+
+function setup() {
+  const canvas = createCanvas(900, 600);
+  canvas.parent('canvas-container');
+  
+  // Create beautiful UI sliders and controls on the left panel
+  let startX = 40;
+  let startY = 180;
+  let spacing = 65;
+
+  createLabel("START TIME", startX, startY - 30, "#2B6CB0");
+  shSlider = createSlider(1, 12, 2, 1);
+  shSlider.position(startX, startY);
+  shSlider.style('width', '160px');
+  createLabel("Hour", startX + 175, startY - 5, "#4A5568");
+
+  smSlider = createSlider(0, 59, 15, 1);
+  smSlider.position(startX, startY + 30);
+  smSlider.style('width', '160px');
+  createLabel("Minute", startX + 175, startY + 25, "#4A5568");
+
+  createLabel("END TIME", startX, startY + 105, "#DD6B20");
+  ehSlider = createSlider(1, 12, 5, 1);
+  ehSlider.position(startX, startY + 135);
+  ehSlider.style('width', '160px');
+  createLabel("Hour", startX + 175, startY + 130, "#4A5568");
+
+  emSlider = createSlider(0, 59, 45, 1);
+  emSlider.position(startX, startY + 165);
+  emSlider.style('width', '160px');
+  createLabel("Minute", startX + 175, startY + 160, "#4A5568");
+
+  playButton = createButton('Animate Time Flow ▷');
+  playButton.position(startX, startY + 230);
+  playButton.style('width', '215px');
+  playButton.style('padding', '10px');
+  playButton.style('background-color', '#319795');
+  playButton.style('color', '#fff');
+  playButton.style('border', 'none');
+  playButton.style('border-radius', '6px');
+  playButton.style('font-weight', 'bold');
+  playButton.style('cursor', 'pointer');
+  playButton.mousePressed(toggleAnimation);
+}
+
+function createLabel(txt, x, y, colorCode) {
+  let label = createDiv(txt);
+  label.position(x, y);
+  label.style('font-family', 'sans-serif');
+  label.style('font-size', '13px');
+  label.style('font-weight', 'bold');
+  label.style('color', colorCode);
+}
+
+function toggleAnimation() {
+  if (isAnimating) {
+    isAnimating = false;
+    playButton.html('Animate Time Flow ▷');
+    playButton.style('background-color', '#319795');
+  } else {
+    isAnimating = true;
+    animProgress = 0.0;
+    playButton.html('Pause Animation ‖');
+    playButton.style('background-color', '#E53E3E');
+  }
+}
+
+function draw() {
+  background(253, 254, 255);
+  
+  // Left Panel background
+  fill(240, 244, 248);
+  noStroke();
+  rect(0, 0, 260, height);
+  stroke(226, 232, 240);
+  line(260, 0, 260, height);
+
+  // Lesson Header
+  drawHeader();
+
+  // Get values from sliders
+  let sH = shSlider.value();
+  let sM = smSlider.value();
+  let eH = ehSlider.value();
+  let eM = emSlider.value();
+
+  // Total absolute minutes from 12:00
+  let tStart = (sH % 12) * 60 + sM;
+  let tEnd = (eH % 12) * 60 + eM;
+  
+  // Calculate elapsed
+  let diff = tEnd - tStart;
+  if (diff < 0) {
+    diff += 720; // Wrap around 12 hours
+  }
+  
+  let elapsedHours = floor(diff / 60);
+  let elapsedMins = diff % 60;
+
+  // Handle Animation progression
+  if (isAnimating) {
+    animProgress += animSpeed;
+    if (animProgress > 1.0) {
+      animProgress = 1.0;
+      isAnimating = false;
+      playButton.html('Animate Time Flow ▷');
+      playButton.style('background-color', '#319795');
+    }
+  }
+  
+  let currentMins = tStart + diff * animProgress;
+  
+  // Draw Clock Section
+  let clockX = 420;
+  let clockY = 240;
+  let clockR = 140;
+  drawAnalogClock(clockX, clockY, clockR, tStart, tEnd, currentMins, isAnimating);
+
+  // Draw Explanatory Cards
+  drawDataCards(sH, sM, eH, eM, elapsedHours, elapsedMins);
+
+  // Draw Interactive Hop Timeline (Pedagogical Strategy)
+  drawTimeline(sH, sM, eH, eM, elapsedHours, elapsedMins, animProgress);
+}
+
+function drawHeader() {
+  fill(45, 55, 72);
+  noStroke();
+  textSize(22);
+  textAlign(LEFT, TOP);
+  textStyle(BOLD);
+  text("LEARNING ELAPSED TIME", 35, 25);
+  
+  textSize(12);
+  textStyle(NORMAL);
+  fill(113, 128, 150);
+  text("Set your start and end times below to see how time flows.", 35, 55);
+}
+
+function drawDataCards(sH, sM, eH, eM, elH, elM) {
+  let cx = 600;
+  let cy = 110;
+  
+  // Display Boxes
+  stroke(226, 232, 240);
+  strokeWeight(1);
+  
+  // Start Time Card
+  fill(235, 248, 250);
+  rect(cx, cy, 120, 75, 8);
+  
+  // End Time Card
+  fill(254, 243, 199);
+  rect(cx + 140, cy, 120, 75, 8);
+
+  // Text Inside Cards
+  noStroke();
+  textAlign(CENTER, CENTER);
+  
+  // Start Time
+  fill(43, 108, 176);
+  textSize(11);
+  textStyle(BOLD);
+  text("START TIME", cx + 60, cy + 20);
+  textSize(22);
+  text(formatTime(sH, sM), cx + 60, cy + 45);
+
+  // End Time
+  fill(196, 86, 12);
+  textSize(11);
+  textStyle(BOLD);
+  text("END TIME", cx + 200, cy + 20);
+  textSize(22);
+  text(formatTime(eH, eM), cx + 200, cy + 45);
+
+  // Result Banner
+  fill(240, 253, 250);
+  stroke(153, 246, 228);
+  rect(cx, cy + 95, 260, 110, 8);
+
+  noStroke();
+  fill(13, 148, 136);
+  textSize(12);
+  textStyle(BOLD);
+  textAlign(LEFT, TOP);
+  text("ELAPSED TIME RESULT:", cx + 15, cy + 110);
+  
+  textSize(24);
+  text(`${elH} Hr${elH !== 1 ? 's' : ''}  ${elM} Min${elM !== 1 ? 's' : ''}`, cx + 15, cy + 130);
+  
+  textSize(11);
+  fill(100, 116, 139);
+  textStyle(ITALIC);
+  text(`Total duration in minutes: ${elH * 60 + elM} mins`, cx + 15, cy + 175);
+}
+
+function formatTime(h, m) {
+  let mm = m < 10 ? '0' + m : m;
+  return `${h}:${mm}`;
+}
+
+function drawAnalogClock(x, y, r, tStart, tEnd, currentMins, animating) {
+  // Clock Face background
+  fill(255);
+  stroke(203, 213, 225);
+  strokeWeight(6);
+  ellipse(x, y, r * 2);
+
+  // Shading elapsed slice
+  let angleStart = map(tStart, 0, 720, -HALF_PI, TWO_PI - HALF_PI);
+  let angleEnd = map(tEnd, 0, 720, -HALF_PI, TWO_PI - HALF_PI);
+  if (angleEnd < angleStart) angleEnd += TWO_PI;
+
+  noStroke();
+  fill(204, 251, 241, 150); // Shaded wedge for time window
+  arc(x, y, r * 2 - 12, r * 2 - 12, angleStart, angleEnd, PIE);
+
+  // Hourly Marks & Numbers
+  textAlign(CENTER, CENTER);
+  textSize(14);
+  textStyle(BOLD);
+  for (let i = 1; i <= 12; i++) {
+    let angle = map(i, 0, 12, -HALF_PI, TWO_PI - HALF_PI);
+    let lx = x + cos(angle) * (r - 22);
+    let ly = y + sin(angle) * (r - 22);
+    
+    fill(100, 116, 139);
+    text(i, lx, ly);
+
+    // Tick marks
+    let tx1 = x + cos(angle) * (r - 8);
+    let ty1 = y + sin(angle) * (r - 8);
+    let tx2 = x + cos(angle) * (r - 2);
+    let ty2 = y + sin(angle) * (r - 2);
+    stroke(148, 163, 184);
+    strokeWeight(2);
+    line(tx1, ty1, tx2, ty2);
+  }
+
+  // Draw Minute ticks
+  for (let m = 0; m < 60; m++) {
+    if (m % 5 !== 0) {
+      let angle = map(m, 0, 60, -HALF_PI, TWO_PI - HALF_PI);
+      let tx1 = x + cos(angle) * (r - 5);
+      let ty1 = y + sin(angle) * (r - 5);
+      let tx2 = x + cos(angle) * (r - 2);
+      let ty2 = y + sin(angle) * (r - 2);
+      stroke(203, 213, 225);
+      strokeWeight(1);
+      line(tx1, ty1, tx2, ty2);
+    }
+  }
+
+  // Draw logical Hands
+  if (animating) {
+    // Current Animated hour/minute hand
+    drawClockHands(x, y, r, currentMins, color(13, 148, 136), 6, 4);
+  } else {
+    // Static representations
+    // Start Hand representation (Blue)
+    drawClockHands(x, y, r, tStart, color(43, 108, 176, 180), 4, 2.5);
+    // End Hand representation (Orange)
+    drawClockHands(x, y, r, tEnd, color(221, 107, 32), 4, 2.5);
+  }
+
+  // Center Pin
+  fill(51, 65, 85);
+  noStroke();
+  ellipse(x, y, 10);
+}
+
+function drawClockHands(cx, cy, r, minutes, col, wH, wM) {
+  let hr = (minutes / 60) % 12;
+  let mn = minutes % 60;
+
+  let hrAngle = map(hr, 0, 12, -HALF_PI, TWO_PI - HALF_PI);
+  let mnAngle = map(mn, 0, 60, -HALF_PI, TWO_PI - HALF_PI);
+
+  // Hour Hand
+  stroke(col);
+  strokeWeight(wH);
+  line(cx, cy, cx + cos(hrAngle) * (r * 0.55), cy + sin(hrAngle) * (r * 0.55));
+
+  // Minute Hand
+  stroke(col);
+  strokeWeight(wM);
+  line(cx, cy, cx + cos(mnAngle) * (r * 0.8), cy + sin(mnAngle) * (r * 0.8));
+}
+
+function drawTimeline(sH, sM, eH, eM, elH, elM, progress) {
+  let startX = 300;
+  let endX = 840;
+  let Y = 490;
+
+  let colHour = color(49, 151, 149);
+  let colMin = color(221, 107, 32);
+
+  stroke(148, 163, 184);
+  strokeWeight(4);
+  line(startX, Y, endX, Y); // Baseline
+
+  // Start point marker
+  fill(43, 108, 176);
+  noStroke();
+  ellipse(startX, Y, 14);
+  
+  // End point marker
+  fill(221, 107, 32);
+  ellipse(endX, Y, 14);
+
+  // Dynamic Hop points (Pedagogical layout: Hours jump, then Minute jump)
+  let midX = startX;
+  if (elH > 0 && elM > 0) {
+    // Map intermediate point proportionally
+    let ratio = elH / (elH + (elM / 60));
+    midX = lerp(startX, endX, ratio);
+    
+    fill(13, 148, 136);
+    ellipse(midX, Y, 10);
+  }
+
+  // Label points
+  fill(51, 65, 85);
+  textSize(12);
+  textStyle(BOLD);
+  textAlign(CENTER, TOP);
+  
+  // Start node text
+  text(formatTime(sH, sM), startX, Y + 15);
+  
+  // End node text
+  text(formatTime(eH, eM), endX, Y + 15);
+
+  // Hop curves and labels
+  if (elH > 0 && elM > 0) {
+    // Hop 1: Hour(s) Jump
+    drawArcHop(startX, midX, Y, 55, colHour);
+    
+    // Hop 2: Minute(s) Jump
+    drawArcHop(midX, endX, Y, 35, colMin);
+
+    // Intermediate step label
+    fill(13, 148, 136);
+    noStroke();
+    let midH = (sH + elH) % 12;
+    if (midH === 0) midH = 12;
+    text(formatTime(midH, sM), midX, Y + 15);
+
+    // Hop labels
+    textSize(11);
+    textAlign(CENTER, BOTTOM);
+    fill(49, 151, 149);
+    text(`+${elH} Hour${elH > 1 ? 's' : ''}`, (startX + midX) / 2, Y - 42);
+    fill(221, 107, 32);
+    text(`+${elM} Min${elM > 1 ? 's' : ''}`, (midX + endX) / 2, Y - 28);
+
+  } else if (elH > 0) {
+    // Only Hours
+    drawArcHop(startX, endX, Y, 60, colHour);
+    
+    textSize(11);
+    textAlign(CENTER, BOTTOM);
+    fill(49, 151, 149);
+    noStroke();
+    text(`+${elH} Hour${elH > 1 ? 's' : ''}`, (startX + endX) / 2, Y - 45);
+
+  } else {
+    // Only Minutes
+    drawArcHop(startX, endX, Y, 40, colMin);
+
+    textSize(11);
+    textAlign(CENTER, BOTTOM);
+    fill(221, 107, 32);
+    noStroke();
+    text(`+${elM} Min${elM > 1 ? 's' : ''}`, (startX + endX) / 2, Y - 30);
+  }
+
+  // Draw active tracking head if animating
+  if (isAnimating) {
+    let trackingX = lerp(startX, endX, progress);
+    fill(13, 148, 136);
+    stroke(255);
+    strokeWeight(2);
+    ellipse(trackingX, Y, 16);
+    
+    // Floating active timestamp above tracking head
+    noStroke();
+    fill(13, 148, 136);
+    textAlign(CENTER, BOTTOM);
+    let runningMins = (sH % 12) * 60 + sM + (elH * 60 + elM) * progress;
+    let rH = floor(runningMins / 60) % 12;
+    if (rH === 0) rH = 12;
+    let rM = floor(runningMins % 60);
+    text(formatTime(rH, rM), trackingX, Y - 12);
+  }
+}
+
+function drawArcHop(x1, x2, y, h, col) {
+  noFill();
+  stroke(col);
+  strokeWeight(2);
+  beginShape();
+  for (let i = 0; i <= 20; i++) {
+    let t = i / 20;
+    let x = lerp(x1, x2, t);
+    let yOffset = sin(t * PI) * h;
+    vertex(x, y - yOffset);
+  }
+  endShape();
+  
+  // Arrowhead on end of hop
+  let endYOffset = sin(0.95 * PI) * h;
+  let ax = lerp(x1, x2, 0.95);
+  let ay = y - endYOffset;
+  push();
+  translate(x2, y);
+  rotate(atan2(y - ay, x2 - ax));
+  fill(col);
+  noStroke();
+  triangle(-6, -3, 0, 0, -6, 3);
+  pop();
+}
+</script>
+
+</body>
+</html>

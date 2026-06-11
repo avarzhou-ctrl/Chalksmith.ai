@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Variables Lab</title>
+    <!-- p5.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f4f8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #2c3e50;
+        }
+        #canvas-container {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #ffffff;
+        }
+        h1 {
+            margin: 10px 0 5px 0;
+            font-size: 1.8rem;
+            color: #1a365d;
+        }
+        p {
+            margin: 0 0 15px 0;
+            font-size: 0.95rem;
+            color: #4a5568;
+            max-width: 800px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>The Three Types of Scientific Variables</h1>
+    <p>Adjust the <b>Independent Variable</b>, run the experiment, and observe the effect on the <b>Dependent Variable</b>! Customize the <b>Controlled Variables</b> between runs to see how they shift the baseline growth curve.</p>
+    
+    <div id="canvas-container"></div>
+
+    <script>
+        // Simulation States
+        let waterVal = 50; // Independent Variable (0 to 100 ml)
+        let plantHeight = 0; // Dependent Variable (current animated height)
+        let targetHeight = 0; // Target height based on curve
+        let currentDay = 0;
+        let maxDays = 10;
+        let isRunning = false;
+        
+        // Interactive UI elements coordinates
+        let sliderX = 100, sliderY = 430, sliderW = 160;
+        let isDraggingSlider = false;
+        let runBtnX = 130, runBtnY = 465, runBtnW = 100, runBtnH = 30;
+
+        // Visual Assets/Data points for graph
+        let dataPoints = [];
+
+        // Interactive Controlled Variables Setup
+        let controlledVars = [
+            { 
+                name: "Soil Type", 
+                vals: ["Organic Loam", "Sandy Soil", "Clay Soil"], 
+                factors: [1.0, 0.6, 0.75], 
+                idx: 0 
+            },
+            { 
+                name: "Sunlight Duration", 
+                vals: ["8 Hours/Day", "4 Hours/Day", "12 Hours/Day"], 
+                factors: [1.0, 0.5, 1.25], 
+                idx: 0 
+            },
+            { 
+                name: "Temperature", 
+                vals: ["22 °C (Room Temp)", "12 °C (Chilly)", "32 °C (Very Hot)"], 
+                factors: [1.0, 0.6, 0.75], 
+                idx: 0 
+            },
+            { 
+                name: "Plant Species", 
+                vals: ["Arabidopsis", "Tomato Dwarf", "Wild Clover"], 
+                factors: [1.0, 1.3, 0.8], 
+                idx: 0 
+            }
+        ];
+
+        // Custom species appearance configurations
+        let plantSpeciesColors = [
+            { stem: [46, 204, 113], leaf: [39, 174, 96], flower: [231, 76, 60] },   // Arabidopsis (Red Flower)
+            { stem: [34, 139, 34], leaf: [40, 180, 40], flower: [255, 165, 0] },    // Tomato Dwarf (Orange Flower)
+            { stem: [60, 179, 113], leaf: [46, 139, 87], flower: [238, 130, 238] }  // Wild Clover (Purple Flower)
+        ];
+
+        // Dynamic notice banner
+        let noticeText = "";
+        let noticeTimer = 0;
+
+        function setup() {
+            const canvas = createCanvas(800, 520);
+            canvas.parent('canvas-container');
+            calculateTargetHeight();
+        }
+
+        function draw() {
+            background(253, 254, 254);
+            
+            // Set interactive pointer cursor dynamically
+            updateCursor();
+
+            // Draw Layout Sections
+            drawSectionPanels();
+            
+            // Render 1. INDEPENDENT VARIABLE PANEL (Left Bottom / Controls)
+            drawIndependentPanel();
+            
+            // Render 3. CONTROLLED VARIABLES PANEL (Middle Column)
+            drawControlledPanel();
+
+            // Render 2. EXPERIMENT ANIMATION (Left Top / Middle visualizer)
+            drawExperimentVisualizer();
+
+            // Render 4. DEPENDENT VARIABLE PANEL & GRAPH (Right Column)
+            drawDependentPanel();
+
+            // Handle simulation step
+            if (isRunning) {
+                if (frameCount % 6 === 0 && currentDay < maxDays) {
+                    currentDay += 0.5;
+                    // Grow plant towards target fractionally matching the day progress
+                    plantHeight = lerp(0, targetHeight, currentDay / maxDays);
+                } else if (currentDay >= maxDays) {
+                    isRunning = false;
+                    // Add to data plot once complete
+                    addDataPoint(waterVal, plantHeight);
+                }
+            }
+        }
+
+        function updateCursor() {
+            let overAnyCard = false;
+            if (!isRunning) {
+                for (let i = 0; i < controlledVars.length; i++) {
+                    let yPos = 48 + i * 115;
+                    if (mouseX > 375 && mouseX < 545 && mouseY > yPos && mouseY < yPos + 105) {
+                        overAnyCard = true;
+                    }
+                }
+            }
+            
+            let handleX = map(waterVal, 0, 100, sliderX, sliderX + sliderW);
+            let overSlider = dist(mouseX, mouseY, handleX, sliderY) < 15;
+            let overBtn = mouseX > runBtnX && mouseX < runBtnX + runBtnW && mouseY > runBtnY && mouseY < runBtnY + runBtnH;
+
+            if (overAnyCard || overSlider || overBtn) {
+                cursor(HAND);
+            } else {
+                cursor(ARROW);
+            }
+        }
+
+        function drawSectionPanels() {
+            // Divider lines and background cards
+            stroke(226, 232, 240);
+            strokeWeight(2);
+            line(360, 0, 360, height);
+            line(560, 0, 560, height);
+            line(0, 380, 360, 380);
+
+            // Background fills
+            noStroke();
+            fill(247, 250, 252);
+            rect(360, 0, 200, height); // Controlled panel container
+        }
+
+        function drawIndependentPanel() {
+            // Header
+            fill(43, 108, 176);
+            rect(0, 380, 360, 35);
+            fill(255);
+            noStroke();
+            textSize(13);
+            textStyle(BOLD);
+            textAlign(CENTER, CENTER);
+            text("1. INDEPENDENT VARIABLE (What you change)", 180, 397.5);
+
+            // Slider track
+            stroke(200);
+            strokeWeight(6);
+            line(sliderX, sliderY, sliderX + sliderW, sliderY);
+            
+            // Slider handle
+            let handleX = map(waterVal, 0, 100, sliderX, sliderX + sliderW);
+            noStroke();
+            fill(43, 108, 176);
+            ellipse(handleX, sliderY, 20, 20);
+            fill(255);
+            ellipse(handleX, sliderY, 8, 8);
+
+            // Labels and Values
+            textStyle(NORMAL);
+            fill(44, 62, 80);
+            textAlign(LEFT, CENTER);
+            textSize(12);
+            text("Water Volume:", 15, sliderY);
+            textAlign(RIGHT, CENTER);
+            textStyle(BOLD);
+            text(round(waterVal) + " mL", 345, sliderY);
+
+            // Dragging interactions
+            if (isDraggingSlider) {
+                let valX = constrain(mouseX, sliderX, sliderX + sliderW);
+                waterVal = map(valX, sliderX, sliderX + sliderW, 0, 100);
+                calculateTargetHeight();
+                if (!isRunning) {
+                    plantHeight = 0; // Reset plant to seed stage
+                    currentDay = 0;
+                }
+            }
+
+            // Run Button
+            let overBtn = mouseX > runBtnX && mouseX < runBtnX + runBtnW && mouseY > runBtnY && mouseY < runBtnY + runBtnH;
+            fill(overBtn ? 39, 174, 96 : 46, 204, 113);
+            rect(runBtnX, runBtnY, runBtnW, runBtnH, 6);
+            fill(255);
+            textStyle(BOLD);
+            textAlign(CENTER, CENTER);
+            text(isRunning ? "GROWING..." : "RUN TEST", runBtnX + runBtnW/2, runBtnY + runBtnH/2);
+        }
+
+        function drawControlledPanel() {
+            // Header
+            fill(125, 95, 255);
+            rect(360, 0, 200, 35);
+            fill(255);
+            textStyle(BOLD);
+            textSize(13);
+            textAlign(CENTER, CENTER);
+            text("3. CONTROLLED VARIABLES", 460, 12.5);
+            textSize(9.5);
+            text(isRunning ? "(Locked During Test)" : "(Click Cards to Modify)", 460, 27);
+
+            for (let i = 0; i < controlledVars.length; i++) {
+                let yPos = 48 + i * 115;
+                let item = controlledVars[i];
+                let valText = item.vals[item.idx];
+                
+                // Hover highlight effect if interactive
+                let isHovered = !isRunning && mouseX > 375 && mouseX < 545 && mouseY > yPos && mouseY < yPos + 105;
+                
+                // Card background
+                fill(isHovered ? 245 : 255);
+                stroke(isHovered ? 125 : 226, 95, 255, isHovered ? 200 : 50);
+                strokeWeight(isHovered ? 1.5 : 1);
+                rect(375, yPos, 170, 105, 8);
+
+                // Lock/Unlock Icon Indicator
+                noStroke();
+                if (isRunning) {
+                    fill(255, 159, 67); // Locked Orange
+                    rect(390, yPos + 15, 16, 12, 2);
+                    noFill();
+                    stroke(255, 159, 67);
+                    strokeWeight(2);
+                    arc(398, yPos + 15, 10, 10, PI, TWO_PI);
+                } else {
+                    fill(46, 204, 113); // Configurable Green
+                    rect(390, yPos + 15, 16, 12, 2);
+                    noFill();
+                    stroke(46, 204, 113);
+                    strokeWeight(2);
+                    arc(403, yPos + 15, 10, 10, PI, TWO_PI);
+                }
+                
+                // Labels
+                noStroke();
+                fill(74, 85, 104);
+                textAlign(LEFT, TOP);
+                textSize(10);
+                textStyle(BOLD);
+                text(item.name.toUpperCase(), 415, yPos + 12);
+                
+                textStyle(NORMAL);
+                textSize(12);
+                fill(44, 62, 80);
+                text(valText, 390, yPos + 38);
+                
+                textSize(10);
+                fill(120, 130, 140);
+                text("Multiplier: " + item.factors[item.idx].toFixed(2) + "x", 390, yPos + 58);
+                
+                if (isRunning) {
+                    fill(120, 130, 140);
+                    text("Status: LOCKED", 390, yPos + 80);
+                } else {
+                    fill(46, 204, 113);
+                    textStyle(BOLD);
+                    text("Status: TAP TO CHANGE", 390, yPos + 80);
+                }
+            }
+        }
+
+        function drawExperimentVisualizer() {
+            // Sky & ground
+            noStroke();
+            fill(235, 245, 251);
+            rect(0, 0, 360, 380);
+            
+            // Soil in Pot
+            fill(139, 69, 19);
+            rect(120, 330, 120, 50, 4);
+            fill(100, 50, 10);
+            ellipse(180, 330, 120, 20);
+
+            // Plant growth visualizer using dynamic species colors
+            let speciesIdx = controlledVars[3].idx;
+            let colors = plantSpeciesColors[speciesIdx];
+
+            stroke(colors.stem[0], colors.stem[1], colors.stem[2]);
+            strokeWeight(5);
+            let stemBaseY = 325;
+            let currentStemY = stemBaseY - plantHeight;
+            if (plantHeight > 5) {
+                line(180, stemBaseY, 180, currentStemY);
+                
+                // Draw dynamic leaves based on growth height
+                noStroke();
+                fill(colors.leaf[0], colors.leaf[1], colors.leaf[2]);
+                let numLeaves = floor(plantHeight / 15);
+                for (let i = 1; i <= numLeaves; i++) {
+                    let leafY = stemBaseY - (i * 15);
+                    if (leafY > currentStemY) {
+                        push();
+                        translate(180, leafY);
+                        rotate(i % 2 === 0 ? QUARTER_PI : -QUARTER_PI);
+                        ellipse(12, 0, 18, 8);
+                        pop();
+                    }
+                }
+                // Bud/Flower at top if maximum health reached
+                if (plantHeight > 60 && waterVal > 30 && waterVal < 80) {
+                    fill(colors.flower[0], colors.flower[1], colors.flower[2]);
+                    ellipse(180, currentStemY, 12, 12);
+                    fill(241, 196, 15);
+                    ellipse(180, currentStemY, 6, 6);
+                }
+            } else {
+                // Seed stage
+                fill(120, 80, 40);
+                ellipse(180, 325, 8, 5);
+            }
+
+            // Watering Animation
+            if (isRunning && currentDay < 4) {
+                fill(52, 152, 219, 150);
+                noStroke();
+                for (let i = 0; i < 5; i++) {
+                    ellipse(150 + i * 15, 200 + (frameCount * 3 + i * 5) % 80, 4, 8);
+                }
+                // Water can visual
+                fill(127, 140, 141);
+                rect(110, 170, 40, 30, 4);
+                rect(150, 180, 20, 8); // nozzle
+            }
+
+            // Info text overlays
+            fill(52, 73, 94);
+            noStroke();
+            textAlign(LEFT, TOP);
+            textSize(12);
+            textStyle(BOLD);
+            text("DAY: " + floor(currentDay) + " / 10", 15, 15);
+            text("STATUS: " + (isRunning ? "Growing..." : "Ready"), 15, 35);
+        }
+
+        function drawDependentPanel() {
+            // Header
+            fill(231, 76, 60);
+            rect(560, 0, 240, 35);
+            fill(255);
+            textStyle(BOLD);
+            textSize(13);
+            textAlign(CENTER, CENTER);
+            text("2. DEPENDENT VARIABLE (Measurement)", 680, 17.5);
+
+            // Current Stats Display Box
+            fill(253, 237, 237);
+            rect(575, 50, 210, 80, 6);
+            stroke(245, 183, 177);
+            strokeWeight(1);
+            rect(575, 50, 210, 80, 6);
+
+            noStroke();
+            fill(192, 57, 43);
+            textAlign(CENTER, TOP);
+            textSize(11);
+            textStyle(BOLD);
+            text("MEASUREMENT OUTCOME", 680, 58);
+            textSize(18);
+            text("Height: " + (plantHeight).toFixed(1) + " cm", 680, 78);
+            textSize(10);
+            fill(120, 40, 40);
+            textStyle(ITALIC);
+            text("(Determined by water volume input)", 680, 105);
+
+            // DATA GRAPH PLOT
+            drawGraph();
+        }
+
+        function drawGraph() {
+            let gx = 590, gy = 330, gw = 180, gh = 150;
+            
+            // Graph Title
+            fill(44, 62, 80);
+            noStroke();
+            textStyle(BOLD);
+            textAlign(CENTER, TOP);
+            textSize(11);
+            text("Variable Relationship Graph", 680, 148);
+
+            // Background & Axes
+            fill(248, 249, 249);
+            rect(gx, gy - gh, gw, gh);
+            stroke(127, 140, 141);
+            strokeWeight(1.5);
+            line(gx, gy, gx + gw, gy); // X Axis
+            line(gx, gy, gx, gy - gh); // Y Axis
+
+            // Axes Labels
+            noStroke();
+            fill(52, 73, 94);
+            textSize(9);
+            textStyle(NORMAL);
+            textAlign(CENTER, TOP);
+            text("Water Vol (mL) [Independent]", gx + gw/2, gy + 15);
+            
+            push();
+            translate(gx - 20, gy - gh/2);
+            rotate(-HALF_PI);
+            text("Plant Height (cm) [Dependent]", 0, -10);
+            pop();
+
+            // Expected relationship line (Consensus Curve shifts with Controlled Factors)
+            noFill();
+            stroke(200, 200, 200, 180);
+            strokeWeight(2.5);
+            beginShape();
+            for (let w = 0; w <= 100; w += 5) {
+                let px = map(w, 0, 100, gx, gx + gw);
+                let simulatedH = getExpectedGrowth(w);
+                let py = map(simulatedH, 0, 120, gy, gy - gh);
+                vertex(px, py);
+            }
+            endShape();
+
+            // Label the theoretical curve
+            noStroke();
+            fill(120);
+            textSize(8);
+            textAlign(LEFT, CENTER);
+            text("Predicted Curve", gx + 15, gy - gh + 15);
+
+            // Empty graph helpful tip
+            if (dataPoints.length === 0) {
+                fill(127, 140, 141, 150);
+                textSize(9);
+                textAlign(CENTER, CENTER);
+                textStyle(ITALIC);
+                text("No recorded data.\nSelect Water Vol and click\nRUN TEST to collect data.", gx + gw/2, gy - gh/2);
+            }
+
+            // Plot Recorded Data Points
+            for (let pt of dataPoints) {
+                let px = map(pt.x, 0, 100, gx, gx + gw);
+                let py = map(pt.y, 0, 120, gy, gy - gh);
+                fill(46, 204, 113);
+                stroke(39, 174, 96);
+                strokeWeight(1);
+                ellipse(px, py, 6, 6);
+            }
+
+            // Current Active marker moving on graph during run
+            let curX = map(waterVal, 0, 100, gx, gx + gw);
+            let curY = map(plantHeight, 0, 120, gy, gy - gh);
+            stroke(231, 76, 60);
+            strokeWeight(1);
+            fill(231, 76, 60);
+            ellipse(curX, curY, 8, 8);
+
+            // Render notification banners
+            if (noticeTimer > 0) {
+                fill(231, 76, 60, min(noticeTimer * 10, 255));
+                noStroke();
+                textSize(9);
+                textStyle(BOLD);
+                textAlign(CENTER, TOP);
+                text(noticeText, 680, 312);
+                noticeTimer--;
+            }
+        }
+
+        // Standardized biological quadratic growth model
+        // Peak growth at 55ml water, too little or too much causes low growth
+        function getExpectedGrowth(water) {
+            let maxGrowth = 80; 
+            let factor = -0.03 * sq(water - 55) + maxGrowth;
+            factor = max(5, factor); 
+            
+            // Multiply height output by every selected Controlled Variable modifier
+            let multiplier = 1.0;
+            for (let cv of controlledVars) {
+                multiplier *= cv.factors[cv.idx];
+            }
+            return min(115, factor * multiplier);
+        }
+
+        function calculateTargetHeight() {
+            targetHeight = getExpectedGrowth(waterVal);
+        }
+
+        function addDataPoint(w, h) {
+            // Check if point already exists close to update it, or add new
+            let exists = false;
+            for (let pt of dataPoints) {
+                if (abs(pt.x - w) < 2) {
+                    pt.y = h;
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                dataPoints.push({ x: w, y: h });
+            }
+        }
+
+        function mousePressed() {
+            // Check Slider drag
+            let handleX = map(waterVal, 0, 100, sliderX, sliderX + sliderW);
+            if (dist(mouseX, mouseY, handleX, sliderY) < 15) {
+                isDraggingSlider = true;
+            }
+
+            // Check Run Button click
+            if (mouseX > runBtnX && mouseX < runBtnX + runBtnW && mouseY > runBtnY && mouseY < runBtnY + runBtnH) {
+                if (!isRunning) {
+                    isRunning = true;
+                    currentDay = 0;
+                    plantHeight = 0;
+                }
+            }
+
+            // Check Controlled Variable clicks (only customizable when NOT running)
+            if (!isRunning) {
+                for (let i = 0; i < controlledVars.length; i++) {
+                    let yPos = 48 + i * 115;
+                    if (mouseX > 375 && mouseX < 545 && mouseY > yPos && mouseY < yPos + 105) {
+                        controlledVars[i].idx = (controlledVars[i].idx + 1) % controlledVars[i].vals.length;
+                        calculateTargetHeight();
+                        
+                        // Clear datasets and trigger notice warning to enforce a "fair test"
+                        dataPoints = [];
+                        noticeText = "Controlled variables changed!\nResetting graph to ensure a Fair Test.";
+                        noticeTimer = 180; // display notice for ~3 seconds
+                        plantHeight = 0;
+                    }
+                }
+            }
+        }
+
+        function mouseReleased() {
+            isDraggingSlider = false;
+        }
+    </script>
+</body>
+</html>
+---
