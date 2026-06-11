@@ -1,0 +1,61 @@
+{
+  "title": "Introduction to Area",
+  "scenes": [
+    {
+      "id": "intro-title",
+      "type": "title",
+      "content": "Understanding Area",
+      "physics": "smooth",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "definition",
+      "type": "text",
+      "content": "Area is the amount of space inside the boundary of a flat (2D) object.",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "units-math",
+      "type": "math",
+      "content": "\\text{Units are always squared: } units^2",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "rect-formula",
+      "type": "math",
+      "content": "\\text{Rectangle Area: } A = l \\times w",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "rect-example",
+      "type": "point_list",
+      "content": "Length (l) = 8m;Width (w) = 4m;8 \\times 4 = 32m^2",
+      "physics": "snappy",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "tri-formula",
+      "type": "math",
+      "content": "\\text{Triangle Area: } A = \\frac{1}{2} \\times b \\times h",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "tri-example",
+      "type": "point_list",
+      "content": "Base (b) = 10cm;Height (h) = 6cm;\\frac{1}{2}(10 \\times 6) = 30cm^2",
+      "physics": "snappy",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "lesson-summary",
+      "type": "title",
+      "content": "Area = 2D Surface Space",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    }
+  ]
+}

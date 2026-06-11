@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Understanding Area - Mathematics Lesson</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reset.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/white.min.css">
+
+    <style>
+        :root {
+            --primary: #1a237e;
+            --accent: #d32f2f;
+            --highlight: #2e7d32;
+            --bg-light: #f5f5f5;
+        }
+        .reveal h1, .reveal h2 { color: var(--primary); font-weight: 700; }
+        .reveal h3 { color: var(--accent); }
+        .important { color: var(--accent); font-weight: bold; }
+        .term { color: var(--highlight); font-weight: bold; text-decoration: underline; }
+        .formula-box {
+            background: var(--bg-light);
+            border-left: 10px solid var(--primary);
+            padding: 20px;
+            margin: 20px 0;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 1.2em;
+        }
+        .grid-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 20px;
+        }
+        .svg-container {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .label-text { font-size: 14px; fill: #333; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- Title Slide -->
+            <section data-background-color="#1a237e">
+                <h1 style="color: white;">Exploring Area</h1>
+                <p style="color: #e8eaf6;">The Mathematics of 2D Space</p>
+                <div style="margin-top: 50px;">
+                    <svg width="100" height="100" viewBox="0 0 100 100">
+                        <rect x="10" y="10" width="80" height="80" fill="none" stroke="white" stroke-width="2" stroke-dasharray="5,5"/>
+                        <rect x="10" y="10" width="40" height="40" fill="#ffeb3b" opacity="0.8"/>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Definition Slide -->
+            <section>
+                <h2>What is Area?</h2>
+                <p>In geometry, <span class="term">Area</span> is the quantity that expresses the extent of a two-dimensional figure or shape in a plane.</p>
+                <div class="fragment">
+                    <p>Think of it as the amount of paint needed to cover a surface or the number of <span class="important">unit squares</span> that fit inside a shape.</p>
+                </div>
+                <div class="fragment svg-container" style="margin-top: 20px;">
+                    <svg width="400" height="150" viewBox="0 0 400 150">
+                        <!-- 1x1 Unit Square -->
+                        <rect x="50" y="40" width="40" height="40" fill="#bbdefb" stroke="#1a237e" stroke-width="2"/>
+                        <text x="45" y="85" class="label-text">1 unit</text>
+                        <text x="10" y="65" class="label-text" transform="rotate(-90 10,65)">1 unit</text>
+                        <text x="110" y="65" font-size="16" fill="#1a237e">= 1 Square Unit</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Measuring Units -->
+            <section>
+                <h2>Measurement Units</h2>
+                <p>Area is always measured in <span class="important">square units</span>.</p>
+                <ul style="display: inline-block; text-align: left;">
+                    <li class="fragment">Square Millimeters (mm²)</li>
+                    <li class="fragment">Square Centimeters (cm²)</li>
+                    <li class="fragment">Square Meters (m²)</li>
+                    <li class="fragment">Square Kilometers (km²)</li>
+                </ul>
+                <div class="fragment formula-box">
+                    Example: A room size is 12 <span class="important">m²</span>
+                </div>
+            </section>
+
+            <!-- Rectangle Slide -->
+            <section>
+                <h2>Area of a Rectangle</h2>
+                <div class="grid-container">
+                    <div style="text-align: left;">
+                        <p>To find the area of a rectangle, multiply the <span class="term">Length</span> by the <span class="term">Width</span>.</p>
+                        <div class="formula-box">
+                            Area = l × w
+                        </div>
+                    </div>
+                    <div class="svg-container">
+                        <svg width="250" height="180" viewBox="0 0 250 180">
+                            <rect x="20" y="40" width="200" height="100" fill="#c8e6c9" stroke="#2e7d32" stroke-width="3"/>
+                            <text x="100" y="30" class="label-text">Length (l)</text>
+                            <text x="225" y="100" class="label-text" transform="rotate(90 225,100)">Width (w)</text>
+                            <!-- Grid lines for concept -->
+                            <line x1="70" y1="40" x2="70" y2="140" stroke="#2e7d32" stroke-dasharray="4" opacity="0.5"/>
+                            <line x1="120" y1="40" x2="120" y2="140" stroke="#2e7d32" stroke-dasharray="4" opacity="0.5"/>
+                            <line x1="170" y1="40" x2="170" y2="140" stroke="#2e7d32" stroke-dasharray="4" opacity="0.5"/>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Triangle Slide -->
+            <section>
+                <h2>Area of a Triangle</h2>
+                <p>A triangle is exactly <span class="important">half</span> of a rectangle with the same base and height.</p>
+                <div class="grid-container">
+                    <div class="svg-container">
+                        <svg width="250" height="180" viewBox="0 0 250 180">
+                            <!-- Ghost Rectangle -->
+                            <rect x="40" y="30" width="160" height="120" fill="none" stroke="#ccc" stroke-dasharray="5,5"/>
+                            <!-- Triangle -->
+                            <polygon points="40,150 200,150 200,30" fill="#ffccbc" stroke="#d32f2f" stroke-width="3"/>
+                            <text x="100" y="170" class="label-text">Base (b)</text>
+                            <text x="215" y="100" class="label-text" transform="rotate(90 215,100)">Height (h)</text>
+                        </svg>
+                    </div>
+                    <div class="formula-box">
+                        Area = ½ × b × h
+                    </div>
+                </div>
+            </section>
+
+            <!-- Circle Slide -->
+            <section>
+                <h2>Area of a Circle</h2>
+                <p>Calculated using the <span class="term">Radius</span> (distance from center to edge) and the constant <span class="important">π (Pi ≈ 3.14159)</span>.</p>
+                <div class="grid-container">
+                    <div class="formula-box">
+                        Area = π × r²
+                    </div>
+                    <div class="svg-container">
+                        <svg width="200" height="200" viewBox="0 0 200 200">
+                            <circle cx="100" cy="100" r="80" fill="#e1bee7" stroke="#7b1fa2" stroke-width="3"/>
+                            <circle cx="100" cy="100" r="3" fill="#7b1fa2"/>
+                            <line x1="100" y1="100" x2="180" y2="100" stroke="#7b1fa2" stroke-width="2"/>
+                            <text x="130" y="90" class="label-text">r</text>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Summary Glossary -->
+            <section>
+                <h2>Key Terminology</h2>
+                <dl style="text-align: left; font-size: 0.8em;">
+                    <dt class="term">2D Shape</dt>
+                    <dd>A flat shape that has length and width but no thickness.</dd>
+                    <br>
+                    <dt class="term">Perimeter</dt>
+                    <dd>The distance <em>around</em> a shape (don't confuse with Area!)</dd>
+                    <br>
+                    <dt class="term">Pi (π)</dt>
+                    <dd>The ratio of a circle's circumference to its diameter (approx. 3.14).</dd>
+                    <br>
+                    <dt class="term">Dimension</dt>
+                    <dd>A measurable extent, such as length, width, or height.</dd>
+                </dl>
+            </section>
+
+            <!-- Interactive Quiz -->
+            <section data-background-color="#f5f5f5">
+                <h2>Quick Check</h2>
+                <p>If a rectangle has a length of <span class="important">5cm</span> and a width of <span class="important">4cm</span>, what is its area?</p>
+                <div class="fragment" style="margin-top: 30px;">
+                    <div style="padding: 20px; background: white; border: 2px solid var(--primary); display: inline-block;">
+                        5 × 4 = <span class="important">20 cm²</span>
+                    </div>
+                </div>
+                <p class="fragment" style="margin-top: 20px; font-size: 0.7em;">Remember: Never forget the square units! (cm²)</p>
+            </section>
+
+            <!-- Final Slide -->
+            <section data-background-color="#1a237e">
+                <h2 style="color: white;">Great Job!</h2>
+                <p style="color: white;">You are now ready to calculate the surface of the world.</p>
+                <div style="margin-top: 40px;">
+                    <button onclick="location.reload()" style="padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; background: #ffeb3b; font-weight: bold;">Restart Lesson</button>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            controls: true,
+            progress: true,
+            center: true,
+            transition: 'slide', // none/fade/slide/convex/concave/zoom
+        });
+    </script>
+</body>
+</html>
+---CODE_END---

@@ -15,8 +15,12 @@ class ExportStrategy(ABC):
 class FileExportStrategy(ExportStrategy):
     """Serves existing static files directly from the server storage"""
     async def export(self, file_path: str, filename: str) -> FileResponse:
-        # Extract filename to build an absolute filesystem path
-        base_filename = os.path.basename(file_path)
+        # Normalize the file_path by removing leading slashes and 'static/' prefix
+        clean_path = file_path.lstrip("/")
+        if clean_path.startswith("static/"):
+            clean_path = clean_path.replace("static/", "", 1)
+            
+        base_filename = os.path.basename(clean_path)
         actual_path = os.path.join(STATIC_DIR, base_filename)
 
         if not os.path.exists(actual_path):
@@ -25,6 +29,8 @@ class FileExportStrategy(ExportStrategy):
             if os.path.exists(media_path):
                 actual_path = media_path
             else:
+                # Log the attempted path for debugging
+                print(f"EXPORT ERROR: File not found at {actual_path}")
                 raise FileNotFoundError(f"File not found at: {actual_path}")
 
         # Map extensions to MIME types so the browser handles the download correctly

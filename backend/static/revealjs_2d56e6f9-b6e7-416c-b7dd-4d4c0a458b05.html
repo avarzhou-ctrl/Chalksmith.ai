@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Mastering Area: A Geometric Journey</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reset.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/white.min.css">
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e67e22;
+            --highlight-color: #27ae60;
+            --text-color: #333;
+        }
+
+        .reveal h1, .reveal h2, .reveal h3 {
+            color: var(--primary-color);
+            text-transform: none;
+            font-weight: 700;
+        }
+
+        .highlight {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        .formula-box {
+            background: #f8f9fa;
+            border-left: 10px solid var(--highlight-color);
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.2em;
+        }
+
+        .grid-bg {
+            background-image: radial-gradient(#d1d1d1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .svg-container {
+            margin: 20px auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .label-text {
+            font-family: sans-serif;
+            font-size: 14px;
+            fill: var(--primary-color);
+        }
+
+        .important-term {
+            background-color: #fff3cd;
+            padding: 2px 5px;
+            border-radius: 4px;
+            border: 1px solid #ffeeba;
+        }
+
+        .flex-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- Slide 1: Title -->
+            <section data-background-color="#f4f4f4">
+                <h1>Understanding <span class="highlight">Area</span></h1>
+                <p>Measuring the Space Within</p>
+                <div style="margin-top: 50px;">
+                    <svg width="200" height="100" viewBox="0 0 200 100">
+                        <rect x="10" y="10" width="180" height="80" fill="none" stroke="#2c3e50" stroke-width="3" />
+                        <rect x="10" y="10" width="180" height="80" fill="#e67e22" fill-opacity="0.2" />
+                        <text x="75" y="55" class="label-text" style="font-weight:bold">AREA</text>
+                    </svg>
+                </div>
+                <p><small>Created for Educational Excellence</small></p>
+            </section>
+
+            <!-- Slide 2: Definition -->
+            <section>
+                <h2>What is <span class="highlight">Area</span>?</h2>
+                <ul>
+                    <li class="fragment"><strong>Definition:</strong> The measurement of the total <span class="important-term">2D surface</span> contained within a specific boundary.</li>
+                    <li class="fragment">While <em>perimeter</em> measures the distance around the edge, <strong>area</strong> measures the space inside.</li>
+                    <li class="fragment">Area is always expressed in <span class="highlight">square units</span> (e.g., cm², m², in²).</li>
+                </ul>
+                <div class="svg-container fragment">
+                    <svg width="300" height="150" viewBox="0 0 300 150">
+                        <!-- Perimeter -->
+                        <rect x="20" y="20" width="100" height="100" fill="none" stroke="#e74c3c" stroke-width="4" />
+                        <text x="25" y="140" class="label-text">Perimeter (Edge)</text>
+                        
+                        <!-- Area -->
+                        <rect x="180" y="20" width="100" height="100" fill="#27ae60" fill-opacity="0.6" stroke="#27ae60" stroke-width="1" />
+                        <text x="185" y="140" class="label-text">Area (Inside)</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Slide 3: Square Units -->
+            <section>
+                <h2>The Unit Square</h2>
+                <p>We measure area by counting how many <span class="important-term">unit squares</span> fit inside a shape.</p>
+                <div class="flex-container">
+                    <div class="svg-container">
+                        <svg width="200" height="200" viewBox="0 0 120 120">
+                            <rect x="10" y="10" width="100" height="100" fill="#ecf0f1" stroke="#333" stroke-width="2" />
+                            <text x="45" y="5" class="label-text">1 unit</text>
+                            <text x="-65" y="65" class="label-text" transform="rotate(-90)">1 unit</text>
+                            <text x="25" y="65" class="label-text" style="font-size: 10px;">Area = 1 unit²</text>
+                        </svg>
+                    </div>
+                    <div class="fragment">
+                        <p>Total Area = Sum of all unit squares</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 4: Area of a Rectangle -->
+            <section>
+                <h2>Rectangles</h2>
+                <p>For a rectangle, we multiply the <span class="highlight">length</span> by the <span class="highlight">width</span>.</p>
+                <div class="formula-box">Area = Length × Width</div>
+                
+                <div class="svg-container">
+                    <svg width="400" height="200" viewBox="0 0 400 200">
+                        <!-- Grid visualization -->
+                        <rect x="50" y="20" width="300" height="150" fill="#d5f5e3" stroke="#2c3e50" stroke-width="2" />
+                        <line x1="150" y1="20" x2="150" y2="170" stroke="#2c3e50" stroke-opacity="0.2" />
+                        <line x1="250" y1="20" x2="250" y2="170" stroke="#2c3e50" stroke-opacity="0.2" />
+                        <line x1="50" y1="70" x2="350" y2="70" stroke="#2c3e50" stroke-opacity="0.2" />
+                        <line x1="50" y1="120" x2="350" y2="120" stroke="#2c3e50" stroke-opacity="0.2" />
+                        
+                        <text x="180" y="15" class="label-text">Length (L)</text>
+                        <text x="355" y="100" class="label-text">Width (W)</text>
+                    </svg>
+                </div>
+                <p class="fragment"><small>If L=3 and W=3, Area = 9 square units.</small></p>
+            </section>
+
+            <!-- Slide 5: Area of a Triangle -->
+            <section>
+                <h2>Triangles</h2>
+                <p>A triangle is exactly <span class="highlight">half</span> of a rectangle with the same base and height.</p>
+                <div class="formula-box">Area = ½ × Base × Height</div>
+                
+                <div class="svg-container">
+                    <svg width="400" height="220" viewBox="0 0 400 220">
+                        <!-- Background Rectangle (Ghost) -->
+                        <rect x="100" y="20" width="200" height="150" fill="none" stroke="#bdc3c7" stroke-dasharray="5,5" />
+                        <!-- Triangle -->
+                        <path d="M 100 170 L 300 170 L 100 20 Z" fill="#3498db" fill-opacity="0.5" stroke="#2980b9" stroke-width="3" />
+                        
+                        <text x="180" y="190" class="label-text">Base (b)</text>
+                        <line x1="90" y1="20" x2="90" y2="170" stroke="#e74c3c" stroke-width="2" />
+                        <text x="30" y="100" class="label-text" fill="#e74c3c">Height (h)</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Slide 6: Area of a Circle -->
+            <section>
+                <h2>Circles</h2>
+                <p>The area of a circle depends on its <span class="important-term">radius (r)</span>.</p>
+                <div class="formula-box">Area = π × r²</div>
+                <p><small>Where <strong>π (Pi)</strong> ≈ 3.14159</small></p>
+                
+                <div class="svg-container">
+                    <svg width="250" height="250" viewBox="0 0 250 250">
+                        <circle cx="125" cy="125" r="100" fill="#f1c40f" fill-opacity="0.3" stroke="#f39c12" stroke-width="3" />
+                        <line x1="125" y1="125" x2="225" y2="125" stroke="#c0392b" stroke-width="3" />
+                        <circle cx="125" cy="125" r="4" fill="#333" />
+                        <text x="150" y="115" class="label-text" style="font-weight: bold;">radius (r)</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Slide 7: Complex Shapes -->
+            <section>
+                <h2>Composite Shapes</h2>
+                <p>To find the area of complex shapes, <span class="highlight">decompose</span> them into simpler parts.</p>
+                <div class="svg-container">
+                    <svg width="400" height="200" viewBox="0 0 400 200">
+                        <!-- Rectangle Part -->
+                        <rect x="50" y="100" width="300" height="80" fill="#9b59b6" fill-opacity="0.4" stroke="#8e44ad" stroke-width="2" />
+                        <text x="180" y="150" class="label-text">Shape A</text>
+                        <!-- Triangle Part -->
+                        <path d="M 150 100 L 250 100 L 200 20 Z" fill="#2ecc71" fill-opacity="0.4" stroke="#27ae60" stroke-width="2" />
+                        <text x="180" y="80" class="label-text">Shape B</text>
+                    </svg>
+                </div>
+                <p class="fragment"><strong>Total Area = Area(A) + Area(B)</strong></p>
+            </section>
+
+            <!-- Slide 8: Summary Glossary -->
+            <section>
+                <h2>Key Terminology</h2>
+                <dl>
+                    <dt class="highlight">Dimension</dt>
+                    <dd>A measure in one direction (Length, Width, or Height).</dd>
+                    <dt class="highlight">Square Unit</dt>
+                    <dd>A square with sides of 1 unit, used as the standard for area.</dd>
+                    <dt class="highlight">Pi (π)</dt>
+                    <dd>The mathematical constant representing the ratio of a circle's circumference to its diameter.</dd>
+                </dl>
+            </section>
+
+            <!-- Slide 9: Review -->
+            <section data-background-color="#2c3e50">
+                <h2 style="color: white;">Quick Review</h2>
+                <div style="color: white; text-align: left; display: inline-block;">
+                    <p class="fragment">✅ Area is 2D (flat).</p>
+                    <p class="fragment">✅ Units are always <strong>squared</strong>.</p>
+                    <p class="fragment">✅ Rectangles: $L \times W$</p>
+                    <p class="fragment">✅ Triangles: $\frac{1}{2} B \times H$</p>
+                    <p class="fragment">✅ Circles: $\pi r^2$</p>
+                </div>
+                <h3 style="color: #e67e22; margin-top: 30px;" class="fragment">Great Job!</h3>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/plugin/notes/notes.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/plugin/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/plugin/math/math.min.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            center: true,
+            transition: 'slide',
+            plugins: [ RevealMarkdown, RevealNotes, RevealMath.KaTeX ]
+        });
+    </script>
+</body>
+</html>
+---CODE_END---

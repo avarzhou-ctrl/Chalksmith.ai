@@ -1,0 +1,54 @@
+{
+  "title": "Understanding Area",
+  "scenes": [
+    {
+      "id": "intro",
+      "type": "title",
+      "content": "Introduction to Area",
+      "physics": "smooth",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "definition",
+      "type": "text",
+      "content": "Area is the measure of how much space is inside a flat, two-dimensional shape.",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "units",
+      "type": "point_list",
+      "content": "Area is always measured in square units:\\n- Square centimeters: $cm^2$\\n- Square meters: $m^2$\\n- Square inches: $in^2$",
+      "physics": "bouncy",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "formula-rect",
+      "type": "math",
+      "content": "Area\\text{ of a Rectangle} = l \\times w",
+      "physics": "smooth",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "example-problem",
+      "type": "text",
+      "content": "Example: Find the area of a rectangle with a length of 5cm and a width of 3cm.",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "example-solution",
+      "type": "math",
+      "content": "5\\text{cm} \\times 3\\text{cm} = 15\\text{cm}^2",
+      "physics": "bouncy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "summary",
+      "type": "point_list",
+      "content": "- Area measures 2D space\\n- Calculated as $Length \\times Width$\\n- Always expressed in square units",
+      "physics": "smooth",
+      "durationInSeconds": 6
+    }
+  ]
+}

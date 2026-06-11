@@ -1,0 +1,54 @@
+{
+  "title": "Introduction to Area",
+  "scenes": [
+    {
+      "id": "scene-01",
+      "type": "title",
+      "content": "Understanding Area",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "scene-02",
+      "type": "text",
+      "content": "Area is the quantity that expresses the extent of a two-dimensional region or shape in a plane, measured in square units.",
+      "physics": "smooth",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "scene-03",
+      "type": "math",
+      "content": "A_{\\text{rectangle}} = l \\times w",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "scene-04",
+      "type": "math",
+      "content": "A_{\\text{triangle}} = \\frac{1}{2} b h",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "scene-05",
+      "type": "math",
+      "content": "A_{\\text{circle}} = \\pi r^2",
+      "physics": "bouncy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "scene-06",
+      "type": "point_list",
+      "content": "Example: Rectangle with $l=10$ and $w=5$\nStep 1: $A = 10 \\times 5$\nStep 2: $A = 50$\nResult: $50 \\text{ units}^2$",
+      "physics": "snappy",
+      "durationInSeconds": 8
+    },
+    {
+      "id": "scene-07",
+      "type": "text",
+      "content": "Summary: Area represents the total space inside a boundary. Always use square units for the final answer.",
+      "physics": "smooth",
+      "durationInSeconds": 6
+    }
+  ]
+}

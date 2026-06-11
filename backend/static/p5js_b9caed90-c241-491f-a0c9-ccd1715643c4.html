@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+  <style>
+    body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
+    #ui { position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; pointer-events: none; }
+    .controls { pointer-events: auto; margin-top: 10px; }
+    .label { font-size: 14px; margin-bottom: 5px; color: #00d4ff; }
+    #math { margin-top: 15px; font-family: monospace; border-top: 1px solid #444; pt: 10px; }
+    span.val { color: #ffcc00; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <div class="label"><b>Surface Area Explorer</b></div>
+    <div id="math">
+      L: <span class="val" id="l_val"></span> | 
+      W: <span class="val" id="w_val"></span> | 
+      H: <span class="val" id="h_val"></span><br><br>
+      Total Area = 2(LW + LH + WH)<br>
+      <span id="formula_calc" style="color:#00d4ff"></span><br>
+      = <span id="total_val" style="color:#00ff88; font-size:1.2em;"></span> px²
+    </div>
+    <div class="controls">
+      Unfold: <input type="range" id="foldSlider" min="0" max="1.57" step="0.01" value="0">
+    </div>
+    <p style="font-size: 0.8em; color: #aaa;">Drag to rotate 3D view</p>
+  </div>
+
+  <script>
+    let L = 120, W = 80, H = 100;
+    let fold = 0;
+    let slider;
+
+    function setup() {
+      createCanvas(windowWidth, windowHeight, WEBGL);
+      slider = select('#foldSlider');
+    }
+
+    function draw() {
+      background(20);
+      orbitControl(); // Allows mouse rotation
+      
+      fold = parseFloat(slider.value());
+      updateUI();
+
+      // Lighting
+      ambientLight(100);
+      pointLight(255, 255, 255, 200, -200, 300);
+      
+      noStroke();
+      rotateX(-0.3);
+      rotateY(0.5);
+
+      // --- DRAW PRISM NET ---
+      
+      // Front Face (Base)
+      fill(200, 50, 50); // Red
+      rectMode(CENTER);
+      rect(0, 0, L, H);
+
+      // Right Face
+      push();
+      translate(L/2, 0, 0);
+      rotateY(fold);
+      translate(W/2, 0, 0);
+      fill(50, 200, 50); // Green
+      box(W, H, 2);
+      pop();
+
+      // Left Face
+      push();
+      translate(-L/2, 0, 0);
+      rotateY(-fold);
+      translate(-W/2, 0, 0);
+      fill(50, 200, 50); // Green
+      box(W, H, 2);
+      pop();
+
+      // Top Face
+      push();
+      translate(0, -H/2, 0);
+      rotateX(fold);
+      translate(0, -W/2, 0);
+      fill(50, 100, 255); // Blue
+      box(L, W, 2);
+      
+        // Back Face (Connected to Top)
+        push();
+        translate(0, -W/2, 0);
+        rotateX(fold);
+        translate(0, -H/2, 0);
+        fill(200, 50, 50); // Red (matches front)
+        box(L, H, 2);
+        pop();
+      pop();
+
+      // Bottom Face
+      push();
+      translate(0, H/2, 0);
+      rotateX(-fold);
+      translate(0, W/2, 0);
+      fill(50, 100, 255); // Blue
+      box(L, W, 2);
+      pop();
+    }
+
+    function updateUI() {
+      let areaLW = L * W;
+      let areaLH = L * H;
+      let areaWH = W * H;
+      let total = 2 * (areaLW + areaLH + areaWH);
+
+      select('#l_val').html(L);
+      select('#w_val').html(W);
+      select('#h_val').html(H);
+      select('#formula_calc').html(`2(${areaLW} + ${areaLH} + ${areaWH})`);
+      select('#total_val').html(total.toLocaleString());
+    }
+
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight);
+    }
+  </script>
+</body>
+</html>

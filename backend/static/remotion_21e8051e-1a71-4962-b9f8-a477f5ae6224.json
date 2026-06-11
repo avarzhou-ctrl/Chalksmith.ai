@@ -1,0 +1,61 @@
+{
+  "title": "Volume of a Rectangular Prism",
+  "scenes": [
+    {
+      "id": "intro",
+      "type": "title",
+      "content": "Volume of a Rectangular Prism",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "definition",
+      "type": "text",
+      "content": "Volume is the amount of 3D space an object occupies, measured in cubic units.",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "formula-main",
+      "type": "math",
+      "content": "V = l \\\\times w \\\\times h",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "variable-list",
+      "type": "point_list",
+      "content": "l = Length; w = Width; h = Height",
+      "physics": "smooth",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "example-setup",
+      "type": "text",
+      "content": "Example: Find the volume if length is 5cm, width is 3cm, and height is 4cm.",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "calculation-step-1",
+      "type": "math",
+      "content": "V = 5\\\\text{cm} \\\\times 3\\\\text{cm} \\\\times 4\\\\text{cm}",
+      "physics": "snappy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "calculation-result",
+      "type": "math",
+      "content": "V = 60\\\\text{ cm}^3",
+      "physics": "bouncy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "summary-points",
+      "type": "point_list",
+      "content": "Multiply all three dimensions; Always use cubic units ($u^3$); Also expressed as $V = B \\\\times h$",
+      "physics": "smooth",
+      "durationInSeconds": 6
+    }
+  ]
+}

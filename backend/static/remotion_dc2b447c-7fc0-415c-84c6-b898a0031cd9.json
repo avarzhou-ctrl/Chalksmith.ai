@@ -1,0 +1,54 @@
+{
+  "title": "Introduction to Area",
+  "scenes": [
+    {
+      "id": "intro-title",
+      "type": "title",
+      "content": "Understanding Area",
+      "physics": "smooth",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "area-definition",
+      "type": "text",
+      "content": "Area is the measurement of the total surface occupied by a two-dimensional shape.",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "rect-formula",
+      "type": "math",
+      "content": "A_{rectangle} = l \\times w",
+      "physics": "bouncy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "circle-formula",
+      "type": "math",
+      "content": "A_{circle} = \\pi r^2",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "calculation-example",
+      "type": "math",
+      "content": "6\\text{m} \\times 4\\text{m} = 24\\text{m}^2",
+      "physics": "snappy",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "key-points",
+      "type": "point_list",
+      "content": "Measured in square units;Found by multiplying dimensions;Applies to flat 2D surfaces",
+      "physics": "smooth",
+      "durationInSeconds": 7
+    },
+    {
+      "id": "summary-math",
+      "type": "math",
+      "content": "\\text{Units} = \\text{length}^2",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    }
+  ]
+}

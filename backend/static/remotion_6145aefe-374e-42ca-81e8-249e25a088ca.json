@@ -1,0 +1,61 @@
+{
+  "title": "Introduction to Area",
+  "scenes": [
+    {
+      "id": "intro-title",
+      "type": "title",
+      "content": "Understanding Area",
+      "physics": "snappy",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "definition",
+      "type": "text",
+      "content": "Area is the measurement of the total surface space occupied by a two-dimensional shape.",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "units-concept",
+      "type": "math",
+      "content": "\\text{Area is measured in square units: } u^2",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "rectangle-formula",
+      "type": "math",
+      "content": "A_{rectangle} = l \\times w",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "triangle-formula",
+      "type": "math",
+      "content": "A_{triangle} = \\frac{1}{2} b h",
+      "physics": "bouncy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "circle-formula",
+      "type": "math",
+      "content": "A_{circle} = \\pi r^2",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "key-takeaways",
+      "type": "point_list",
+      "content": "Area depends on the shape's dimensions; Standard units include cm² and m²; Multiplication is the primary operation for calculation.",
+      "physics": "snappy",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "final-summary",
+      "type": "text",
+      "content": "Mastering these formulas allows us to quantify the physical space of any 2D object.",
+      "physics": "smooth",
+      "durationInSeconds": 4
+    }
+  ]
+}

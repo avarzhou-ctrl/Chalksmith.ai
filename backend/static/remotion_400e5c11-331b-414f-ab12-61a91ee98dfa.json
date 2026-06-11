@@ -1,0 +1,54 @@
+{
+  "title": "Understanding Area",
+  "scenes": [
+    {
+      "id": "intro-title",
+      "type": "title",
+      "content": "Understanding Area",
+      "physics": "snappy",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "definition",
+      "type": "text",
+      "content": "Area is the total amount of surface space covered by a 2D shape.",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "square-units",
+      "type": "math",
+      "content": "1 \\text{ unit} \\times 1 \\text{ unit} = 1 \\text{ unit}^2",
+      "physics": "bouncy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "rectangle-formula",
+      "type": "math",
+      "content": "Area_{\\text{rectangle}} = \\text{length} \\times \\text{width}",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "example-problem",
+      "type": "point_list",
+      "content": "Length: 5 meters\nWidth: 3 meters\nCalculation: 5 \\times 3\nTotal Area: 15 m^2",
+      "physics": "snappy",
+      "durationInSeconds": 7
+    },
+    {
+      "id": "key-takeaway",
+      "type": "text",
+      "content": "Always remember: Area is measured in SQUARE units.",
+      "physics": "smooth",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "summary-math",
+      "type": "math",
+      "content": "A = l \\times w",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    }
+  ]
+}

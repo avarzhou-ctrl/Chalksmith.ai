@@ -1,0 +1,61 @@
+{
+  "title": "Fundamentals of Area",
+  "scenes": [
+    {
+      "id": "intro-title",
+      "type": "title",
+      "content": "Understanding Area",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "definition",
+      "type": "text",
+      "content": "Area is the quantitative measure of a two-dimensional surface within a defined boundary.",
+      "physics": "smooth",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "unit-concept",
+      "type": "math",
+      "content": "\\text{Standard Unit: } 1 \\text{ unit} \\times 1 \\text{ unit} = 1 \\text{ unit}^2",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "formula-rectangle",
+      "type": "math",
+      "content": "A_{\\text{rectangle}} = l \\times w",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "formula-triangle",
+      "type": "math",
+      "content": "A_{\\text{triangle}} = \\frac{1}{2} b \\times h",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "formula-circle",
+      "type": "math",
+      "content": "A_{\\text{circle}} = \\pi r^2",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "recap-list",
+      "type": "point_list",
+      "content": "Calculates interior space; Result is always in square units; Formulas depend on geometric properties; Foundation for 3D volume.",
+      "physics": "snappy",
+      "durationInSeconds": 7
+    },
+    {
+      "id": "closing",
+      "type": "title",
+      "content": "Mastering Geometry",
+      "physics": "bouncy",
+      "durationInSeconds": 3
+    }
+  ]
+}

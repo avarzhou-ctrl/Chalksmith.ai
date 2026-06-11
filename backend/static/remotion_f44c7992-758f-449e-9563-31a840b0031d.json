@@ -1,0 +1,54 @@
+{
+  "title": "Geometric Principles: Area",
+  "scenes": [
+    {
+      "id": "intro-001",
+      "type": "title",
+      "content": "Understanding Area",
+      "physics": "snappy",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "def-002",
+      "type": "text",
+      "content": "Area is the measure of the size of a two-dimensional surface or the amount of space inside a boundary.",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "formula-003",
+      "type": "math",
+      "content": "\\text{Area of a Rectangle: } A = l \\times w",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "example-004",
+      "type": "math",
+      "content": "5\\text{m} \\times 3\\text{m} = 15\\text{m}^2",
+      "physics": "snappy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "circle-005",
+      "type": "math",
+      "content": "\\text{Area of a Circle: } A = \\pi r^2",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "units-006",
+      "type": "point_list",
+      "content": "Square Millimeters (mm^2); Square Centimeters (cm^2); Square Meters (m^2); Square Kilometers (km^2)",
+      "physics": "smooth",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "summary-007",
+      "type": "text",
+      "content": "Summary: Area is a two-dimensional quantity always expressed in square units.",
+      "physics": "snappy",
+      "durationInSeconds": 4
+    }
+  ]
+}

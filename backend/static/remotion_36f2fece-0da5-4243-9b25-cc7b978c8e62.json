@@ -1,0 +1,68 @@
+{
+  "title": "Introduction to Area",
+  "scenes": [
+    {
+      "id": "intro-title",
+      "type": "title",
+      "content": "Understanding Area",
+      "physics": "bouncy",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "definition",
+      "type": "text",
+      "content": "Area is the amount of space inside the boundary of a flat (2D) object.",
+      "physics": "smooth",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "square-units",
+      "type": "math",
+      "content": "\\text{Area is measured in square units: } u^2",
+      "physics": "snappy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "rect-formula-title",
+      "type": "text",
+      "content": "For a rectangle, multiply length by width.",
+      "physics": "smooth",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "rect-formula-math",
+      "type": "math",
+      "content": "A = l \\times w",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "rect-example",
+      "type": "math",
+      "content": "5\\text{cm} \\times 3\\text{cm} = 15\\text{cm}^2",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "tri-formula-title",
+      "type": "text",
+      "content": "For a triangle, it is half the base times the height.",
+      "physics": "smooth",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "tri-formula-math",
+      "type": "math",
+      "content": "A = \\frac{1}{2} (b \\times h)",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "summary-points",
+      "type": "point_list",
+      "content": "Area measures 2D surface;Units are always squared;Rectangles: $A=lw$;Triangles: $A=\\frac{1}{2}bh$",
+      "physics": "smooth",
+      "durationInSeconds": 6
+    }
+  ]
+}

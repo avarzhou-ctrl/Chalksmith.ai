@@ -1,0 +1,61 @@
+{
+  "title": "Understanding Area",
+  "scenes": [
+    {
+      "id": "intro-title",
+      "type": "title",
+      "content": "Introduction to Area",
+      "physics": "bouncy",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "definition",
+      "type": "text",
+      "content": "Area is the quantity that expresses the extent of a two-dimensional figure or shape in the plane.",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "unit-concept",
+      "type": "math",
+      "content": "\\text{Area is measured in square units, such as } cm^2, m^2, \\text{ or } in^2.",
+      "physics": "smooth",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "rectangle-formula",
+      "type": "math",
+      "content": "\\text{For a rectangle: } \\text{Area} = \\text{length} \\times \\text{width}",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "formula-latex",
+      "type": "math",
+      "content": "A = l \\times w",
+      "physics": "bouncy",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "example-problem",
+      "type": "point_list",
+      "content": "Example: A rectangle with length 5cm and width 3cm. \n 1. Identify length: $l = 5$ \n 2. Identify width: $w = 3$ \n 3. Multiply: $5 \\times 3 = 15$",
+      "physics": "snappy",
+      "durationInSeconds": 7
+    },
+    {
+      "id": "example-result",
+      "type": "math",
+      "content": "\\text{Total Area} = 15 \\text{ cm}^2",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "summary",
+      "type": "point_list",
+      "content": "Key Takeaways: \n • Area measures the inner surface. \n • Always use square units. \n • Multiply dimensions for rectangles.",
+      "physics": "smooth",
+      "durationInSeconds": 6
+    }
+  ]
+}

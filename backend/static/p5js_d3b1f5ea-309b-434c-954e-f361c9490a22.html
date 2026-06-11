@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+  <style>
+    body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
+    #ui { position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 8px; border: 1px solid #444; pointer-events: none; }
+    .controls { pointer-events: auto; margin-top: 15px; }
+    .label { font-size: 16px; margin-bottom: 5px; color: #00d4ff; text-transform: uppercase; letter-spacing: 1px; }
+    #math { margin-top: 15px; font-family: 'Courier New', monospace; border-top: 1px solid #444; padding-top: 15px; }
+    span.val { color: #ffcc00; font-weight: bold; }
+    input[type=range] { width: 100%; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <div class="label"><b>Surface Area Explorer</b></div>
+    <div id="math">
+      L: <span class="val" id="l_val"></span> | 
+      W: <span class="val" id="w_val"></span> | 
+      H: <span class="val" id="h_val"></span><br><br>
+      Total Area = 2(LW + LH + WH)<br>
+      <span id="formula_calc" style="color:#00d4ff"></span><br>
+      = <span id="total_val" style="color:#00ff88; font-size:1.4em;"></span> px²
+    </div>
+    <div class="controls">
+      <div style="margin-bottom:5px">Fold / Unfold:</div>
+      <input type="range" id="foldSlider" min="0" max="1.57" step="0.01" value="0.5">
+    </div>
+    <p style="font-size: 0.8em; color: #aaa; margin-top: 15px;">Left-click + Drag to rotate 3D view<br>Scroll to zoom</p>
+  </div>
+
+  <script>
+    let L = 150, W = 100, H = 120;
+    let fold = 0.5;
+    let slider;
+
+    function setup() {
+      createCanvas(windowWidth, windowHeight, WEBGL);
+      slider = select('#foldSlider');
+      // Set initial slider value to match the fold variable
+      slider.value(0.5);
+    }
+
+    function draw() {
+      background(15);
+      orbitControl(); // Allows mouse rotation and zoom
+      
+      fold = parseFloat(slider.value());
+      updateUI();
+
+      // Improved Lighting
+      ambientLight(150); 
+      pointLight(255, 255, 255, 300, -300, 400);
+      pointLight(150, 150, 150, -300, 300, -400);
+      
+      noStroke();
+      
+      // Initial scene orientation
+      rotateX(-0.2);
+      rotateY(PI/4);
+
+      // --- DRAW PRISM NET ---
+      // We use box(size, size, 2) for all faces to ensure they are visible in WEBGL
+
+      // 1. Front Face (The stationary base of the net)
+      push();
+      ambientMaterial(200, 50, 50); // Red
+      box(L, H, 2);
+      pop();
+
+      // 2. Right Face
+      push();
+      translate(L/2, 0, 0);
+      rotateY(-fold); // Fold inwards
+      translate(W/2, 0, 0);
+      ambientMaterial(50, 200, 50); // Green
+      box(W, H, 2);
+      pop();
+
+      // 3. Left Face
+      push();
+      translate(-L/2, 0, 0);
+      rotateY(fold); // Fold inwards
+      translate(-W/2, 0, 0);
+      ambientMaterial(50, 200, 50); // Green
+      box(W, H, 2);
+      pop();
+
+      // 4. Top Face
+      push();
+      translate(0, -H/2, 0);
+      rotateX(fold); // Fold inwards
+      translate(0, -W/2, 0);
+      ambientMaterial(50, 100, 255); // Blue
+      box(L, W, 2);
+      
+        // 5. Back Face (Connected to Top)
+        push();
+        translate(0, -W/2, 0);
+        rotateX(fold); // Fold inwards
+        translate(0, -H/2, 0);
+        ambientMaterial(200, 50, 50); // Red (matches front)
+        box(L, H, 2);
+        pop();
+      pop();
+
+      // 6. Bottom Face
+      push();
+      translate(0, H/2, 0);
+      rotateX(-fold); // Fold inwards
+      translate(0, W/2, 0);
+      ambientMaterial(50, 100, 255); // Blue
+      box(L, W, 2);
+      pop();
+    }
+
+    function updateUI() {
+      let areaLW = L * W;
+      let areaLH = L * H;
+      let areaWH = W * H;
+      let total = 2 * (areaLW + areaLH + areaWH);
+
+      select('#l_val').html(L);
+      select('#w_val').html(W);
+      select('#h_val').html(H);
+      select('#formula_calc').html(`2(${areaLW} + ${areaLH} + ${areaWH})`);
+      select('#total_val').html(total.toLocaleString());
+    }
+
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight);
+    }
+  </script>
+</body>
+</html>

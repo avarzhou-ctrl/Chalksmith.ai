@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.js"></script>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; background: #f0f0f0; font-family: sans-serif; }
+        canvas { border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .controls { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="controls" id="ui">
+        <strong>Adjust Dimensions</strong><br>
+        Width: <input type="range" id="wSlider" min="1" max="12" value="6"><br>
+        Height: <input type="range" id="hSlider" min="1" max="8" value="4">
+    </div>
+    <script>
+        let unit = 40;
+        let margin = 80;
+
+        function setup() {
+            createCanvas(600, 500);
+            textAlign(CENTER, CENTER);
+        }
+
+        function draw() {
+            background(255);
+            let w = parseInt(document.getElementById('wSlider').value);
+            let h = parseInt(document.getElementById('hSlider').value);
+            
+            drawGrid();
+            
+            // Draw Area Rectangle
+            stroke(44, 62, 80);
+            strokeWeight(2);
+            fill(52, 152, 219, 150);
+            rect(margin, margin, w * unit, h * unit);
+
+            // Draw Unit Squares
+            stroke(255);
+            strokeWeight(1);
+            for (let i = 0; i < w; i++) {
+                for (let j = 0; j < h; j++) {
+                    let x = margin + i * unit;
+                    let y = margin + j * unit;
+                    
+                    // Animation effect based on frameCount
+                    let index = i + j * w;
+                    let showThreshold = (frameCount / 5) % (w * h + 20);
+                    if (index < showThreshold) {
+                        fill(46, 204, 113);
+                        rect(x, y, unit, unit);
+                        fill(255);
+                        noStroke();
+                        textSize(10);
+                        text(index + 1, x + unit/2, y + unit/2);
+                        stroke(255);
+                    }
+                }
+            }
+
+            // Labels and Math
+            fill(0);
+            noStroke();
+            textSize(18);
+            textStyle(BOLD);
+            text(`Width: ${w}`, margin + (w * unit) / 2, margin - 20);
+            
+            push();
+            translate(margin - 30, margin + (h * unit) / 2);
+            rotate(-HALF_PI);
+            text(`Height: ${h}`, 0, 0);
+            pop();
+
+            // Formula Area
+            fill(44, 62, 80);
+            rect(0, height - 100, width, 100);
+            fill(255);
+            textSize(22);
+            text(`Area = Width × Height`, width/2, height - 65);
+            textSize(28);
+            fill(241, 196, 15);
+            text(`${w} × ${h} = ${w * h} Square Units`, width/2, height - 30);
+            
+            // Visual Explainer
+            fill(100);
+            textSize(14);
+            textStyle(ITALIC);
+            text("Area is the number of 1x1 unit squares that fit inside a shape.", width/2, 25);
+        }
+
+        function drawGrid() {
+            stroke(230);
+            strokeWeight(1);
+            for (let x = 0; x <= width; x += unit) line(x, 0, x, height);
+            for (let y = 0; y <= height; y += unit) line(0, y, width, y);
+        }
+    </script>
+</body>
+</html>
+---CODE_END---

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>面积教学演示 - p5.js</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; font-family: sans-serif; }
+        canvas { border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .controls { position: absolute; left: 20px; top: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="controls" id="ui">
+        <h3 style="margin-top:0">面积探索器</h3>
+        <p>宽 (Width): <span id="wVal">5</span></p>
+        <input type="range" id="wSlider" min="1" max="10" value="5">
+        <p>高 (Height): <span id="hVal">4</span></p>
+        <input type="range" id="hSlider" min="1" max="10" value="4">
+        <hr>
+        <p>公式: 宽 × 高 = 面积</p>
+        <p style="font-weight:bold; color:#2196F3;"><span id="calcText">5 × 4 = 20</span></p>
+    </div>
+
+    <script>
+        let wSlider, hSlider;
+        const gridSize = 40;
+        const offsetX = 300;
+        const offsetY = 150;
+
+        function setup() {
+            createCanvas(800, 500);
+            wSlider = select('#wSlider');
+            hSlider = select('#hSlider');
+            textAlign(CENTER, CENTER);
+        }
+
+        function draw() {
+            background(255);
+            let w = parseInt(wSlider.value());
+            let h = parseInt(hSlider.value());
+            
+            select('#wVal').html(w);
+            select('#hVal').html(h);
+            select('#calcText').html(`${w} × ${h} = ${w * h} (平方单位)`);
+
+            // 绘制背景网格
+            stroke(230);
+            for(let i=0; i<=12; i++) {
+                line(offsetX + i*gridSize, offsetY, offsetX + i*gridSize, offsetY + 11*gridSize);
+                line(offsetX, offsetY + i*gridSize, offsetX + 11*gridSize, offsetY + i*gridSize);
+            }
+
+            // 绘制面积区域
+            noStroke();
+            fill(33, 150, 243, 150);
+            rect(offsetX, offsetY, w * gridSize, h * gridSize);
+
+            // 绘制单位方格动画效果
+            stroke(255);
+            strokeWeight(1);
+            for (let i = 0; i < w; i++) {
+                for (let j = 0; j < h; j++) {
+                    fill(33, 150, 243);
+                    rect(offsetX + i * gridSize + 2, offsetY + j * gridSize + 2, gridSize - 4, gridSize - 4, 4);
+                }
+            }
+
+            // 标注尺寸
+            fill(50);
+            noStroke();
+            textSize(18);
+            text(`宽: ${w}`, offsetX + (w * gridSize) / 2, offsetY - 20);
+            push();
+            translate(offsetX - 25, offsetY + (h * gridSize) / 2);
+            rotate(-HALF_PI);
+            text(`高: ${h}`, 0, 0);
+            pop();
+
+            // 核心概念文字
+            fill(80);
+            textSize(16);
+            textAlign(LEFT);
+            text("什么是面积？", 40, 320);
+            textSize(14);
+            textWrap(CHAR);
+            text("面积是一个形状表面所占的大小。\n我们可以通过数一数内部包含多少个\n“单位正方形”来测量它。", 40, 350, 220);
+            
+            // 实时计数显示
+            fill(255, 87, 34);
+            textSize(24);
+            text(`总计: ${w * h} 个方块`, offsetX, offsetY + (h * gridSize) + 40);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+{
+  "title": "The Human Body Systems",
+  "scenes": [
+    {
+      "id": "intro-title",
+      "type": "title",
+      "heading": "Anatomy & Physiology",
+      "content": "An Overview of Human Body Systems",
+      "durationInSeconds": 4,
+      "layout": "centered"
+    },
+    {
+      "id": "hierarchy-concepts",
+      "type": "point_list",
+      "heading": "Biological Organization",
+      "content": "Complex organisms are organized into hierarchical levels:",
+      "items": [
+        "Chemical Level (Atoms and Molecules)",
+        "Cellular Level (Basic Unit of Life)",
+        "Tissue Level (Groups of similar cells)",
+        "Organ Level (Integrated tissues)",
+        "System Level (Groups of related organs)"
+      ],
+      "durationInSeconds": 7,
+      "layout": "split"
+    },
+    {
+      "id": "hierarchy-visual",
+      "type": "image",
+      "heading": "The Hierarchy of Life",
+      "content": "From microscopic cells to integrated organ systems.",
+      "image": "https://images.unsplash.com/photo-1530026405186-ed1f139313f8?q=80&w=1000",
+      "durationInSeconds": 5,
+      "layout": "centered"
+    },
+    {
+      "id": "circulatory-detail",
+      "type": "text",
+      "heading": "The Cardiovascular System",
+      "content": "The cardiovascular system functions as the body's primary transport mechanism, delivering oxygen and nutrients via blood while removing metabolic waste products like carbon dioxide.",
+      "durationInSeconds": 6,
+      "layout": "bottom"
+    },
+    {
+      "id": "circulatory-visual",
+      "type": "image",
+      "heading": "Transport and Circulation",
+      "content": "The heart pumps blood through a vast network of vessels.",
+      "image": "https://images.unsplash.com/photo-1530210124550-912dc1381cb8?q=80&w=1000",
+      "durationInSeconds": 5,
+      "layout": "centered"
+    },
+    {
+      "id": "cardiac-math",
+      "type": "math",
+      "heading": "Physiology: Cardiac Output",
+      "content": "\\text{CO} = \\text{HR} \\times \\text{SV}",
+      "items": [
+        "CO: Cardiac Output (L/min)",
+        "HR: Heart Rate (bpm)",
+        "SV: Stroke Volume (mL/beat)"
+      ],
+      "durationInSeconds": 6,
+      "layout": "centered"
+    },
+    {
+      "id": "system-list",
+      "type": "point_list",
+      "heading": "The 11 Major Systems",
+      "content": "The human body maintains homeostasis through the coordination of:",
+      "items": [
+        "Integumentary, Skeletal, and Muscular",
+        "Nervous and Endocrine",
+        "Cardiovascular and Lymphatic",
+        "Respiratory and Digestive",
+        "Urinary and Reproductive"
+      ],
+      "durationInSeconds": 8,
+      "layout": "split"
+    },
+    {
+      "id": "skeletal-muscular-visual",
+      "type": "image",
+      "heading": "Structure and Support",
+      "content": "The skeletal and muscular systems provide the framework for the body.",
+      "image": "https://images.unsplash.com/photo-1581594549595-35e6edca7577?q=80&w=1000",
+      "durationInSeconds": 5,
+      "layout": "centered"
+    },
+    {
+      "id": "homeostasis-math",
+      "type": "math",
+      "heading": "The Principle of Mass Balance",
+      "content": "\\text{Total Load} = \\text{Intake} + \\text{Production} - \\text{Excretion} - \\text{Consumption}",
+      "durationInSeconds": 6,
+      "layout": "centered"
+    },
+    {
+      "id": "summary-scene",
+      "type": "text",
+      "heading": "Conclusion",
+      "content": "No system operates in isolation. The integration of these 11 systems ensures the survival of the organism by maintaining a stable internal environment despite external changes.",
+      "durationInSeconds": 6,
+      "layout": "centered"
+    }
+  ],
+  "audioConfig": {
+    "generateVoiceover": true,
+    "voice": "alloy"
+  }
+}

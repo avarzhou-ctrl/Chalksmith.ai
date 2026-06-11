@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body { margin: 0; display: flex; flex-direction: column; align-items: center; background: #f0f0f0; font-family: sans-serif; }
+        #controls { padding: 15px; background: #fff; width: 100%; display: flex; justify-content: center; gap: 20px; border-bottom: 2px solid #ccc; flex-wrap: wrap; }
+        .slider-group { display: flex; flex-direction: column; align-items: center; }
+        canvas { box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-top: 20px; }
+        label { font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #333; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div class="slider-group">
+            <label>Shape Type</label>
+            <select id="shapeSelect">
+                <option value="rectangle">Rectangle</option>
+                <option value="parallelogram">Parallelogram</option>
+                <option value="trapezoid">Trapezoid</option>
+            </select>
+        </div>
+        <div class="slider-group">
+            <label id="label1">Base 1</label>
+            <!-- Step changed to 40 to ensure center-alignment (w/2) lands on 20px grid -->
+            <input type="range" id="slider1" min="40" max="320" step="40" value="200">
+        </div>
+        <div class="slider-group">
+            <label id="label2">Height</label>
+            <input type="range" id="slider2" min="40" max="240" step="40" value="160">
+        </div>
+        <div class="slider-group" id="extraSlider">
+            <label id="label3">Base 2</label>
+            <input type="range" id="slider3" min="40" max="320" step="40" value="120">
+        </div>
+        <button id="animBtn">Show Proof/Transform</button>
+    </div>
+
+    <script>
+        let s1, s2, s3, btn, sel;
+        let animProgress = 0;
+        let animating = false;
+        const GRID_SIZE = 20;
+
+        function setup() {
+            createCanvas(800, 500);
+            s1 = select('#slider1');
+            s2 = select('#slider2');
+            s3 = select('#slider3');
+            sel = select('#shapeSelect');
+            btn = select('#animBtn');
+            btn.mousePressed(() => animating = !animating);
+        }
+
+        function draw() {
+            background(255);
+            let type = sel.value();
+            let b1 = int(s1.value());
+            let h = int(s2.value());
+            let b2 = int(s3.value());
+            
+            // cx and cy are now strictly aligned to the grid
+            // 400 and 320 are multiples of 20
+            let cx = 400; 
+            let cy = 320;
+
+            if (animating) animProgress = lerp(animProgress, 1, 0.05);
+            else animProgress = lerp(animProgress, 0, 0.05);
+
+            drawGrid();
+
+            fill(0);
+            noStroke();
+            textSize(20);
+            textAlign(CENTER);
+            
+            if (type === 'rectangle') {
+                select('#extraSlider').style('display', 'none');
+                select('#label1').html('Base (b)');
+                select('#label2').html('Height (h)');
+                drawRectangle(cx, cy, b1, h);
+                text(`Rectangle Area = b × h`, cx, 40);
+                text(`${b1} × ${h} = ${b1 * h} sq units`, cx, 70);
+            } 
+            else if (type === 'parallelogram') {
+                select('#extraSlider').style('display', 'none');
+                select('#label1').html('Base (b)');
+                select('#label2').html('Height (h)');
+                drawParallelogram(cx, cy, b1, h, animProgress);
+                text(`Parallelogram Area = b × h`, cx, 40);
+                text(`${b1} × ${h} = ${b1 * h} sq units`, cx, 70);
+            } 
+            else if (type === 'trapezoid') {
+                select('#extraSlider').style('display', 'block');
+                select('#label1').html('Base 1 (b1)');
+                select('#label2').html('Height (h)');
+                select('#label3').html('Base 2 (b2)');
+                drawTrapezoid(cx, cy, b1, b2, h, animProgress);
+                text(`Trapezoid Area = ((b1 + b2) / 2) × h`, cx, 40);
+                text(`((${b1} + ${b2}) / 2) × ${h} = ${((b1 + b2) / 2) * h} sq units`, cx, 70);
+            }
+        }
+
+        function drawGrid() {
+            stroke(230);
+            strokeWeight(1);
+            for(let i=0; i<=width; i+=GRID_SIZE) line(i, 0, i, height);
+            for(let i=0; i<=height; i+=GRID_SIZE) line(0, i, width, i);
+        }
+
+        function drawRectangle(x, y, w, h) {
+            stroke(44, 62, 80);
+            strokeWeight(2);
+            fill(52, 152, 219, 180);
+            rectMode(CENTER);
+            rect(x, y, w, h);
+            
+            fill(0); noStroke();
+            text(w, x, y + h/2 + 25);
+            push(); translate(x - w/2 - 25, y); rotate(-HALF_PI); text(h, 0, 0); pop();
+        }
+
+        function drawParallelogram(x, y, b, h, anim) {
+            let offset = GRID_SIZE * 3; // Fixed 60px shift
+            let leftEdge = x - b/2;
+            let cutX = leftEdge + offset;
+            
+            strokeWeight(2);
+            // Main Body
+            fill(46, 204, 113, 180);
+            stroke(39, 174, 96);
+            beginShape();
+            vertex(cutX, y - h/2);
+            vertex(leftEdge + b + offset, y - h/2);
+            vertex(leftEdge + b, y + h/2);
+            vertex(cutX, y + h/2);
+            endShape(CLOSE);
+
+            // Animated Triangle
+            push();
+            translate(anim * b, 0);
+            fill(231, 76, 60, 180);
+            stroke(192, 57, 43);
+            triangle(leftEdge, y + h/2, cutX, y + h/2, cutX, y - h/2);
+            pop();
+
+            // Dimensions
+            fill(0); noStroke();
+            text("base: " + b, x + offset/2, y + h/2 + 25);
+            stroke(100); strokeWeight(1);
+            line(leftEdge - 10, y - h/2, leftEdge - 10, y + h/2);
+            noStroke();
+            push(); translate(leftEdge - 30, y); rotate(-HALF_PI); text("h: " + h, 0, 0); pop();
+        }
+
+        function drawTrapezoid(x, y, b1, b2, h, anim) {
+            let x1 = x - b1/2, x2 = x + b1/2;
+            let x3 = x + b2/2, x4 = x - b2/2;
+            let yTop = y - h/2, yBot = y + h/2;
+
+            // Main Trapezoid
+            fill(155, 89, 182, 180);
+            stroke(142, 68, 173);
+            strokeWeight(2);
+            quad(x4, yTop, x3, yTop, x2, yBot, x1, yBot);
+
+            // Second Trapezoid for Proof
+            if (anim > 0.01) {
+                push();
+                translate(x2 + x3 + (anim - 1) * (b1 + b2), yTop + yBot);
+                translate(x, y); 
+                rotate(anim * PI);
+                translate(-x, -y); 
+                fill(241, 196, 15, 150);
+                quad(x4, yTop, x3, yTop, x2, yBot, x1, yBot);
+                pop();
+            }
+
+            fill(0); noStroke();
+            text("b1: " + b1, x, yBot + 25);
+            text("b2: " + b2, x, yTop - 15);
+            stroke(100); strokeWeight(1);
+            line(min(x1, x4) - 20, yTop, min(x1, x4) - 20, yBot);
+            noStroke();
+            push(); translate(min(x1, x4) - 40, y); rotate(-HALF_PI); text("h: " + h, 0, 0); pop();
+        }
+    </script>
+</body>
+</html>

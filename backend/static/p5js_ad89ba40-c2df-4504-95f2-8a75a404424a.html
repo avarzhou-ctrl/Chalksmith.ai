@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; background: #f0f2f5; font-family: sans-serif; height: 100vh; overflow: hidden; }
+        canvas { border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .ui { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+<script>
+let wSlider, hSlider;
+const UNIT = 40; 
+const OFFSET_X = 100;
+const OFFSET_Y = 150;
+
+function setup() {
+    createCanvas(800, 600);
+    wSlider = createSlider(1, 15, 8, 1);
+    wSlider.position(20, 40);
+    hSlider = createSlider(1, 10, 5, 1);
+    hSlider.position(20, 80);
+}
+
+function draw() {
+    background(255);
+    let rectW = wSlider.value();
+    let rectH = hSlider.value();
+    let area = rectW * rectH;
+
+    // UI Labels
+    fill(50);
+    noStroke();
+    textSize(18);
+    text(`Width (l): ${rectW}`, 20, 35);
+    text(`Height (w): ${rectH}`, 20, 75);
+    
+    // Formula Section
+    textSize(24);
+    textStyle(BOLD);
+    fill(0, 102, 204);
+    text(`Area = Length × Width`, 450, 50);
+    text(`${area} = ${rectW} × ${rectH}`, 450, 85);
+    textStyle(NORMAL);
+
+    // Draw Rectangle and Grid
+    push();
+    translate(OFFSET_X, OFFSET_Y);
+    
+    // Shadow
+    fill(240);
+    rect(5, 5, rectW * UNIT, rectH * UNIT);
+    
+    // Main Shape
+    fill(100, 180, 255, 150);
+    stroke(0, 102, 204);
+    strokeWeight(2);
+    rect(0, 0, rectW * UNIT, rectH * UNIT);
+
+    // Draw Unit Squares (The Grid)
+    stroke(0, 102, 204, 80);
+    strokeWeight(1);
+    for (let i = 0; i <= rectW; i++) {
+        line(i * UNIT, 0, i * UNIT, rectH * UNIT);
+    }
+    for (let j = 0; j <= rectH; j++) {
+        line(0, j * UNIT, rectW * UNIT, j * UNIT);
+    }
+
+    // Dimension Labels
+    fill(0);
+    noStroke();
+    textSize(16);
+    textAlign(CENTER);
+    text(rectW, (rectW * UNIT) / 2, -10); // Top Label
+    textAlign(RIGHT);
+    text(rectH, -10, (rectH * UNIT) / 2 + 5); // Left Label
+
+    // Unit Square Counter (Visual Logic)
+    if (mouseX > OFFSET_X && mouseX < OFFSET_X + rectW * UNIT && mouseY > OFFSET_Y && mouseY < OFFSET_Y + rectH * UNIT) {
+        let gx = floor((mouseX - OFFSET_X) / UNIT);
+        let gy = floor((mouseY - OFFSET_Y) / UNIT);
+        fill(255, 255, 0, 150);
+        rect(gx * UNIT, gy * UNIT, UNIT, UNIT);
+        
+        fill(0);
+        textAlign(CENTER, CENTER);
+        text("1 unit²", gx * UNIT + UNIT/2, gy * UNIT + UNIT/2);
+    }
+    pop();
+
+    // Explainer text
+    fill(80);
+    textSize(14);
+    textAlign(LEFT);
+    text("The Area is the count of 1x1 unit squares that fit inside the shape.", 20, 560);
+    text("Interact: Move sliders to change dimensions. Hover over the grid to identify a single unit.", 20, 580);
+}
+</script>
+</body>
+</html>

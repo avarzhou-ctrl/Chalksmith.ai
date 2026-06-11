@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Understanding Area - Mathematics Lesson</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reset.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/dracula.min.css">
+
+    <style>
+        :root {
+            --highlight-color: #ffcc00;
+            --accent-color: #00e6e6;
+            --text-color: #ffffff;
+            --bg-card: #282a36;
+        }
+
+        .highlight {
+            color: var(--highlight-color);
+            font-weight: bold;
+        }
+
+        .accent {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        .diagram-container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+            margin: 20px 0;
+        }
+
+        .formula-box {
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 5px solid var(--highlight-color);
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.2em;
+        }
+
+        .grid-line {
+            stroke: #ccc;
+            stroke-width: 1;
+        }
+
+        .shape-fill {
+            fill: rgba(0, 230, 230, 0.4);
+            stroke: var(--accent-color);
+            stroke-width: 3;
+        }
+
+        .label-text {
+            fill: #333;
+            font-family: sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .flex-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            gap: 20px;
+        }
+
+        section {
+            text-align: left;
+        }
+
+        h1, h2, h3 {
+            color: var(--highlight-color) !important;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- Title Slide -->
+            <section style="text-align: center;">
+                <h1>Mastering <span class="accent">Area</span></h1>
+                <p>Measuring the space within 2D boundaries</p>
+                <hr>
+                <p>Mathematics Core Concepts</p>
+            </section>
+
+            <!-- Definition Slide -->
+            <section>
+                <h2>What is <span class="highlight">Area</span>?</h2>
+                <ul>
+                    <li class="fragment">Area is the <span class="accent">quantity</span> that expresses the extent of a two-dimensional figure or shape in a plane.</li>
+                    <li class="fragment">Unlike perimeter (the distance <em>around</em>), area measures the <strong>surface coverage</strong>.</li>
+                    <li class="fragment">Measured in <span class="highlight">square units</span> (e.g., cm², m², in²).</li>
+                </ul>
+                <div class="fragment" style="text-align: center;">
+                    <svg width="200" height="100">
+                        <rect x="10" y="10" width="180" height="80" class="shape-fill" />
+                        <text x="65" y="55" fill="white" font-size="20">Surface</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Unit Squares -->
+            <section>
+                <h2>The Unit Square</h2>
+                <div class="flex-container">
+                    <div>
+                        <p>We calculate area by counting how many <span class="highlight">unit squares</span> fit inside a shape.</p>
+                        <p class="fragment">A unit square has a side length of <span class="accent">1</span>.</p>
+                    </div>
+                    <div class="diagram-container">
+                        <svg width="200" height="200" viewBox="0 0 200 200">
+                            <defs>
+                                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ccc" stroke-width="1"/>
+                                </pattern>
+                            </defs>
+                            <rect width="200" height="200" fill="url(#grid)" />
+                            <rect x="40" y="40" width="120" height="80" fill="rgba(255, 204, 0, 0.5)" stroke="#ffcc00" stroke-width="2" />
+                            <text x="45" y="35" class="label-text">Area = 6 squares</text>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Rectangle Formula -->
+            <section>
+                <h2>Area of a <span class="highlight">Rectangle</span></h2>
+                <div class="flex-container">
+                    <div class="diagram-container">
+                        <svg width="300" height="200">
+                            <rect x="50" y="50" width="200" height="100" class="shape-fill" />
+                            <text x="130" y="40" class="label-text">Length (l)</text>
+                            <text x="260" y="105" class="label-text">Width (w)</text>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="formula-box">
+                            Area = Length × Width
+                            <br>
+                            <span class="accent">A = l × w</span>
+                        </div>
+                        <p class="fragment">For a <span class="highlight">Square</span>, since all sides are equal (s):</p>
+                        <p class="fragment accent" style="text-align: center;">A = s²</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Triangle Formula -->
+            <section>
+                <h2>Area of a <span class="highlight">Triangle</span></h2>
+                <div class="flex-container">
+                    <div>
+                        <p>A triangle is exactly <span class="accent">half</span> of a rectangle with the same base and height.</p>
+                        <div class="formula-box">
+                            Area = ½ × Base × Height
+                            <br>
+                            <span class="accent">A = ½bh</span>
+                        </div>
+                    </div>
+                    <div class="diagram-container">
+                        <svg width="250" height="200">
+                            <!-- Ghost rectangle -->
+                            <rect x="50" y="50" width="150" height="100" fill="none" stroke="#ddd" stroke-dasharray="5,5" />
+                            <!-- Triangle -->
+                            <path d="M 50 150 L 200 150 L 200 50 Z" class="shape-fill" />
+                            <text x="110" y="170" class="label-text">Base (b)</text>
+                            <text x="210" y="105" class="label-text">Height (h)</text>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Circle Formula -->
+            <section>
+                <h2>Area of a <span class="highlight">Circle</span></h2>
+                <div class="flex-container">
+                    <div class="diagram-container">
+                        <svg width="200" height="200">
+                            <circle cx="100" cy="100" r="80" class="shape-fill" />
+                            <line x1="100" y1="100" x2="180" y2="100" stroke="#333" stroke-width="2" />
+                            <circle cx="100" cy="100" r="3" fill="#333" />
+                            <text x="120" y="90" class="label-text">Radius (r)</text>
+                        </svg>
+                    </div>
+                    <div>
+                        <p>The area of a circle depends on the <span class="highlight">radius</span> (distance from center to edge).</p>
+                        <div class="formula-box">
+                            Area = π × Radius²
+                            <br>
+                            <span class="accent">A = πr²</span>
+                        </div>
+                        <p style="font-size: 0.8em;">Note: <span class="accent">π (Pi)</span> is approximately 3.14159</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Glossary -->
+            <section>
+                <h2>Glossary of Terms</h2>
+                <dl>
+                    <dt class="highlight">2D (Two-Dimensional)</dt>
+                    <dd>A flat shape with length and width, but no depth.</dd>
+                    <br>
+                    <dt class="highlight">Square Units</dt>
+                    <dd>The standard of measurement for area (e.g., a square with 1m sides = 1 m²).</dd>
+                    <br>
+                    <dt class="highlight">Pi (π)</dt>
+                    <dd>A mathematical constant representing the ratio of a circle's circumference to its diameter.</dd>
+                </dl>
+            </section>
+
+            <!-- Summary Slide -->
+            <section style="text-align: center;">
+                <h2>Quick Summary</h2>
+                <table style="width: 100%; margin-top: 50px; font-size: 0.9em;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--highlight-color);">
+                            <th>Shape</th>
+                            <th>Formula</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Rectangle</td>
+                            <td class="accent">l × w</td>
+                        </tr>
+                        <tr>
+                            <td>Square</td>
+                            <td class="accent">s²</td>
+                        </tr>
+                        <tr>
+                            <td>Triangle</td>
+                            <td class="accent">½bh</td>
+                        </tr>
+                        <tr>
+                            <td>Circle</td>
+                            <td class="accent">πr²</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="margin-top: 50px;" class="fragment">Ready to solve some problems?</p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            center: true,
+            transition: 'slide',
+            controls: true,
+            progress: true,
+            backgroundTransition: 'fade'
+        });
+    </script>
+</body>
+</html>
+---CODE_END---

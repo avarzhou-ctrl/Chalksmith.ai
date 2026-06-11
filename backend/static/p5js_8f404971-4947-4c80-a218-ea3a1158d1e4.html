@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; background: #f0f2f5; font-family: sans-serif; }
+        canvas { border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .controls { position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 8px; width: 220px; }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h3 style="margin:0 0 10px 0">Perimeter Explorer</h3>
+        <label>Width:</label><br>
+        <input type="range" id="wSlide" min="50" max="300" value="200"><br>
+        <label>Height:</label><br>
+        <input type="range" id="hSlide" min="50" max="250" value="150"><br>
+        <p id="calc" style="font-size: 0.9em; color: #333; margin-top:10px;"></p>
+        <button id="walkBtn">Walk Perimeter</button>
+    </div>
+    <script>
+        let wSlider, hSlider, walkBtn;
+        let progress = 0;
+        let walking = false;
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            wSlider = select('#wSlide');
+            hSlider = select('#hSlide');
+            walkBtn = select('#walkBtn');
+            walkBtn.mousePressed(() => { progress = 0; walking = true; });
+            textAlign(CENTER, CENTER);
+        }
+
+        function draw() {
+            background(240, 242, 245);
+            
+            let w = parseInt(wSlider.value());
+            let h = parseInt(hSlider.value());
+            let x = width/2 - w/2;
+            let y = height/2 - h/2;
+            let perimeter = 2 * (w + h);
+
+            // UI Update
+            select('#calc').html(`<b>Formula:</b> 2 &times; (W + H)<br><b>Total:</b> ${w} + ${h} + ${w} + ${h} = <b>${perimeter}px</b>`);
+
+            // Draw Grid
+            stroke(220);
+            for(let i=0; i<width; i+=20) line(i,0,i,height);
+            for(let i=0; i<height; i+=20) line(0,i,width,i);
+
+            // Draw Shape
+            stroke(50, 100, 250);
+            strokeWeight(4);
+            fill(100, 150, 255, 50);
+            rect(x, y, w, h, 4);
+
+            // Labels
+            noStroke();
+            fill(50);
+            textSize(16);
+            text(`Width: ${w}`, width/2, y - 20);
+            text(`Width: ${w}`, width/2, y + h + 20);
+            push();
+            translate(x - 30, height/2);
+            rotate(-HALF_PI);
+            text(`Height: ${h}`, 0, 0);
+            pop();
+            push();
+            translate(x + w + 30, height/2);
+            rotate(HALF_PI);
+            text(`Height: ${h}`, 0, 0);
+            pop();
+
+            // Walking Animation
+            if (walking) {
+                drawTracer(x, y, w, h);
+                progress += 0.005;
+                if (progress >= 1) {
+                    progress = 0;
+                    walking = false;
+                }
+            }
+
+            // Title
+            fill(0);
+            textSize(22);
+            text("Perimeter: The Distance Around a Shape", width/2, 40);
+        }
+
+        function drawTracer(x, y, w, h) {
+            let totalDist = 2 * (w + h);
+            let currentDist = progress * totalDist;
+            let px, py;
+
+            if (currentDist < w) { // Top edge
+                px = x + currentDist;
+                py = y;
+            } else if (currentDist < w + h) { // Right edge
+                px = x + w;
+                py = y + (currentDist - w);
+            } else if (currentDist < 2 * w + h) { // Bottom edge
+                px = x + w - (currentDist - (w + h));
+                py = y + h;
+            } else { // Left edge
+                px = x;
+                py = y + h - (currentDist - (2 * w + h));
+            }
+
+            fill(255, 0, 0);
+            stroke(255);
+            strokeWeight(2);
+            circle(px, py, 15);
+            
+            // Visual trail
+            noFill();
+            stroke(255, 0, 0, 150);
+            strokeWeight(6);
+            beginShape();
+            let step = currentDist;
+            vertex(x, y);
+            if(step > w) vertex(x+w, y);
+            if(step > w+h) vertex(x+w, y+h);
+            if(step > 2*w+h) vertex(x, y+h);
+            vertex(px, py);
+            endShape();
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+        }
+    </script>
+</body>
+</html>

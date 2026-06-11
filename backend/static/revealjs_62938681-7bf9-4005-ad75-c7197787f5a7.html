@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Understanding Area - Mathematics Lesson</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reset.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/white.min.css">
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e67e22;
+            --highlight-color: #2980b9;
+            --text-color: #333;
+        }
+
+        .reveal {
+            color: var(--text-color);
+        }
+
+        .reveal h1, .reveal h2, .reveal h3 {
+            color: var(--primary-color);
+            text-transform: none;
+        }
+
+        .highlight {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        .formula-box {
+            background: #f8f9fa;
+            border-left: 10px solid var(--highlight-color);
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.2em;
+        }
+
+        .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            gap: 20px;
+        }
+
+        .label {
+            font-size: 0.8em;
+            fill: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .svg-diagram {
+            filter: drop-shadow(3px 3px 5px rgba(0,0,0,0.1));
+        }
+
+        .grid-line {
+            stroke: #ddd;
+            stroke-width: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- Title Slide -->
+            <section data-background-color="#f0f4f8">
+                <h1>Understanding <span class="highlight">Area</span></h1>
+                <p>Measuring Two-Dimensional Space</p>
+                <div style="margin-top: 50px;">
+                    <svg width="200" height="100" viewBox="0 0 200 100">
+                        <rect x="10" y="10" width="180" height="80" fill="none" stroke="#2980b9" stroke-width="4" />
+                        <path d="M 10 10 L 190 90 M 190 10 L 10 90" stroke="#e67e22" stroke-width="1" stroke-dasharray="5,5" />
+                    </svg>
+                </div>
+                <p><small>Mathematics Department</small></p>
+            </section>
+
+            <!-- Definition Slide -->
+            <section>
+                <h2>What is Area?</h2>
+                <ul>
+                    <li><span class="highlight">Area</span> is the amount of space inside the boundary of a flat (2D) object.</li>
+                    <li class="fragment">While perimeter measures the "fence" around a shape, area measures the "grass" inside.</li>
+                    <li class="fragment">Area is always measured in <span class="highlight">square units</span> (e.g., cm², m², in²).</li>
+                </ul>
+                
+                <div class="fragment" style="margin-top: 30px;">
+                    <svg width="300" height="150" viewBox="0 0 300 150">
+                        <!-- 5x3 Grid -->
+                        <defs>
+                            <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                                <path d="M 30 0 L 0 0 0 30" fill="none" stroke="gray" stroke-width="0.5"/>
+                            </pattern>
+                        </defs>
+                        <rect x="75" y="30" width="150" height="90" fill="rgba(41, 128, 185, 0.2)" stroke="#2980b9" stroke-width="2" />
+                        <rect x="75" y="30" width="150" height="90" fill="url(#grid)" />
+                        <text x="150" y="145" text-anchor="middle" class="label">1 unit² per square</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Rectangle Slide -->
+            <section>
+                <h3>Area of a <span class="highlight">Rectangle</span></h3>
+                <div class="container">
+                    <div style="text-align: left;">
+                        <p>To find the area, multiply the base by the height.</p>
+                        <div class="formula-box">
+                            Area = <span class="highlight">b</span> × <span class="highlight">h</span>
+                        </div>
+                        <p class="fragment"><small><em>Note: Often expressed as Length × Width.</em></small></p>
+                    </div>
+                    
+                    <svg width="300" height="200" viewBox="0 0 300 200" class="svg-diagram">
+                        <rect x="50" y="50" width="200" height="100" fill="#3498db" stroke="#2c3e50" stroke-width="3" />
+                        <text x="150" y="175" text-anchor="middle" class="label">Base (b)</text>
+                        <text x="35" y="105" text-anchor="middle" class="label" transform="rotate(-90 35,105)">Height (h)</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Square Slide -->
+            <section>
+                <h3>Special Case: The <span class="highlight">Square</span></h3>
+                <p>Since all sides are equal in a square ($s$), the formula simplifies:</p>
+                <div class="formula-box" style="display: inline-block;">
+                    Area = s × s = <span class="highlight">s²</span>
+                </div>
+                <div style="margin-top: 20px;">
+                    <svg width="200" height="200" viewBox="0 0 200 200">
+                        <rect x="50" y="50" width="100" height="100" fill="#e74c3c" fill-opacity="0.2" stroke="#e74c3c" stroke-width="3" />
+                        <text x="100" y="170" text-anchor="middle" class="label">s</text>
+                        <text x="35" y="100" text-anchor="middle" class="label">s</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Triangle Slide -->
+            <section>
+                <h3>Area of a <span class="highlight">Triangle</span></h3>
+                <div class="container">
+                    <svg width="300" height="200" viewBox="0 0 300 200">
+                        <!-- Background Rectangle representation -->
+                        <rect x="50" y="50" width="200" height="100" fill="none" stroke="#ccc" stroke-dasharray="5,5" />
+                        <!-- Triangle -->
+                        <path d="M 50 150 L 250 150 L 250 50 Z" fill="#2ecc71" fill-opacity="0.6" stroke="#27ae60" stroke-width="3" />
+                        <text x="150" y="175" text-anchor="middle" class="label">Base (b)</text>
+                        <text x="270" y="100" text-anchor="middle" class="label" transform="rotate(90 270,100)">Height (h)</text>
+                    </svg>
+                    <div style="text-align: left;">
+                        <p>A triangle is exactly <span class="highlight">half</span> of a rectangle with the same base and height.</p>
+                        <div class="formula-box">
+                            Area = ½ × <span class="highlight">b</span> × <span class="highlight">h</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Circle Slide -->
+            <section>
+                <h3>Area of a <span class="highlight">Circle</span></h3>
+                <div class="container">
+                    <div style="text-align: left; width: 50%;">
+                        <p>Requires the radius (<span class="highlight">r</span>) and the constant <span class="highlight">π</span> (approx. 3.14159).</p>
+                        <div class="formula-box">
+                            Area = <span class="highlight">πr²</span>
+                        </div>
+                        <p><small>Definition: <strong>Radius</strong> is the distance from the center to the edge.</small></p>
+                    </div>
+                    <svg width="250" height="250" viewBox="0 0 250 250">
+                        <circle cx="125" cy="125" r="80" fill="#f1c40f" fill-opacity="0.3" stroke="#f39c12" stroke-width="3" />
+                        <line x1="125" y1="125" x2="205" y2="125" stroke="#d35400" stroke-width="2" />
+                        <circle cx="125" cy="125" r="3" fill="#000" />
+                        <text x="165" y="120" text-anchor="middle" class="label">r</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Comparison Table -->
+            <section>
+                <h3>Formula Summary</h3>
+                <table style="width: 100%; font-size: 0.8em;">
+                    <thead>
+                        <tr style="background-color: var(--primary-color); color: white;">
+                            <th>Shape</th>
+                            <th>Formula</th>
+                            <th>Key Variables</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Rectangle</td>
+                            <td>$b \times h$</td>
+                            <td>Base, Height</td>
+                        </tr>
+                        <tr style="background-color: #f2f2f2;">
+                            <td>Square</td>
+                            <td>$s^2$</td>
+                            <td>Side</td>
+                        </tr>
+                        <tr>
+                            <td>Triangle</td>
+                            <td>$\frac{1}{2}bh$</td>
+                            <td>Base, Vertical Height</td>
+                        </tr>
+                        <tr style="background-color: #f2f2f2;">
+                            <td>Circle</td>
+                            <td>$\pi r^2$</td>
+                            <td>Radius</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Interactive Example Slide -->
+            <section>
+                <h3>Quick Check!</h3>
+                <p>What is the area of a rectangle with a <span class="highlight">base of 8cm</span> and a <span class="highlight">height of 5cm</span>?</p>
+                <div class="fragment">
+                    <p>Calculation: $8 \text{ cm} \times 5 \text{ cm}$</p>
+                    <div class="formula-box" style="display: inline-block; border-color: #27ae60;">
+                        Result: <span style="color: #27ae60;">40 cm²</span>
+                    </div>
+                </div>
+                <p class="fragment" style="margin-top: 20px;">
+                    <small>⚠️ Remember: Units must be <strong>squared</strong>!</small>
+                </p>
+            </section>
+
+            <!-- Summary Slide -->
+            <section data-background-color="#2c3e50" style="color: white;">
+                <h2 style="color: white;">Key Takeaways</h2>
+                <ol>
+                    <li class="fragment">Area is <span class="highlight">2D space</span> measurement.</li>
+                    <li class="fragment">Standard units are always <span class="highlight">squared</span> ($u^2$).</li>
+                    <li class="fragment">Complex shapes can be broken down into simpler rectangles and triangles to find total area.</li>
+                </ol>
+                <h4 class="fragment" style="margin-top: 40px; color: #e67e22;">Lesson Complete</h4>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            center: true,
+            transition: 'slide',
+            // Load MathJax for the formulas
+            dependencies: [
+                { src: 'https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/plugin/math/math.js', async: true }
+            ]
+        });
+    </script>
+</body>
+</html>

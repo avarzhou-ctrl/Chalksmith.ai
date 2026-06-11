@@ -1,0 +1,82 @@
+{
+  "title": "Understanding Area",
+  "scenes": [
+    {
+      "id": "intro-title",
+      "type": "title",
+      "content": "Introduction to Area",
+      "physics": "smooth",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "definition-text",
+      "type": "text",
+      "content": "Area is the measure of the space inside the boundary of a two-dimensional shape.",
+      "physics": "bouncy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "units-list",
+      "type": "point_list",
+      "content": "Area is measured in square units:;\\text{Square Meters (m)}^2;\\text{Square Centimeters (cm)}^2;\\text{Square Inches (in)}^2",
+      "physics": "snappy",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "rectangle-formula-title",
+      "type": "title",
+      "content": "The Rectangle",
+      "physics": "smooth",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "rectangle-math",
+      "type": "math",
+      "content": "A = w \\times h",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "rectangle-example",
+      "type": "text",
+      "content": "If a rectangle has a width of 5m and a height of 3m, its area is 15m².",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "triangle-formula-title",
+      "type": "title",
+      "content": "The Triangle",
+      "physics": "smooth",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "triangle-math",
+      "type": "math",
+      "content": "A = \\frac{1}{2} \\times b \\times h",
+      "physics": "bouncy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "circle-formula-title",
+      "type": "title",
+      "content": "The Circle",
+      "physics": "smooth",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "circle-math",
+      "type": "math",
+      "content": "A = \\pi r^2",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "summary-list",
+      "type": "point_list",
+      "content": "Key Takeaways:;Area measures surface space;Calculated using specific formulas;Always expressed in square units",
+      "physics": "smooth",
+      "durationInSeconds": 7
+    }
+  ]
+}

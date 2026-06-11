@@ -1,0 +1,63 @@
+{
+  "title": "Mastering the Concept of Area",
+  "scenes": [
+    {
+      "id": "intro-title",
+      "type": "title",
+      "content": "Introduction to Area",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "definition",
+      "type": "text",
+      "content": "Area is the total amount of space occupied by a flat surface or a two-dimensional shape.",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "square-units",
+      "type": "math",
+      "content": "\\text{Area is measured in square units: } units^2",
+      "physics": "snappy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "rect-formula",
+      "type": "math",
+      "content": "\\text{Area of a Rectangle} = length \\times width",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "rect-example",
+      "type": "point_list",
+      "content": [
+        "Length = 10m",
+        "Width = 5m",
+        "10 \\times 5 = 50m^2"
+      ],
+      "physics": "bouncy",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "tri-formula",
+      "type": "math",
+      "content": "\\text{Area of a Triangle} = \\frac{1}{2} \\times base \\times height",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "summary-points",
+      "type": "point_list",
+      "content": [
+        "Area measures 2D surface space",
+        "Always use square units (e.g., cm^2)",
+        "Rectangles: A = l \\times w",
+        "Triangles: A = \\frac{1}{2}bh"
+      ],
+      "physics": "snappy",
+      "durationInSeconds": 7
+    }
+  ]
+}

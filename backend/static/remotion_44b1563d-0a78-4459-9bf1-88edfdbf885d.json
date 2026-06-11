@@ -1,0 +1,61 @@
+{
+  "title": "Area of a Circle",
+  "scenes": [
+    {
+      "id": "scene-1",
+      "type": "title",
+      "content": "Area of a Circle",
+      "physics": "smooth",
+      "durationInSeconds": 3
+    },
+    {
+      "id": "scene-2",
+      "type": "text",
+      "content": "The area is the total space contained within the circle's boundary.",
+      "physics": "snappy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "scene-3",
+      "type": "math",
+      "content": "The distance from the center to the edge is the radius: r",
+      "physics": "smooth",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "scene-4",
+      "type": "math",
+      "content": "\\pi \\text{ (Pi) is approximately } 3.14159",
+      "physics": "snappy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "scene-5",
+      "type": "math",
+      "content": "A = \\pi r^2",
+      "physics": "bouncy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "scene-6",
+      "type": "math",
+      "content": "\\text{Example: If } r = 5, \\text{ then } A = \\pi \\times 5^2",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "scene-7",
+      "type": "math",
+      "content": "A = 25\\pi \\approx 78.54 \\text{ square units}",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "scene-8",
+      "type": "point_list",
+      "content": "1. Measure the radius (r)\n2. Square the radius (r²)\n3. Multiply by \\pi",
+      "physics": "bouncy",
+      "durationInSeconds": 6
+    }
+  ]
+}

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Understanding Area: Geometry Essentials</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/theme/white.css">
+
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #d35400;
+            --highlight: #2980b9;
+            --bg-soft: #f4f7f6;
+        }
+
+        .reveal .slides section {
+            text-align: left;
+            padding: 40px;
+        }
+
+        .reveal h1, .reveal h2, .reveal h3 {
+            color: var(--primary);
+            text-transform: none;
+            font-weight: 700;
+        }
+
+        .reveal h1 { border-bottom: 5px solid var(--accent); display: inline-block; padding-bottom: 10px; }
+
+        .important {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .term {
+            color: var(--highlight);
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .diagram-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            background: var(--bg-soft);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .formula-box {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1.5em;
+            margin: 20px 0;
+        }
+
+        .grid-line {
+            stroke: #bdc3c7;
+            stroke-width: 1;
+        }
+
+        .shape-fill {
+            fill: rgba(41, 128, 185, 0.3);
+            stroke: var(--highlight);
+            stroke-width: 3;
+        }
+
+        .label-text {
+            font-family: sans-serif;
+            font-size: 14px;
+            fill: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- Title Slide -->
+            <section style="text-align: center;">
+                <h1>Understanding Area</h1>
+                <p>Measuring Two-Dimensional Space</p>
+                <div class="diagram-container" style="background: transparent;">
+                    <svg width="200" height="200" viewBox="0 0 100 100">
+                        <rect x="10" y="10" width="80" height="80" class="shape-fill" />
+                        <line x1="10" y1="30" x2="90" y2="30" class="grid-line" />
+                        <line x1="10" y1="50" x2="90" y2="50" class="grid-line" />
+                        <line x1="10" y1="70" x2="90" y2="70" class="grid-line" />
+                        <line x1="30" y1="10" x2="30" y2="90" class="grid-line" />
+                        <line x1="50" y1="10" x2="50" y2="90" class="grid-line" />
+                        <line x1="70" y1="10" x2="70" y2="90" class="grid-line" />
+                    </svg>
+                </div>
+                <p><small>Created by Educational Content Systems</small></p>
+            </section>
+
+            <!-- Definition Slide -->
+            <section>
+                <h2>What is <span class="term">Area</span>?</h2>
+                <ul>
+                    <li><span class="term">Area</span> is the amount of space inside the boundary of a flat (2D) object.</li>
+                    <li class="fragment">Unlike perimeter, which measures the distance <em>around</em> a shape, area measures the <em>surface</em> it covers.</li>
+                    <li class="fragment">Area is always measured in <span class="important">square units</span> (e.g., cm², m², in²).</li>
+                </ul>
+                <div class="fragment diagram-container">
+                    <svg width="400" height="150">
+                        <!-- Perimeter side -->
+                        <rect x="20" y="40" width="100" height="60" fill="none" stroke="#e74c3c" stroke-width="4" />
+                        <text x="20" y="30" class="label-text" fill="#e74c3c">Perimeter (The Edge)</text>
+                        
+                        <!-- Area side -->
+                        <rect x="220" y="40" width="100" height="60" class="shape-fill" />
+                        <text x="220" y="30" class="label-text" fill="#2980b9">Area (The Inside)</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- The Unit Square -->
+            <section>
+                <h2>The <span class="term">Square Unit</span></h2>
+                <p>To measure area, we count how many "unit squares" fit inside a shape.</p>
+                <div class="diagram-container">
+                    <svg width="300" height="200" viewBox="0 0 150 100">
+                        <!-- A 3x2 grid -->
+                        <rect x="10" y="10" width="30" height="30" class="shape-fill" />
+                        <rect x="40" y="10" width="30" height="30" class="shape-fill" />
+                        <rect x="70" y="10" width="30" height="30" class="shape-fill" />
+                        <rect x="10" y="40" width="30" height="30" class="shape-fill" />
+                        <rect x="40" y="40" width="30" height="30" class="shape-fill" />
+                        <rect x="70" y="40" width="30" height="30" class="shape-fill" />
+                        <text x="110" y="45" class="label-text">Total Area =</text>
+                        <text x="110" y="65" class="label-text" font-weight="bold">6 sq units</text>
+                    </svg>
+                </div>
+                <p class="fragment">A <span class="important">Square Unit</span> is a square with sides of length 1.</p>
+            </section>
+
+            <!-- Rectangles -->
+            <section>
+                <h2>Area of a <span class="term">Rectangle</span></h2>
+                <p>Instead of counting squares, we use the dimensions:</p>
+                <div class="formula-box">Area = Length × Width</div>
+                <div class="diagram-container">
+                    <svg width="400" height="200">
+                        <rect x="100" y="40" width="200" height="100" class="shape-fill" />
+                        <text x="180" y="160" class="label-text">Length (l)</text>
+                        <text x="310" y="100" class="label-text">Width (w)</text>
+                    </svg>
+                </div>
+                <p><span class="important">Note:</span> For a square, because all sides are equal ($s$), the formula is $Area = s^2$.</p>
+            </section>
+
+            <!-- Triangles -->
+            <section>
+                <h2>Area of a <span class="term">Triangle</span></h2>
+                <p>A triangle is exactly <strong>half</strong> of a rectangle with the same base and height.</p>
+                <div class="formula-box">Area = ½ × Base × Height</div>
+                <div class="diagram-container">
+                    <svg width="400" height="150">
+                        <!-- Background rectangle -->
+                        <rect x="100" y="20" width="200" height="100" fill="none" stroke="#ccc" stroke-dasharray="5,5" />
+                        <!-- Triangle -->
+                        <polygon points="100,120 300,120 300,20" class="shape-fill" />
+                        <text x="180" y="140" class="label-text">Base (b)</text>
+                        <text x="310" y="70" class="label-text">Height (h)</text>
+                    </svg>
+                </div>
+                <p><small>The <span class="important">Height</span> must be the perpendicular distance from the base to the highest point.</small></p>
+            </section>
+
+            <!-- Circles -->
+            <section>
+                <h2>Area of a <span class="term">Circle</span></h2>
+                <p>Circles rely on the <span class="term">Radius</span> (distance from center to edge) and the constant <span class="important">π (Pi ≈ 3.14159)</span>.</p>
+                <div class="formula-box">Area = π × r²</div>
+                <div class="diagram-container">
+                    <svg width="200" height="200">
+                        <circle cx="100" cy="100" r="80" class="shape-fill" />
+                        <line x1="100" y1="100" x2="180" y2="100" stroke="black" stroke-width="2" />
+                        <circle cx="100" cy="100" r="3" fill="black" />
+                        <text x="130" y="90" class="label-text">Radius (r)</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Compound Shapes -->
+            <section>
+                <h2><span class="term">Compound Shapes</span></h2>
+                <p>To find the area of complex shapes, <span class="important">decompose</span> them into simpler parts.</p>
+                <div class="diagram-container">
+                    <svg width="400" height="150">
+                        <!-- L shape -->
+                        <path d="M 50 20 L 50 120 L 250 120 L 250 70 L 150 70 L 150 20 Z" class="shape-fill" />
+                        <!-- Split line -->
+                        <line x1="150" y1="70" x2="50" y2="70" stroke="white" stroke-width="2" stroke-dasharray="4" />
+                        <text x="80" y="50" class="label-text" fill="white">A</text>
+                        <text x="140" y="100" class="label-text" fill="white">B</text>
+                    </svg>
+                </div>
+                <p style="text-align: center;">Total Area = Area of A + Area of B</p>
+            </section>
+
+            <!-- Glossary/Summary -->
+            <section>
+                <h2>Glossary & Summary</h2>
+                <ul>
+                    <li><span class="term">Dimension:</span> A measurable extent, such as length or width.</li>
+                    <li><span class="term">Perpendicular:</span> Meeting at a 90-degree angle (used for height).</li>
+                    <li><span class="term">Square Unit:</span> The standard unit for area (1 unit x 1 unit).</li>
+                </ul>
+                <div style="margin-top: 30px; border-top: 2px solid var(--primary); padding-top: 20px;">
+                    <p><strong>Remember:</strong> Always check that your units are consistent before multiplying (e.g., convert all cm to m first)!</p>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/plugin/math/math.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            center: true,
+            transition: 'slide',
+            plugins: [ RevealMath.KaTeX ]
+        });
+    </script>
+</body>
+</html>
+---CODE_END---

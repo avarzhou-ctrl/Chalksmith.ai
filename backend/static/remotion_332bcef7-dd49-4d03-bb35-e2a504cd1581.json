@@ -1,0 +1,68 @@
+{
+  "title": "The Fundamentals of Area",
+  "scenes": [
+    {
+      "id": "intro-01",
+      "type": "title",
+      "content": "Understanding Area",
+      "physics": "bouncy",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "def-01",
+      "type": "text",
+      "content": "Area is the measure of the total surface space occupied by a two-dimensional shape.",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "math-units",
+      "type": "math",
+      "content": "\\text{Units of Area: } \\text{unit}^2 \\text{ (e.g., } m^2, cm^2, in^2\\text{)}",
+      "physics": "snappy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "rect-formula",
+      "type": "math",
+      "content": "\\text{Rectangle: } A = w \\times h",
+      "physics": "smooth",
+      "durationInSeconds": 4
+    },
+    {
+      "id": "rect-calc",
+      "type": "point_list",
+      "content": "Width = 8m; Height = 5m; Calculation: 8 \\times 5; Result: 40m^2",
+      "physics": "snappy",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "tri-formula",
+      "type": "math",
+      "content": "\\text{Triangle: } A = \\frac{1}{2}bh",
+      "physics": "smooth",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "tri-calc",
+      "type": "point_list",
+      "content": "Base = 10cm; Height = 6cm; Calculation: \\frac{1}{2}(10 \\times 6); Result: 30cm^2",
+      "physics": "snappy",
+      "durationInSeconds": 6
+    },
+    {
+      "id": "circle-formula",
+      "type": "math",
+      "content": "\\text{Circle: } A = \\pi r^2",
+      "physics": "bouncy",
+      "durationInSeconds": 5
+    },
+    {
+      "id": "summary-list",
+      "type": "point_list",
+      "content": "Area measures internal space; Measured in square units; Formulas depend on geometry; Vital for construction and design",
+      "physics": "smooth",
+      "durationInSeconds": 7
+    }
+  ]
+}
