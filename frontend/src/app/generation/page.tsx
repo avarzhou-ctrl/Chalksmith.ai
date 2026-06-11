@@ -268,7 +268,7 @@ export default function Page() {
                 </Button>
                 {result && (
                   <a
-                    href={`/content/export?id=${result.id}`}
+                    href={`/api/lesson-export?id=${result.id}`}
                     download
                     className="flex items-center text-xs font-medium gap-1.5 h-8.5 px-3 py-1.5 rounded-xl border border-border bg-transparent text-secondary-text hover:border-accent hover:text-accent transition-all duration-300"
                     title={`Download ${format === 'remotion' || format === 'manim' ? 'Video'

@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
 import os
+import asyncio
 from fastapi.responses import FileResponse
 from backend.services.render import STATIC_DIR
 from urllib.parse import urlparse
+from playwright.async_api import async_playwright
 
 class ExportStrategy(ABC):
     """Base class to allow swapping export logic (e.g., PDF vs Video) per format"""
@@ -65,6 +67,7 @@ class ExportService:
         elif format_type == "manim":
             extension = ".mp4"
         else:
+            # reveal.js and p5.js both export as HTML
             extension = ".html"
 
         # Sanitize filename to prevent download errors in certain browsers
