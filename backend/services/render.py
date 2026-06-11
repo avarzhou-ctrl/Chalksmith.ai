@@ -195,8 +195,9 @@ async def render_manim_lesson(topic: str, model: str, manim_code: str, session=N
             
             # Specific guiderails for Manim Community v0.18+
             retry_prompt = (
-                f"The previous Manim code failed with this error:\n\n{traceback}\n\n"
-                "Please fix the code. CRITICAL: Ensure you are using Manim Community (v0.18+) syntax. "
+                f"The previous Manim code for the topic '{topic}' failed with this error:\n\n{traceback}\n\n"
+                f"Please fix the code while keeping the lesson focused on '{topic}'.\n"
+                "CRITICAL: Do NOT change the topic. Ensure you are using Manim Community (v0.18+) syntax.\n"
                 "Common fixes to apply:\n"
                 "- Use 'Create' instead of 'ShowCreation'\n"
                 "- Use 'Uncreate' instead of 'UnshowCreation'\n"

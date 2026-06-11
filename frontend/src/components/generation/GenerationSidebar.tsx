@@ -87,7 +87,7 @@ export default function GenerationSidebar({
                 <div className="bg-surface/30 p-4 rounded-2xl border border-border/50 text-secondary-text text-sm animate-in fade-in duration-500">
                   <p className="font-semibold mb-2 text-primary-text">Welcome to Chalksmith.ai!</p>
                   <ul className="space-y-2">
-                    <li className="flex gap-2"><Flame size={16} className="text-accent mt-0.5 shrink-0" /> Choose a topic and AI model</li>
+                    <li className="flex gap-2"><Flame size={16} className="text-accent mt-0.5 shrink-0" /> Choose a short topic</li>
                     <li className="flex gap-2"><Flame size={16} className="text-accent mt-0.5 shrink-0" /> Select your favorite format</li>
                     <li className="flex gap-2"><Flame size={16} className="text-accent mt-0.5 shrink-0" /> Watch your lesson come to life!</li>
                   </ul>

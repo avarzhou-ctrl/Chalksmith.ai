@@ -9,7 +9,10 @@ FREE_MONTHLY_LIMIT = 20
 # Checks backend secret from frontend
 def validate_internal_request(secret: Optional[str]) -> None:
     expected_secret = os.environ.get("INTERNAL_BACKEND_SECRET")
+    print(f"DEBUG: expected_secret: {expected_secret}")
+    print(f"DEBUG: received_secret: {secret}")
     if expected_secret and secret != expected_secret:
+        print("DEBUG: Secret mismatch!")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forbidden: Direct unverified access pathways blocked.",
@@ -38,7 +41,9 @@ def get_user_or_404(session: Session, user_id: Optional[str]) -> User:
 # Finds user, resets usage if new month, blocks free users at 20 lessons
 def ensure_can_create_lesson(session: Session, user_id: Optional[str]) -> User:
     user = get_user_or_404(session, user_id)
+    print(f"DEBUG: User {user_id} subscription: {user.subscription}, used: {user.monthly_used}")
     if user.subscription == "free" and user.monthly_used >= FREE_MONTHLY_LIMIT:
+        print(f"DEBUG: Limit reached for user {user_id}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Generation limit of 20 per month reached. Upgrade to Pro for more generations!",

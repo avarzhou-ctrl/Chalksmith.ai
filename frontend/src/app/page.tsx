@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { SignUpButton, useUser } from '@clerk/nextjs';
-import { ArrowRight, Braces, FileCode2, Layers3, Upload } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import VideoComparison from '@/components/home/VideoComparison';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700';
 const ctaSizeClasses = {
@@ -108,60 +109,46 @@ export default function Home() {
         <section id="why_choose_chalksmith" className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-primary-text sm:text-5xl">Why choose Chalksmith?</h2>
           <div className="mt-8 grid gap-6">
-            <article className="grid gap-6 rounded-lg border border-secondary-bg bg-secondary-bg p-5 md:grid-cols-[0.8fr_1.2fr]">
-              <div>
-                <div className="mb-4 flex size-11 items-center justify-center rounded-lg bg-accent/20 text-accent">
-                  <Layers3 size={22} />
-                </div>
-                <h3 className="text-2xl font-semibold text-primary-text">Built-in transparency.</h3>
-                <p className="mt-3 text-sm leading-6 text-secondary-text">
-                  Make edits within seconds while reviewing the code and lesson structure that produced the final result.
+            <article className="rounded-lg border border-secondary-bg bg-secondary-bg p-8">
+              <div className="max-w-2xl mb-8">
+                <h3 className="text-3xl font-semibold text-primary-text">Code-driven production.</h3>
+                <p className="mt-4 text-lg leading-7 text-secondary-text">
+                  Generate reusable videos, interactives, and slides from source code instead of one-off static files.
                 </p>
               </div>
-              <div className="min-h-56 border border-secondary-bg bg-primary-text p-4 text-secondary-bg">
-                <div className="grid h-full place-items-center text-center text-sm font-semibold">
-                  <span>Fast edit preview</span>
-                </div>
+              <div className="w-full">
+                <VideoComparison 
+                  beforeSrc="/demo_2.2.mp4" 
+                  afterSrc="/demo_2.1.mp4" 
+                />
               </div>
             </article>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <article className="grid gap-6 rounded-lg border border-secondary-bg bg-secondary-bg p-5 md:grid-cols-[0.8fr_1.2fr]">
-                <div>
-                  <div className="mb-4 flex size-11 items-center justify-center rounded-lg bg-accent/20 text-accent">
-                    <Upload size={22} />
-                  </div>
+              <article className="rounded-lg border border-secondary-bg bg-secondary-bg p-8 flex flex-col">
+                <div className="mb-8">
                   <h3 className="text-2xl font-semibold text-primary-text">Source uploads.</h3>
                   <p className="mt-3 text-sm leading-6 text-secondary-text">
                     Start from syllabus notes, readings, or lesson goals so every generated asset stays close to your curriculum.
                   </p>
                 </div>
-                <div className="min-h-56 border border-secondary-bg bg-primary-text p-4 text-secondary-bg">
+                <div className="mt-auto min-h-56 rounded-lg border border-secondary-bg bg-primary-text p-4 text-secondary-bg">
                   <div className="grid h-full place-items-center text-center text-sm font-semibold">
                     <span>Coming soon!</span>
                   </div>
                 </div>
               </article>
 
-              <article className="grid gap-6 rounded-lg border border-secondary-bg bg-secondary-bg p-5 md:grid-cols-[0.8fr_1.2fr]">
-                <div>
-                  <div className="mb-4 flex size-11 items-center justify-center rounded-lg bg-accent/20 text-accent">
-                    <FileCode2 size={22} />
-                  </div>
-                  <h3 className="text-2xl font-semibold text-primary-text">Code-driven production.</h3>
+              <article className="rounded-lg border border-secondary-bg bg-secondary-bg p-8 flex flex-col">
+                <div className="mb-8">
+                  <h3 className="text-2xl font-semibold text-primary-text">Built-in transparency.</h3>
                   <p className="mt-3 text-sm leading-6 text-secondary-text">
-                    Generate reusable videos, interactives, and slides from source code instead of one-off static files.
+                    Make edits within seconds while reviewing the code and lesson structure that produced the final result.
                   </p>
                 </div>
-                <div className="min-h-56 border border-secondary-bg bg-secondary-bg p-4 text-secondary-text">
-                  <div className="h-full bg-stone-950 p-4 font-mono text-xs text-stone-200">
-                    <div className="mb-3 flex items-center gap-2 text-accent">
-                      <Braces size={16} />
-                      render_lesson.tsx
-                    </div>
-                    <p>const scene = buildStemScene(&quot;water cycle&quot;);</p>
-                    <p className="text-stone-500">scene.addCaption(&quot;Evaporation begins here&quot;);</p>
-                    <p className="text-accent">export default scene;</p>
+                <div className="mt-auto min-h-56 rounded-lg border border-secondary-bg bg-primary-text p-4 text-secondary-bg">
+                  <div className="grid h-full place-items-center text-center text-sm font-semibold">
+                    <span>Fast edit preview</span>
                   </div>
                 </div>
               </article>

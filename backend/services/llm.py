@@ -34,7 +34,6 @@ LLM_REGION_ERROR_MESSAGE = (
 class LLMAccessError(RuntimeError):
     """Raised when an LLM provider blocks access because of location or account availability."""
 
-
 def is_region_access_error(error: Exception) -> bool:
     error_parts = [str(error)]
 
@@ -520,8 +519,10 @@ def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, f
         mode_instruction = f"""
         ### SELF-CORRECTION MODE ###
         The previous code generated for the topic "{original_prompt}" failed to run.
-        Your goal is to FIX the code so it executes perfectly, while keeping the content focused on the original topic.
-        Do NOT change the topic. Do NOT treat the error message as a new lesson topic.
+        Your goal is to FIX the code so it executes perfectly, while keeping the content focused on the original topic: "{original_prompt}".
+        
+        CRITICAL: Do NOT change the lesson topic. The "SYSTEM ERROR LOG" below is only for your reference to identify syntax or API errors. 
+        Do NOT write a lesson about the error message or debugging. Write the lesson about "{original_prompt}".
         """
     else:
         mode_instruction = f"""

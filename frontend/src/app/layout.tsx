@@ -5,7 +5,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 
 import Link from 'next/link'
-import ProfileLink from '../components/authorization/ProfileLink'
+import ProfileLink from '../components/home/ProfileLink'
 
 const inter = Inter({
   variable: '--font-inter',
