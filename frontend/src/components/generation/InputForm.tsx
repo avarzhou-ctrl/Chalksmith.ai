@@ -6,6 +6,8 @@ import ModelSelector from './ModelSelector';
 import TextArea from '@/components/ui/TextArea';
 import { CircleArrowUp, CirclePause } from 'lucide-react';
 
+const TOPIC_CHARACTER_LIMIT = 100;
+
 interface InputFormProps {
     model: string;
     format: string;
@@ -49,6 +51,7 @@ export default function InputForm({
                     placeholder={isEditMode ? "How should I edit this lesson?" : "Describe your topic..."}
                     disabled={disabled}
                     value={topic}
+                    maxLength={TOPIC_CHARACTER_LIMIT}
                     onChange={(e) => onTopicChange(e.target.value)}
                     onKeyDown={(e) => {
                         // Standard chat UX: Enter sends, Shift+Enter adds a new line
@@ -57,8 +60,12 @@ export default function InputForm({
                             onGenerate();
                         }
                     }}
-                    className="pr-12 h-24"
+                    className="h-24 resize-none pb-8 pr-12"
                 />
+
+                <p className="pointer-events-none absolute bottom-3 left-4 text-xs text-secondary-text">
+                    {topic.length}/{TOPIC_CHARACTER_LIMIT}
+                </p>
 
                 <div className="absolute bottom-2 right-2">
                     {disabled ? (

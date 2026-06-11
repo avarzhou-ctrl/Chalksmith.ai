@@ -80,6 +80,8 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-06-11**: Moved the generation input character counter inside the bottom-left of `frontend/src/components/generation/InputForm.tsx` and added bottom padding so the counter and submit/stop icon remain contained within the textarea without covering input text.
+- **2026-06-11**: Added a 100-character topic/edit input limit in `frontend/src/components/generation/InputForm.tsx` with a visible character counter so generation prompts stay concise before submission.
 - **2026-06-11**: Stopped hidden Remotion generation from fresh lessons by changing `frontend/src/app/generation/page.tsx` to default to the visible `manim` video format, aligning success/loading copy with the shown format options, and removing the stale Remotion option comment from `frontend/src/components/generation/FormatSelector.tsx`.
 - **2026-06-11**: Reduced Remotion render memory pressure in `backend/services/render.py` by sanitizing generated scene props, lowering default render dimensions/FPS/concurrency, redirecting Remotion CLI logs to disk instead of memory, and tightened `backend/services/llm.py` Remotion prompts to keep generated videos within a smaller render budget.
 - **2026-06-11**: Installed Vercel AI SDK streaming support by adding `ai` and `@ai-sdk/react` to `frontend/package.json` and creating `frontend/src/app/api/chat/route.ts`, an authenticated AI Gateway streaming route for Chalksmith STEM assistant responses.
