@@ -94,7 +94,7 @@ export default function Home() {
               <div key={value} className="contents">
                 <div className="rounded-lg border border-secondary-bg bg-secondary-bg p-6">
                   <p className="text-4xl font-bold text-accent">{value}</p>
-                  <p className="mx-auto mt-3 max-w-48 text-base leading-6 text-secondary-text">{label}</p>
+                  <p className="mx-auto mt-3 max-w-48 text-base leading-6 text-primary-text">{label}</p>
                 </div>
                 {index < 2 && <p className="hidden text-4xl font-bold text-stone-50 md:block">{index === 0 ? '+' : '='}</p>}
               </div>
