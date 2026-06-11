@@ -6,7 +6,6 @@ import './globals.css'
 
 import Link from 'next/link'
 import ProfileLink from '../components/authorization/ProfileLink'
-import logoSrc from '@/content/logo.png'
 
 const inter = Inter({
   variable: '--font-inter',
@@ -33,7 +32,7 @@ export default async function RootLayout({
           >
             <Link href="/" className="flex items-center gap-3" aria-label="Chalksmith.ai home">
               <span className="grid size-10 place-items-center rounded-lg text-stone-950">
-                <img src={logoSrc.src} alt="Logo" className="h-8 w-8 object-contain" />
+                <img src="/logo.png" alt="Logo" className="h-8 w-8 object-contain" />
               </span>
               <span className="hidden text-md font-semibold text-stone-50 sm:inline">Chalksmith.ai</span>
             </Link>

@@ -12,7 +12,6 @@ import Modal from "@/components/ui/Modal";
 import { Player } from '@remotion/player';
 import { RemotionVideo } from '@/components/generation/RemotionVideo';
 import GenerationSidebar from "@/components/generation/GenerationSidebar";
-import logoSrc from '@/content/logo.png';
 
 export default function Page() {
   // State for lesson configuration and rendering results
@@ -252,7 +251,7 @@ export default function Page() {
             <div className="flex flex-row p-4 m-1 gap-4 shrink-0 items-end">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden mb-1">
                 <a href="/dashboard">
-                  <img src={logoSrc.src} alt="Logo" className="w-8 h-8 object-contain" />
+                  <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
                 </a>
               </div>
               <EditableTitle initialTitle={title} onChange={setTitle}/>

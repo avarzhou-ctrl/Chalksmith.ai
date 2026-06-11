@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { SignUpButton, useUser } from '@clerk/nextjs';
 import { ArrowRight, Braces, FileCode2, Layers3, Upload } from 'lucide-react';
-import logoSrc from '@/content/logo.png';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700';
 const ctaSizeClasses = {
@@ -73,9 +72,16 @@ export default function Home() {
           </div>
         </section>
 
-        <p className="mx-auto w-full max-w-6xl px-4 py-16 text-center text-sm leading-6 text-stone-300 sm:px-6 lg:px-8" id="content">
-          screen recording
-        </p>
+        <div className="mx-auto w-full max-w-6xl px-4 py-16 text-center text-sm leading-6 text-stone-300 sm:px-6 lg:px-8" id="content">
+          <video 
+            src="/demo_1.mp4" 
+            autoPlay 
+            loop 
+            muted 
+            playsInline 
+            className="mx-auto rounded-lg border border-secondary-bg shadow-lg shadow-accent/20" 
+          />
+        </div>
 
         <section id="about" className="mx-auto w-full max-w-6xl px-4 py-16 text-center sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-stone-50 sm:text-5xl">The Educator&apos;s Dilemma</h2>
@@ -185,7 +191,7 @@ export default function Home() {
             <div>
               <div className="flex items-center gap-3 text-stone-50">
                 <span className="grid size-9 place-items-center rounded-lg text-stone-950">
-                  <img src={logoSrc.src} alt="Logo" className="w-8 h-8 object-contain" />
+                  <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
                 </span>
                 <span className="font-semibold">Chalksmith.ai</span>
               </div>
