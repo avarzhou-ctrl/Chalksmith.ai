@@ -1,34 +1,35 @@
-// src/app/privacy/page.tsx
+// src/app/privacy-policy/page.tsx
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
-import { MDXRemote } from 'next-mdx-remote/rsc';
-import '../markdown.css';
+import { marked } from 'marked';
+import '../markdown.css'; 
 
 export default async function PrivacyPolicyPage() {
-  // Locate the path to your Markdown file
-  const filePath = path.join(process.cwd(), 'src/content/privacy-policy.md');
-  
-  // Read the raw text content of the file
+  // 1. Locate and read your file layout
+  const filePath = path.join(process.cwd(), 'src/content/Privacy-Policy.md');
   const fileContent = fs.readFileSync(filePath, 'utf8');
   
-  // Parse the metadata (front matter) and the body text
+  // 2. Parse the front matter metadata and text body
   const { data, content } = matter(fileContent);
 
+  // 3. Convert the Markdown body text directly into standard HTML
+  const htmlContent = marked(content);
+
   return (
-    <main className="max-w-4xl mx-auto px-6 py-12">
-      {/* Page Header Headers */}
-      <header className="border-b border-zinc-200 pb-6 mb-8">
-        <h1 className="text-4xl font-bold tracking-tight text-zinc-900">{data.title}</h1>
+    <main style={{ maxWidth: '42rem', margin: '0 auto', padding: '3rem 1.5rem' }}>
+      <header style={{ borderBottom: '1px solid #e4e4e7', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '2.25rem', fontWeight: 700, color: '#18181b' }}>{data.title}</h1>
         {data.lastUpdated && (
-          <p className="text-sm text-zinc-500 mt-2">Last Updated: {data.lastUpdated}</p>
+          <p style={{ fontSize: '0.875rem', color: '#71717a', marginTop: '0.5rem' }}>Last Updated: {data.lastUpdated}</p>
         )}
       </header>
 
-      {/* Rendered Markdown Text with custom CSS class */}
-      <article className="markdown-body">
-        <MDXRemote source={content} />
-      </article>
+      {/* 4. Inject the raw static HTML safely into your styled article container */}
+      <article 
+        className="markdown-body"
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
+      />
     </main>
   );
 }

@@ -1,0 +1,127 @@
+# AGENTS.md
+
+## Project Structure
+### Function
+- code-driven teaching material generation website called "Chalksmith.ai".
+    - calls LLM APIs to generate code which is rendered into videos and interactives demonstrations, based on a given prompt.
+    - LLM options: Gemini 3 Flash Preview, Gemini 3 Pro Preview, GPT-4o Mini, GPT-4o, Deepseek Chat, Deepseek Reasoner, Ark Deepseek Chat, Ark Deepseek Reasoner.
+- **Audience:** elementary and middle school teachers and students, with a specific focus on STEM subjects.
+
+### Backend
+- Located at `backend/`
+- Language: Python
+- Framework: FastAPI (https://fastapi.tiangolo.com/) (API handling)
+- Database/ORM: SQLModel (https://sqlmodel.tiangolo.com/) (SQL databases in Python)
+- AI/LLM Integration: OpenAI API, Google Generative AI (https://ai.google.dev/) (Gemini), and Volcengine (https://www.volcengine.com/) (Ark SDK)
+- Content Generation & Rendering:
+    - Animations: Remotion (https://www.remotion.dev/) (React-based Video Engine)
+    - Interactive Graphics: p5.js (https://p5js.org/)
+    - Presentations: Reveal.js (https://revealjs.com/)
+- Utilities: Uvicorn (ASGI server), python-dotenv, httpx, rich
+
+### Frontend
+- Located at `frontend/`
+    - `fe/` - a semi-functional draft that you can READ from but do not EDIT.
+- Framework: Next.js (https://nextjs.org/) (React 19)
+- Language: TypeScript (https://www.typescriptlang.org/)
+- Styling: Tailwind CSS (https://tailwindcss.com/) (v4) and Framer Motion (animations)
+- Routing: Next.js App Router (located in `src/app/`)
+
+### Structure
+- Monorepo: Managed via NPM Workspaces (root `package.json`).
+- Environment: Python virtual environment (.venv) for backend, Node.js for frontend.
+
+### Design Style
+- **Theme:** "Chalkboard Dark" - utilizing a stone-950/stone-800 background palette.
+- **Accents:** Amber-600 (`#d97706`) used for highlights, primary buttons, and active states.
+- **Typography:** Inter (sans-serif) as the primary font with stone-50/stone-400 text colors.
+- **Layout:** 75/25 split for generation (Preview/Chat).
+
+###
+
+## Commands
+### Backend
+uvicorn backend.main:app --reload
+
+### Frontend
+npm run dev
+
+## Boundaries
+### Do
+- use modular components that are written in `components/`
+- use the Next.js App Router structure (e.g. `page.tsx`, `layout.tsx`)
+- use only Tailwind CSS for styling
+
+### Don't
+- do not add new heavy dependencies without approval
+- do not commit API keys
+- do not use divs when a component exists already 
+- do not use px for spacing; use Tailwind's spacing scale (e.g., p-4, m-2)
+
+### Safety & Permissions
+Allowed without prompt:
+- read files, list files
+
+Ask first:
+- package installs
+- deleting files
+
+## Documentation
+- **Helpful Commenting:** Keep comments concise and focused on "Why" something is being done.
+    - Use single-line explanations that provide context or reasoning.
+    - Document non-obvious dependencies or system-level requirements.
+    - Ensure comments are helpful for anyone who didn't write the code.
+- After completing any coding or design task, you must update the "# Project Log" section of this file. Include date, action, and files affected. Summarize why changes were made.
+- Format: "**YYYY-MM-DD**: [Brief description of changes with which files were edited]"
+- Ask if you should update the project log after major changes are made.
+
+### Example Project Log
+- **2026-02-23**: Initialized Next.js skeleton. Created `app/generation/page.tsx` with a 70/30 split.
+- **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
+
+# Project Log
+- **2026-06-11**: Rendered the privacy policy markdown in `frontend/src/app/privacy-policy/page.tsx` with a simple table of contents linking to policy headings, using `frontend/src/app/privacy-policy/Privacy-Policy.md` as the content source.
+- **2026-06-10**: Finished lesson ownership enforcement by requiring authenticated user headers across `backend/routers/lesson.py`, scoping lesson fetch/edit/delete/list/export queries by `Lesson.user_id`, saving `user_id` on new generated lessons, forwarding Clerk user headers from `frontend/src/app/api/lesson-record/route.ts`, `frontend/src/app/api/lesson-list/route.ts`, and `frontend/src/app/api/lessons/route.ts`, and adding a `lesson.user_id` compatibility column check in `backend/database.py`.
+- **2026-06-10**: Wired authenticated monthly lesson usage enforcement into the real generation flow by adding `backend/services/usage.py`, extending `backend/models.py` with `User.usage_month`, registering Neon-backed models in `backend/database.py`, applying quota checks in `backend/routers/lesson.py` and `backend/main.py`, forwarding Clerk user headers from `frontend/src/app/api/lesson-generate/route.ts` and `frontend/src/app/api/lesson-record/route.ts`, and adding the psycopg Postgres driver in `backend/requirements.txt`; new lessons count toward usage while edits with `lesson_id` do not.
+- **2026-06-10**: Reworked `frontend/src/components/home/FireParticleBackground.tsx` into a Three.js interpretation of the golden-amber murmuration prompt: particles originate from the bottom-left, spiral across the hero, taper toward the top-right, and vary between sharp dense core lines and soft bokeh outer mist.
+- **2026-06-10**: Deleted `frontend/src/components/home/ParticleWaveBackground.tsx` and ported the earlier canvas-based amber wave from commit `17c3510` into a Three.js `FireParticleBackground` using one `THREE.Points` buffer, GPU sine/cosine wave motion, visible amber sprite particles, and pointer repulsion; updated `frontend/src/app/page.tsx` to use it.
+- **2026-06-10**: Removed a redundant incompatible Clerk `authObj.protect()` call from `frontend/src/proxy.ts` so the frontend build can type-check against the installed Clerk middleware API while preserving the existing `await auth.protect()` route protection.
+- **2026-06-10**: Replaced the first homepage Three.js background with `frontend/src/components/home/ParticleWaveBackground.tsx`, a fresh visible amber particle wave that uses a single `THREE.Points` shader system and parts around the user pointer; updated `frontend/src/app/page.tsx` to render the new component.
+- **2026-06-10**: Tuned the homepage Three.js particle shader in `frontend/src/components/home/MurmurationBackground.tsx` and adjusted the hero overlay in `frontend/src/app/page.tsx` so the landing page reads more like a dense amber school of fish moving in diagonal wave ribbons.
+- **2026-06-10**: Added a shader-driven Three.js murmuration background in `frontend/src/components/home/MurmurationBackground.tsx`, installed `three` and `@types/three`, and updated `frontend/src/app/page.tsx` to render the optimized amber particle field behind the homepage hero.
+- **2026-06-09**: Fixed the backend CORS defaults in `backend/main.py` so local development and Chalksmith production domains are allowed even when `FRONTEND_ORIGINS` is not set, while still allowing deployment-specific origins from the environment.
+- **2026-06-09**: Added a frontend build-time Clerk environment check in `frontend/next.config.ts` and documented required deployment variables in `frontend/.env.example` so Vercel fails clearly when `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is missing.
+- **2026-06-09**: Fixed Render backend startup in `backend/main.py` by importing dotenv and defining the CORS origin regex, and added `beautifulsoup4` to `backend/requirements.txt` so the Manim docs startup helper has its explicit dependency in clean deploy builds.
+- **2026-06-09**: Enhanced backend error logging in `backend/routers/content.py` and added a startup write-permission check for the `static/` directory in `backend/main.py` to diagnose post-deployment "Internal Server Error" issues.
+- **2026-06-09**: Removed server-side Clerk `Show` usage from `frontend/src/app/layout.tsx` and `frontend/src/app/page.tsx`, moving signed-in UI checks to client-side Clerk hooks in `frontend/src/components/layout/ProfileLink.tsx` so the marketing homepage no longer triggers server auth middleware errors.
+- **2026-06-09**: Removed the root layout server-side Clerk user lookup in `frontend/src/app/layout.tsx` and added `frontend/src/components/layout/ProfileLink.tsx` so the header avatar renders client-side without triggering `auth()` middleware detection errors.
+- **2026-06-09**: Moved Clerk route protection and app subdomain routing into `frontend/src/proxy.ts` and removed `frontend/src/middleware.ts` so Next 16 uses a single proxy entrypoint for `app.chalksmith.ai` rewrites.
+- **2026-06-09**: Updated `frontend/src/app/layout.tsx`, `frontend/src/app/globals.css`, `frontend/src/app/dashboard/page.tsx`, and `frontend/src/app/generation/page.tsx` so the root header sticks to the top, is hidden on app workspace pages, and links the signed-in profile image to `/dashboard`.
+- **2026-06-09**: Linked the homepage "Build a lesson now" CTAs in `frontend/src/app/page.tsx` to Clerk sign-in for signed-out users while keeping signed-in users routed to `/generation`.
+- **2026-06-09**: Hardened deployment API connectivity by normalizing backend CORS origins in `backend/main.py`, adding the same-origin streaming proxy `frontend/src/app/api/lesson-generate/route.ts`, and updating frontend API calls in `frontend/src/lib/api.ts`, `frontend/src/app/api/lesson-record/route.ts`, `frontend/src/app/api/lesson-list/route.ts`, and `frontend/src/app/api/lessons/route.ts` so lesson generation no longer depends on browser cross-origin SSE.
+- **2026-06-09**: Reduced homepage particle background cost in `frontend/src/components/home/FireParticleBackground.tsx` by lowering particle count, capping animation to 24fps, using 1x canvas resolution, and removing blur/shadow filters.
+- **2026-06-09**: Reworked the homepage particle background in `frontend/src/components/home/FireParticleBackground.tsx` into a coordinated golden-amber murmuration flow with sharp core particles and blurred outer mist.
+- **2026-06-09**: Replaced the homepage fire particle emitter with a slow-moving amber particle wave in `frontend/src/components/home/FireParticleBackground.tsx` for a calmer chalkboard background effect.
+- **2026-06-08**: Center-aligned the plus and equals operators with the Educator's Dilemma stat boxes in `frontend/src/app/page.tsx`.
+- **2026-06-08**: Grouped the homepage footer Legal and Contact columns together on the right in `frontend/src/app/page.tsx` and restored the final CTA section closing wrappers.
+- **2026-06-08**: Widened homepage footer column spacing in `frontend/src/app/page.tsx` so the Legal links sit farther from the Chalksmith copyright block.
+- **2026-06-08**: Increased bottom spacing before the homepage footer in `frontend/src/app/page.tsx` so the final CTA has more visual breathing room.
+- **2026-06-08**: Moved the homepage feature card JSX directly into the "Why choose Chalksmith?" section of `frontend/src/app/page.tsx` and removed the local `FeatureMockup` helper.
+- **2026-06-08**: Inlined the homepage feature mockup component into `frontend/src/app/page.tsx` and deleted `frontend/src/components/home/HomepageMockups.tsx` to keep homepage-specific code in the route file.
+- **2026-06-08**: Rebuilt the homepage from the Figma design in `frontend/src/app/page.tsx`, added `frontend/src/components/home/FireParticleBackground.tsx` for an interactive mouse-reactive fire particle canvas, and added `frontend/src/components/home/HomepageMockups.tsx` for product preview and feature panels with legal/footer links.
+- **2026-06-08**: Added user-friendly LLM region/access error handling in `backend/services/llm.py` and updated frontend SSE handling in `frontend/src/lib/api.ts` and `frontend/src/app/generation/page.tsx` so blocked country/region provider errors show a clear message to users.
+- **2026-06-08**: Added `.npmrc` and `frontend/.npmrc` to force npm to include optional native dependencies during deployment so packages like Lightning CSS install their Linux binaries on Vercel.
+- **2026-06-08**: Fixed case-sensitive frontend import in `frontend/src/components/generation/InputForm.tsx` so the deployed build resolves the tracked `frontend/src/components/ui/Textarea.tsx` component on Linux/Vercel.
+- **2026-05-12**: Connected dashboard lesson listing. Updated `backend/models.py` and `backend/routers/content.py` to return lesson metadata, added `frontend/src/app/api/lessons/route.ts` as the Next.js proxy, and updated `frontend/src/lib/api.ts`, `frontend/src/app/dashboard/page.tsx`, and `frontend/src/components/dashboard/LessonCard.tsx` so saved lessons render and can be deleted from the dashboard.
+- **2026-05-12**: Added valid placeholder route components in `frontend/src/app/favorites/page.tsx` and `frontend/src/app/search/page.tsx` so the frontend build can type-check routes linked from the dashboard sidebar.
+- **2026-05-12**: Tightened TypeScript narrowing in `frontend/src/app/generation/page.tsx` by storing completed lesson responses in a local constant before updating chat state.
+- **2026-05-12**: Fixed `frontend/src/components/dashboard/LessonCard.tsx` header alignment so the ellipsis action stays on the right and normalized saved lesson format labels for dashboard cards.
+- **2026-05-12**: Increased saved lesson title size in `frontend/src/components/dashboard/LessonCard.tsx` for stronger dashboard card hierarchy.
+- **2026-05-12**: Scoped the lesson card navigation overlay in `frontend/src/components/dashboard/LessonCard.tsx` to each card by making the card positioned and layering controls above the link.
+- **2026-05-12**: Anchored the saved lesson date/model row and trash action to the bottom of `frontend/src/components/dashboard/LessonCard.tsx` cards for more consistent card alignment.
+- **2026-05-14**: Added a responsive ellipsis action dropdown in `frontend/src/components/dashboard/LessonCard.tsx` with open and delete buttons so card actions are grouped behind the menu.
+- **2026-05-14**: Raised the lesson card action header layer in `frontend/src/components/dashboard/LessonCard.tsx` so the ellipsis dropdown renders above the description text.
+- **2026-05-14**: Fixed the dashboard rename modal in `frontend/src/components/dashboard/LessonCard.tsx` by adding local title state for `EditableTitle` instead of referencing an undefined setter.
+- **2026-05-14**: Tightened the rename modal footer spacing in `frontend/src/components/dashboard/LessonCard.tsx` so the close button sits closer to the modal bottom.
+- **2026-05-18**: Completed the lesson rename pathway by adding `LessonRenameRequest` in `backend/models.py`, updating `backend/routers/content.py` to read rename JSON bodies, and wiring `frontend/src/components/dashboard/LessonCard.tsx` to call `renameLesson` with the lesson id and handle rename errors.
+- **2026-05-18**: Renamed frontend proxy folders to `lesson-record` and `lesson-list`, removed the empty `lesson_by_id` proxy stub, fixed the single-lesson proxy GET to use id-based backend loading, and updated `frontend/src/app/generation/page.tsx` to hydrate lessons opened from dashboard card links.
