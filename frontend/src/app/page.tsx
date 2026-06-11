@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { SignUpButton, useUser } from '@clerk/nextjs';
 import { ArrowRight, Braces, FileCode2, Layers3, Upload } from 'lucide-react';
+import logoSrc from '@/content/logo.png';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700';
 const ctaSizeClasses = {
@@ -183,8 +184,8 @@ export default function Home() {
           <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-10 text-sm text-stone-400 sm:px-6 md:grid-cols-[1fr_auto] lg:px-8">
             <div>
               <div className="flex items-center gap-3 text-stone-50">
-                <span className="grid size-9 place-items-center rounded-lg bg-stone-50 text-stone-950">
-                  <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+                <span className="grid size-9 place-items-center rounded-lg text-stone-950">
+                  <img src={logoSrc.src} alt="Logo" className="w-8 h-8 object-contain" />
                 </span>
                 <span className="font-semibold">Chalksmith.ai</span>
               </div>

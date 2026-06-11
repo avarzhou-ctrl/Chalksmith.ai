@@ -6,6 +6,7 @@ import './globals.css'
 
 import Link from 'next/link'
 import ProfileLink from '../components/authorization/ProfileLink'
+import logoSrc from '@/content/logo.png'
 
 const inter = Inter({
   variable: '--font-inter',
@@ -31,8 +32,8 @@ export default async function RootLayout({
             className="sticky top-0 z-50 mx-auto flex w-full max-w-7xl items-center justify-between border-b border-stone-800 bg-primary-bg/90 px-4 py-5 backdrop-blur sm:px-6 lg:px-8"
           >
             <Link href="/" className="flex items-center gap-3" aria-label="Chalksmith.ai home">
-              <span className="grid size-10 place-items-center rounded-lg border border-stone-700 bg-stone-50 text-stone-950">
-                <img src="/logo.png" alt="Logo" className="h-8 w-8 object-contain" />
+              <span className="grid size-10 place-items-center rounded-lg text-stone-950">
+                <img src={logoSrc.src} alt="Logo" className="h-8 w-8 object-contain" />
               </span>
               <span className="hidden text-md font-semibold text-stone-50 sm:inline">Chalksmith.ai</span>
             </Link>

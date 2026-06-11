@@ -80,6 +80,7 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-06-11**: Updated logo usage in `frontend/src/app/layout.tsx`, `frontend/src/app/page.tsx`, `frontend/src/app/generation/page.tsx`, and `frontend/src/components/dashboard/DashboardSidebar.tsx` to import the bundled asset from `frontend/src/content/logo.png` instead of referencing `/logo.png`.
 - **2026-06-11**: Moved the generation input character counter inside the bottom-left of `frontend/src/components/generation/InputForm.tsx` and added bottom padding so the counter and submit/stop icon remain contained within the textarea without covering input text.
 - **2026-06-11**: Added a 100-character topic/edit input limit in `frontend/src/components/generation/InputForm.tsx` with a visible character counter so generation prompts stay concise before submission.
 - **2026-06-11**: Stopped hidden Remotion generation from fresh lessons by changing `frontend/src/app/generation/page.tsx` to default to the visible `manim` video format, aligning success/loading copy with the shown format options, and removing the stale Remotion option comment from `frontend/src/components/generation/FormatSelector.tsx`.
