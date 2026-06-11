@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: 'Chalksmith | Code-Driven STEM Animations',
   description: 'AI-powered tool for creating educational content.',
   metadataBase: new URL('https://chalksmith.ai'),
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/icon.png',
+  },
 }
 
 export default async function RootLayout({
