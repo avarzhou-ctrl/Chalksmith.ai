@@ -13,8 +13,9 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Chalksmith.ai',
+  title: 'Chalksmith | Code-Driven STEM Animations',
   description: 'AI-powered tool for creating educational content.',
+  metadataBase: new URL('https://chalksmith.ai'),
 }
 
 export default async function RootLayout({
