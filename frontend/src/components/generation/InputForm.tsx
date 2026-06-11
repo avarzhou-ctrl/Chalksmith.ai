@@ -82,7 +82,7 @@ export default function InputForm({
                             type="button"
                             title="Start Generation"
                             onClick={() => onGenerate()}
-                            disabled={!topic.trim()}
+                            disabled={!topic.trim() || !model || !format}
                             className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:opacity-40"
                         >
                             <CircleArrowUp size={20} />

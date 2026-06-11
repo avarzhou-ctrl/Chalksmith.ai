@@ -238,7 +238,7 @@ async def generate_lesson_stream(
 
             result = LessonResponse(
                 id=db_lesson.id,
-                url=f"{base_url}{db_lesson.url}",
+                url=db_lesson.url,
                 code=db_lesson.code,
                 summary=db_lesson.summary
             )
@@ -265,8 +265,6 @@ async def get_lesson_by_id(
     get_user_or_404(session, x_user_id)
 
     # Retrieve a specific lesson by its unique ID, used for loading lessons from dashboard links
-    base_url = str(req.base_url).rstrip("/")
-
     statement = select(Lesson).where(Lesson.id == lesson_id, Lesson.user_id == x_user_id)
     db_lesson = session.exec(statement).first()
 
@@ -278,7 +276,7 @@ async def get_lesson_by_id(
         topic=db_lesson.topic,
         model=db_lesson.model,
         format=db_lesson.format,
-        url=f"{base_url}{db_lesson.url}",
+        url=db_lesson.url,
         code=db_lesson.code,
         summary=db_lesson.summary,
         created_at=db_lesson.created_at
@@ -300,8 +298,6 @@ async def create_lesson(
     if should_count_usage:
         ensure_can_create_lesson(session, x_user_id)
 
-    base_url = str(req.base_url).rstrip("/")
-    
     previous_code = None
     if request.lesson_id:
         # Load previous code to provide the LLM with context for iterative edits
@@ -363,7 +359,7 @@ async def create_lesson(
 
     return LessonResponse(
         id=db_lesson.id,
-        url=f"{base_url}{db_lesson.url}",
+        url=db_lesson.url,
         code=db_lesson.code,
         summary=db_lesson.summary
     )
@@ -382,8 +378,6 @@ async def get_lesson(
     get_user_or_404(session, x_user_id)
 
     # Retrieves the most recent version of a specific lesson
-    base_url = str(req.base_url).rstrip("/")
-
     statement = select(Lesson).where(
         Lesson.topic == topic, 
         Lesson.model == model, 
@@ -398,7 +392,7 @@ async def get_lesson(
 
     return LessonResponse(
         id=db_lesson.id,
-        url=f"{base_url}{db_lesson.url}",
+        url=db_lesson.url,
         code=db_lesson.code,
         summary=db_lesson.summary
     )
@@ -414,7 +408,6 @@ async def list_lessons(
     get_user_or_404(session, x_user_id)
 
     # Lists all existing lessons, sorted by creation date (newest first) for the dashboard
-    base_url = str(req.base_url).rstrip("/")
     db_lessons = session.exec(select(Lesson).where(Lesson.user_id == x_user_id).order_by(desc(Lesson.created_at))).all()
 
     return [
@@ -423,7 +416,7 @@ async def list_lessons(
             topic=lesson.topic,
             model=lesson.model,
             format=lesson.format,
-            url=f"{base_url}{lesson.url}",
+            url=lesson.url,
             code=lesson.code,
             summary=lesson.summary,
             created_at=lesson.created_at
