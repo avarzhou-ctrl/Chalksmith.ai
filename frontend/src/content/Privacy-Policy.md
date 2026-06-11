@@ -1,6 +1,3 @@
-# Privacy Policy
-*Last Updated: June 11, 2026*
-
 At Chalksmith.ai, your privacy is critically important to us. Please read this Privacy Policy to learn how we treat your personal data. **By using or accessing our Services in any manner, you acknowledge that you accept the practices and policies outlined below, and you hereby consent that we will collect, use and share your information as described in this Privacy Policy.**
 
 If you have any concerns, please contact help@chalksmith.ai.
