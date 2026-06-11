@@ -13,6 +13,32 @@ from backend.services.llm import generate_lesson
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
+def _get_int_env(name: str, default: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.getenv(name, default))
+    except (TypeError, ValueError):
+        value = default
+
+    return max(minimum, min(maximum, value))
+
+def _get_float_env(name: str, default: float, minimum: float, maximum: float) -> float:
+    try:
+        value = float(os.getenv(name, default))
+    except (TypeError, ValueError):
+        value = default
+
+    return max(minimum, min(maximum, value))
+
+def _tail_file(path: str, max_chars: int = 4000) -> str:
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(max(0, size - max_chars))
+            return f.read().decode(errors="replace")
+    except OSError:
+        return ""
+
 async def render_manim(script_path: str) -> str:
     """Render a Manim script to video. Returns the path to the rendered video."""
     # Build the target .mp4 path based on the input .py script name
@@ -203,22 +229,66 @@ async def render_remotion_lesson(topic: str, model: str, remotion_json: str, on_
     if on_progress:
         # Notify UI before starting Remotion data preparation
         on_progress("Preparing video blueprints...", 65)
-
-    with open(props_path, "w") as f:
-        f.write(remotion_json)
         
     # Remotion CLI configuration
     frontend_dir = os.path.join(os.path.dirname(BASE_DIR), "frontend")
     # Entry point relative to frontend_dir
     entry_point = "src/remotion/Root.tsx"
+
+    render_width = _get_int_env("REMOTION_RENDER_WIDTH", 960, 480, 1920)
+    render_height = _get_int_env("REMOTION_RENDER_HEIGHT", 540, 270, 1080)
+    render_fps = _get_int_env("REMOTION_RENDER_FPS", 24, 12, 30)
+    render_concurrency = _get_int_env("REMOTION_RENDER_CONCURRENCY", 1, 1, 4)
+    render_scale = _get_float_env("REMOTION_RENDER_SCALE", 1.0, 0.25, 1.0)
+    max_scenes = _get_int_env("REMOTION_MAX_SCENES", 6, 1, 12)
+    max_scene_seconds = _get_float_env("REMOTION_MAX_SCENE_SECONDS", 6.0, 1.0, 12.0)
+    max_total_seconds = _get_float_env("REMOTION_MAX_TOTAL_SECONDS", 30.0, 3.0, 90.0)
     
-    # Calculate duration (Remotion needs this to know when to stop)
+    # Normalize model output before rendering so one generated lesson cannot exhaust memory.
     try:
         data = json.loads(remotion_json)
+        scenes = data.get("scenes", [])
+
+        if isinstance(scenes, list):
+            sanitized_scenes = []
+            elapsed_seconds = 0.0
+
+            for scene in scenes[:max_scenes]:
+                if not isinstance(scene, dict) or elapsed_seconds >= max_total_seconds:
+                    continue
+
+                sanitized_scene = dict(scene)
+                scene_seconds = _get_float_env(
+                    "REMOTION_DEFAULT_SCENE_SECONDS",
+                    float(sanitized_scene.get("durationInSeconds", 5) or 5),
+                    1.0,
+                    max_scene_seconds,
+                )
+                remaining_seconds = max_total_seconds - elapsed_seconds
+                scene_seconds = min(scene_seconds, remaining_seconds)
+                sanitized_scene["durationInSeconds"] = round(scene_seconds, 2)
+
+                if isinstance(sanitized_scene.get("content"), str):
+                    sanitized_scene["content"] = sanitized_scene["content"][:400]
+
+                if isinstance(sanitized_scene.get("items"), list):
+                    sanitized_scene["items"] = [
+                        str(item)[:220] for item in sanitized_scene["items"][:6]
+                    ]
+
+                sanitized_scenes.append(sanitized_scene)
+                elapsed_seconds += scene_seconds
+
+            data["scenes"] = sanitized_scenes
+            remotion_json = json.dumps(data)
+
         total_seconds = sum(scene.get("durationInSeconds", 5) for scene in data.get("scenes", []))
-        duration_frames = int(total_seconds * 30) + 15 # +0.5s buffer
+        duration_frames = int(total_seconds * render_fps) + max(1, render_fps // 2)
     except Exception:
-        duration_frames = 300 # Fallback 10s
+        duration_frames = render_fps * 10 # Fallback 10s
+
+    with open(props_path, "w") as f:
+        f.write(remotion_json)
 
     # Build the 'npx remotion render' command
     # Using the props_path FILE instead of the raw string for stability
@@ -229,7 +299,15 @@ async def render_remotion_lesson(topic: str, model: str, remotion_json: str, on_
         video_path,
         "--props", props_path,
         "--frames", f"0-{duration_frames}",
-        "--browser", "chromium"
+        "--browser", "chromium",
+        "--width", str(render_width),
+        "--height", str(render_height),
+        "--fps", str(render_fps),
+        "--concurrency", str(render_concurrency),
+        "--scale", str(render_scale),
+        "--crf", "28",
+        "--muted",
+        "--disable-git-source",
     ]
 
     print(f"--- STARTING REMOTION RENDER ---", flush=True)
@@ -239,32 +317,35 @@ async def render_remotion_lesson(topic: str, model: str, remotion_json: str, on_
         # Report lengthy encoding phase with estimated frame count for user context
         on_progress(f"Encoding MP4 video ({duration_frames} frames)...", 75)
 
+    log_path = os.path.join(STATIC_DIR, f"remotion_{unique_id}.log")
+
     try:
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=frontend_dir
-        )
-        
-        try:
-            # 3 minute timeout
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=180)
-        except asyncio.TimeoutError:
-            process.terminate()
-            await process.wait()
-            raise RuntimeError("Remotion render timed out")
-        except asyncio.CancelledError:
-            process.terminate()
-            await process.wait()
-            raise
+        with open(log_path, "wb") as log_file:
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=log_file,
+                stderr=log_file,
+                cwd=frontend_dir
+            )
+            
+            try:
+                # Keep this shorter than common serverless request limits.
+                await asyncio.wait_for(process.wait(), timeout=180)
+            except asyncio.TimeoutError:
+                process.terminate()
+                await process.wait()
+                raise RuntimeError("Remotion render timed out")
+            except asyncio.CancelledError:
+                process.terminate()
+                await process.wait()
+                raise
 
         if process.returncode == 0 and os.path.exists(video_path):
             print(f"RENDER SUCCESS: {video_filename}", flush=True)
             return f"/static/{video_filename}"
         else:
             print(f"RENDER FAILED (Code {process.returncode})", flush=True)
-            print(f"STDERR: {stderr.decode()}", flush=True)
+            print(f"REMOTION LOG TAIL: {_tail_file(log_path)}", flush=True)
             # Fallback: Serve the JSON so the frontend player can still work
             return f"/static/{props_filename}"
             

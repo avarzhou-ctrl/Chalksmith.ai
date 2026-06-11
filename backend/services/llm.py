@@ -266,6 +266,8 @@ STRICT REQUIREMENTS:
 - **Output ONLY valid JSON for the code section.** Do not include markdown code fences (```json ... ```), explanations, or any text outside the JSON object within the code section.
 - **KaTeX Support:** Use standard LaTeX for ALL mathematical expressions. Wrap them in double backslashes (e.g., "\\\\frac{{a}}{{b}}") to ensure JSON compatibility.
 - **Visual Pacing:** Break the lesson into logical scenes (Introduction, Concepts, Examples, Summary).
+- **Render Budget:** Use at most 6 scenes, keep each scene between 3 and 6 seconds, and keep the total video at or below 30 seconds.
+- **Memory Safety:** Do not request particle systems, embedded images, videos, WebGL, canvas effects, or large animated backgrounds. Use concise text, math, and short point lists only.
 - **Aesthetic:** Clean, high-contrast dark theme (Black background, White text).
 - **Deterministic Animation:** Each scene can have a "physics" profile to control the animation feel.
 

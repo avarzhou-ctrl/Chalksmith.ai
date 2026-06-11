@@ -17,7 +17,7 @@ export default function Page() {
   // State for lesson configuration and rendering results
   const [topic, setTopic] = useState('');
   const [model, setModel] = useState('gemini-3-flash-preview');
-  const [format, setFormat] = useState('remotion');
+  const [format, setFormat] = useState('manim');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LessonResponse | null>(null);
@@ -202,7 +202,7 @@ export default function Page() {
               setInitialTopic(activePrompt);
               setMessages((prev) => [...prev, { 
                 role: 'assistant', 
-                content: `Success! Created your ${format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${activePrompt}". ${completedLesson.summary}` 
+                content: `Success! Created your ${format === 'manim' ? 'video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${activePrompt}". ${completedLesson.summary}` 
               }]);
             }
             
@@ -426,7 +426,7 @@ export default function Page() {
                       </h2>
                       
                       <p className="text-secondary-text text-sm mb-8 text-center font-medium uppercase tracking-widest opacity-80">
-                        Crafting your {format === 'remotion' ? 'Instant video' : format === 'manim' ? 'Pro video' : format === 'p5.js' ? 'interactive display' : 'presentation'}...
+                        Crafting your {format === 'manim' ? 'video' : format === 'p5.js' ? 'interactive display' : 'presentation'}...
                       </p>
 
                       <div className="w-full bg-surface/50 rounded-full h-1.5 mb-4 overflow-hidden border border-border/30">
