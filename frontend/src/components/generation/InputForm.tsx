@@ -2,7 +2,7 @@
 
 import { GenerationStatus } from '@/lib/api';
 import FormatSelector from './FormatSelector';
-import ModelSelector from './ModelSelector';
+// import ModelSelector from './ModelSelector';
 import TextArea from '@/components/ui/TextArea';
 import { CircleArrowUp, CirclePause } from 'lucide-react';
 
@@ -38,9 +38,9 @@ export default function InputForm({
     return (
         <div className="flex flex-col w-full min-w-0">
             <div className="flex flex-row gap-4 min-w-0">
-                <div className="flex-1 min-w-0">
-                    <ModelSelector value={model} onChange={onModelChange} disabled={disabled} />
-                </div>
+                {/* <div className="flex-1 min-w-0"> */}
+                    {/* <ModelSelector value={model} onChange={onModelChange} disabled={disabled} /> */}
+                {/* </div> */}
                 <div className="flex-1 min-w-0">
                     {/* Disabling format change in Edit Mode as changing formats mid-conversation is unsupported */}
                     <FormatSelector value={format} onChange={onFormatChange} disabled={disabled || isEditMode} />
@@ -82,7 +82,7 @@ export default function InputForm({
                             type="button"
                             title="Start Generation"
                             onClick={() => onGenerate()}
-                            disabled={!topic.trim() || !model || !format}
+                            disabled={!topic.trim() || !format}
                             className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:opacity-40"
                         >
                             <CircleArrowUp size={20} />

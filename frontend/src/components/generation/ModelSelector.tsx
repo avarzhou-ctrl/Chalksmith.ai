@@ -11,7 +11,7 @@ interface ModelSelectorProps {
 export default function ModelSelector({ value, onChange, disabled }: ModelSelectorProps) {
     const models = [
         { label: 'Gemini 3.5 Flash', value: 'gemini-3.5-flash' },
-        { label: 'Gemini 3.1 Pro', value: 'gemini-3.1-pro-preview' },
+        // { label: 'Gemini 3.1 Pro', value: 'gemini-3.1-pro-preview' },
         // { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
         // { label: 'GPT-4o', value: 'gpt-4o' },
         // { label: 'DeepSeek Chat', value: 'deepseek-chat' },

@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from sqlalchemy import inspect, text
 from sqlmodel import create_engine, Session, SQLModel
 # Import models here to register them with SQLModel.metadata
-from backend.models import Lesson, User, current_usage_month
+from backend.models import Lesson, User
 
 BACKEND_DIR = Path(__file__).resolve().parent
 load_dotenv(BACKEND_DIR / ".env.local")
@@ -21,22 +21,7 @@ engine = create_engine(DATABASE_URL, echo=True)
 # Database tables wrapper
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
-    ensure_usage_month_column()
     ensure_lesson_user_id_column()
-
-def ensure_usage_month_column():
-    inspector = inspect(engine)
-    if "user" not in inspector.get_table_names():
-        return
-
-    columns = {column["name"] for column in inspector.get_columns("user")}
-    if "usage_month" in columns:
-        return
-
-    month = current_usage_month()
-    with engine.begin() as connection:
-        # create_all does not alter existing tables, so this keeps early Neon prototypes compatible.
-        connection.execute(text(f"ALTER TABLE \"user\" ADD COLUMN usage_month VARCHAR DEFAULT '{month}'"))
 
 def ensure_lesson_user_id_column():
     inspector = inspect(engine)

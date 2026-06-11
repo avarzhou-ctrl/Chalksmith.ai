@@ -9,7 +9,7 @@ If you have any questions or feedback regarding these terms, please contact us a
 To access our STEM workspace, you must register for an account. 
 - **Authentication Providers:** We utilize **Clerk** to handle user registration, identity verification, and login sessions securely. 
 - **Account Responsibility:** You are entirely responsible for maintaining the confidentiality of your session keys and account data. You agree to notify us immediately of any unauthorized access or security breach.
-- **Accurate Information:** You must provide us with a valid email address and accurate profiling information so we can manage your generation quotas and service access tiers correctly.
+- **Accurate Information:** You must provide us with a valid email address and accurate profiling information so we can manage your service access correctly.
 
 ## User Content and AI Generations
 
@@ -31,18 +31,6 @@ We want to keep Chalksmith safe, reliable, and functional for educators everywhe
 - Attempting to reverse-engineer, scrape, decompile, or extract the underlying code or prompt frameworks of our STEM animation engines.
 - Utilizing automated scripts, bots, or custom headless scrapers to execute generations beyond the designated UI limits.
 - Generating inputs or content that is illegal, defamatory, harmful, or infringes on the intellectual property rights of others.
-- Circumventing or attempting to bypass account quotas, feature locks, or Stripe subscription walls.
-
-## Billing, Subscriptions, and Metered Quotas
-
-### 4.1 Payment Gateway
-All subscription plans, metered generation renewals, and payment data transactions are securely managed via **Stripe**. We do not store or process your raw credit or debit card details on our local database infrastructure.
-
-### 4.2 Pro Plans and Quotas
-Upgrading to a Pro Tier grants you an expanded monthly quota of AI generations. Quotas refresh at the beginning of each billing cycle and unused generations do not roll over to subsequent months.
-
-### 4.3 Cancellation and Finality of Invoices
-You can modify or cancel your subscription plan at any time through your internal account settings dashboard. Cancellations take effect at the conclusion of your current active billing month. All payments are final once processed by Stripe, and we do not issue pro-rated refunds for mid-month cancellations.
 
 ## Termination of Service
 

@@ -18,15 +18,6 @@ We only collect information about you if we have a reason to do so — for examp
 - *Categories of Third Parties With Whom We Share this Personal Data*
     - Service Providers
 
-### Payment Data
-- *Examples of Personal Data We Collect*
-    - Payment card number
-    - Billing address
-    - Phone number
-    - Email
-- *Categories of Third Parties With Whom We Share this Personal Data*
-    - Service Providers (specifically our payment processer)
-
 ## Sources of Personal Data
 
 We collect Personal Data from the following category of sources:
@@ -40,7 +31,7 @@ We collect Personal Data from the following category of sources:
 
 ### Purposes for Collecting Personal Data
 We use the Personal Data we collect for the following operational purposes:
-- **Service Provision:** To create and maintain your account, process payments via Stripe, and authenticate your login sessions securely.
+- **Service Provision:** To create and maintain your account and authenticate your login sessions securely.
 - **AI Content Generation:** To process your design and prompt inputs through our automated animation engines. 
 - **Communication:** To send you technical updates, security alerts, and administrative messages.
 - **Service Improvement:** To monitor system performance, fix bugs, and optimize our STEM engine configurations.
@@ -48,8 +39,7 @@ We use the Personal Data we collect for the following operational purposes:
 ### How We Share Your Personal Data
 We do not sell your Personal Data. We only share your data with trusted third-party subprocessors necessary to deliver our Services:
 - **Authentication Providers ([Clerk](https://clerk.com/)):** To securely manage your user account creation and secure login sessions.
-- **Database Infrastructure ([Neon Postgres](https://neon.com/)):** To host and manage user configuration matrices, subscription tiers, and generation limits.
-- **Payment Processors ([Stripe](https://stripe.com/)):** To handle subscription billing transactions securely. We do not store your raw credit card numbers on our servers.
+- **Database Infrastructure ([Neon Postgres](https://neon.com/)):** To host and manage user configuration matrices and account history.
 - **AI Engine Partners ([Google Gemini](https://gemini.google.com/)):** Your text prompt inputs are forwarded to upstream artificial intelligence models to synthesize your educational visualizations. *Note: We do not share your name, email, or profile data with these providers.*
 
 ## Personal Data of Children
@@ -59,7 +49,7 @@ Our Services are primarily designed for educators and students under instruction
 ## Cookies
 
 We use strictly necessary cookies to keep our Services functioning safely and correctly.
-- **Strictly Necessary Cookies:** Our authentication provider (Clerk) and payment gateway (Stripe) drop essential operational cookies into your browser. These cookies allow the platform to remember your login state across pages and screen for transaction fraud. Without them, the website cannot function.
+- **Strictly Necessary Cookies:** Our authentication provider (Clerk) drops essential operational cookies into your browser. These cookies allow the platform to remember your login state across pages. Without them, the website cannot function.
 - **Managing Cookies:** You can modify your browser settings to decline or clear cookies, but doing so will prevent you from logging in and accessing the animation workspace.
 
 ## Data Security and Retention

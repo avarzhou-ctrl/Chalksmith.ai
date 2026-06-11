@@ -30,9 +30,7 @@ async def register_new_clerk_user(
     # Create the new user record in Neon Postgres
     new_user = User(
         id=payload.id,
-        email=payload.email,
-        subscription="free",
-        monthly_used=0
+        email=payload.email
     )
     
     db.add(new_user)

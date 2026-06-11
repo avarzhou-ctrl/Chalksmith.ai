@@ -16,7 +16,7 @@ import GenerationSidebar from "@/components/generation/GenerationSidebar";
 export default function Page() {
   // State for lesson configuration and rendering results
   const [topic, setTopic] = useState('');
-  const [model, setModel] = useState('');
+  const [model, setModel] = useState('gemini-3.5-flash');
   const [format, setFormat] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -9,7 +9,6 @@ const contents = [
   ['Account Creation and Authentication', 'account-creation-and-authentication'],
   ['User Content and AI Generations', 'user-content-and-ai-generations'],
   ['Acceptable Use Policy', 'acceptable-use-policy'],
-  ['Billing, Subscriptions, and Metered Quotas', 'billing-subscriptions-and-metered-quotas'],
   ['Termination of Service', 'termination-of-service'],
   ['Disclaimers and Limitation of Liability', 'disclaimers-and-limitation-of-liability'],
   ['Changes to These Terms', 'changes-to-these-terms'],
@@ -75,7 +74,7 @@ export default function TermsOfServicePage() {
             </li>
             <li>
               Accurate Information: You must provide us with a valid email address and accurate profiling information so
-              we can manage your generation quotas and service access tiers correctly.
+              we can manage your service access correctly.
             </li>
           </ul>
         </section>
@@ -135,36 +134,7 @@ export default function TermsOfServicePage() {
               Generating inputs or content that is illegal, defamatory, harmful, or infringes on the intellectual
               property rights of others.
             </li>
-            <li>Circumventing or attempting to bypass account quotas, feature locks, or Stripe subscription walls.</li>
           </ul>
-        </section>
-
-        <section id="billing-subscriptions-and-metered-quotas" className="scroll-mt-28">
-          <h2 className="text-2xl font-semibold tracking-normal text-stone-50">
-            Billing, Subscriptions, and Metered Quotas
-          </h2>
-
-          <h3 className="mt-6 text-lg font-semibold tracking-normal text-stone-50">Payment Gateway</h3>
-          <p className="mt-3 leading-8 text-stone-50">
-            All subscription plans, metered generation renewals, and payment data transactions are securely managed via
-            Stripe. We do not store or process your raw credit or debit card details on our local database
-            infrastructure.
-          </p>
-
-          <h3 className="mt-6 text-lg font-semibold tracking-normal text-stone-50">Pro Plans and Quotas</h3>
-          <p className="mt-3 leading-8 text-stone-50">
-            Upgrading to a Pro Tier grants you an expanded monthly quota of AI generations. Quotas refresh at the
-            beginning of each billing cycle and unused generations do not roll over to subsequent months.
-          </p>
-
-          <h3 className="mt-6 text-lg font-semibold tracking-normal text-stone-50">
-            Cancellation and Finality of Invoices
-          </h3>
-          <p className="mt-3 leading-8 text-stone-50">
-            You can modify or cancel your subscription plan at any time through your internal account settings dashboard.
-            Cancellations take effect at the conclusion of your current active billing month. All payments are final once
-            processed by Stripe, and we do not issue pro-rated refunds for mid-month cancellations.
-          </p>
         </section>
 
         <section id="termination-of-service" className="scroll-mt-28">

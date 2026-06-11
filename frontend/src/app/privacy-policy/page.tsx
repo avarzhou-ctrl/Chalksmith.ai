@@ -83,17 +83,6 @@ export default function PrivacyPolicyPage() {
                 <li>Shared with service providers</li>
               </ul>
             </section>
-
-            <section>
-              <h3 className="text-lg font-semibold tracking-normal text-stone-50">Payment Data</h3>
-              <ul className="mt-3 list-disc space-y-2 pl-5 text-stone-50">
-                <li>Payment card number</li>
-                <li>Billing address</li>
-                <li>Phone number</li>
-                <li>Email</li>
-                <li>Shared with service providers, specifically our payment processor</li>
-              </ul>
-            </section>
           </div>
         </section>
 
@@ -113,7 +102,7 @@ export default function PrivacyPolicyPage() {
           </h3>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-stone-50">
             <li>
-              Service Provision: To create and maintain your account, process payments via Stripe, and authenticate your
+              Service Provision: To create and maintain your account and authenticate your
               login sessions securely.
             </li>
             <li>AI Content Generation: To process your design and prompt inputs through our automated animation engines.</li>
@@ -139,14 +128,7 @@ export default function PrivacyPolicyPage() {
               <a className={linkClassName} href="https://neon.com/" rel="noreferrer" target="_blank">
                 Neon Postgres
               </a>{' '}
-              hosts and manages user configuration matrices, subscription tiers, and generation limits.
-            </li>
-            <li>
-              Payment Processors:{' '}
-              <a className={linkClassName} href="https://stripe.com/" rel="noreferrer" target="_blank">
-                Stripe
-              </a>{' '}
-              handles subscription billing transactions securely. We do not store raw credit card numbers on our servers.
+              hosts and manages user configuration matrices and account history.
             </li>
             <li>
               AI Engine Partners:{' '}
@@ -180,8 +162,8 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-stone-50">
             <li>
-              Strictly Necessary Cookies: Clerk and Stripe drop essential operational cookies into your browser so the
-              platform can remember your login state across pages and screen for transaction fraud.
+              Strictly Necessary Cookies: Clerk drops essential operational cookies into your browser so the
+              platform can remember your login state across pages.
             </li>
             <li>
               Managing Cookies: You can modify your browser settings to decline or clear cookies, but doing so will

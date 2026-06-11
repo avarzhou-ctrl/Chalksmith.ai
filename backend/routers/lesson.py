@@ -11,7 +11,6 @@ from backend.models import LessonRequest, LessonRenameRequest, LessonResponse, L
 from backend.services.llm import generate_lesson
 from backend.services.render import render_manim_lesson, render_remotion_lesson, render_p5js_lesson, render_revealjs_lesson
 from backend.services.export import export_service
-from backend.services.usage import ensure_can_create_lesson, get_user_or_404, record_new_lesson_usage, validate_internal_request
 
 router = APIRouter()
 
@@ -22,9 +21,6 @@ async def delete_lesson(
     x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
-    validate_internal_request(x_chalksmith_secret)
-    get_user_or_404(session, x_user_id)
-
     # Delete the lesson from the database and remove its associated physical file
     statement = select(Lesson).where(Lesson.id == lesson_id, Lesson.user_id == x_user_id)
     db_lesson = session.exec(statement).first()
@@ -66,9 +62,6 @@ async def edit_lesson_title(
     x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
-    validate_internal_request(x_chalksmith_secret)
-    get_user_or_404(session, x_user_id)
-
     # Simple endpoint to update the lesson's topic/title for better organization
     new_title = request.title.strip()
     if not new_title:
@@ -103,13 +96,6 @@ async def generate_lesson_stream(
     Streaming endpoint for lesson generation.
     Yields JSON objects indicating progress and finally the result.
     """
-    # Check usage
-    validate_internal_request(x_chalksmith_secret)
-    get_user_or_404(session, x_user_id)
-
-    should_count_usage = lesson_id is None # Only count for new lessons, not edits
-    if should_count_usage:
-        ensure_can_create_lesson(session, x_user_id)
 
     base_url = str(req.base_url).rstrip("/")
 
@@ -233,9 +219,6 @@ async def generate_lesson_stream(
             session.commit()
             session.refresh(db_lesson)
 
-            if should_count_usage:
-                record_new_lesson_usage(session, x_user_id)
-
             result = LessonResponse(
                 id=db_lesson.id,
                 url=db_lesson.url,
@@ -261,9 +244,6 @@ async def get_lesson_by_id(
     x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
-    validate_internal_request(x_chalksmith_secret)
-    get_user_or_404(session, x_user_id)
-
     # Retrieve a specific lesson by its unique ID, used for loading lessons from dashboard links
     statement = select(Lesson).where(Lesson.id == lesson_id, Lesson.user_id == x_user_id)
     db_lesson = session.exec(statement).first()
@@ -290,14 +270,6 @@ async def create_lesson(
     x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
-    # Check usage
-    validate_internal_request(x_chalksmith_secret)
-    get_user_or_404(session, x_user_id)
-
-    should_count_usage = request.lesson_id is None # Only count for new lessons, not edits
-    if should_count_usage:
-        ensure_can_create_lesson(session, x_user_id)
-
     previous_code = None
     if request.lesson_id:
         # Load previous code to provide the LLM with context for iterative edits
@@ -354,9 +326,6 @@ async def create_lesson(
     session.commit()
     session.refresh(db_lesson)
 
-    if should_count_usage:
-        record_new_lesson_usage(session, x_user_id)
-
     return LessonResponse(
         id=db_lesson.id,
         url=db_lesson.url,
@@ -374,9 +343,6 @@ async def get_lesson(
     x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
-    validate_internal_request(x_chalksmith_secret)
-    get_user_or_404(session, x_user_id)
-
     # Retrieves the most recent version of a specific lesson
     statement = select(Lesson).where(
         Lesson.topic == topic, 
@@ -404,9 +370,6 @@ async def list_lessons(
     x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
-    validate_internal_request(x_chalksmith_secret)
-    get_user_or_404(session, x_user_id)
-
     # Lists all existing lessons, sorted by creation date (newest first) for the dashboard
     db_lessons = session.exec(select(Lesson).where(Lesson.user_id == x_user_id).order_by(desc(Lesson.created_at))).all()
 
@@ -430,9 +393,6 @@ async def export_lesson(
     x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
-    validate_internal_request(x_chalksmith_secret)
-    get_user_or_404(session, x_user_id)
-
     # Triggers export service to convert lesson to static formats like PDF/MP4
     statement = select(Lesson).where(Lesson.id == id, Lesson.user_id == x_user_id)
     db_lesson = session.exec(statement).first()

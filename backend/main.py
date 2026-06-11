@@ -9,7 +9,6 @@ from sqlmodel import Session
 from backend.routers import lesson, users
 from backend.database import create_db_and_tables, get_session
 from backend.services.fetch_docs import fetch_manim_reference
-from backend.services.usage import ensure_can_create_lesson, record_new_lesson_usage, validate_internal_request
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -78,11 +77,4 @@ async def process_generation(
     x_user_id: str = Header(None, alias="X-User-Id"),
     db: Session = Depends(get_session)
 ):
-    # Confirm the request came directly from your secure Vercel server instance
-    validate_internal_request(x_chalksmith_secret)
-    ensure_can_create_lesson(db, x_user_id)
-
-    # If checks pass
-    user = record_new_lesson_usage(db, x_user_id)
-
-    return {"status": "success", "engine_output": "Vector data compiled successfully.", "current_usage": user.monthly_used}
+    return {"status": "success", "engine_output": "Vector data compiled successfully."}
