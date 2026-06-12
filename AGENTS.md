@@ -80,6 +80,7 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-06-12**: Fixed the homepage code-driven demo by updating `frontend/src/components/home/CodeDrivenDemo.tsx` to reuse the generation page's code toggle appearance, show a title/description header, extract the embedded p5.js source for matching syntax colors, keep code overflow inside the demo frame, and updated `frontend/src/app/page.tsx` to render the demo.
 - **2026-06-11**: Removed all subscription, billing, and Stripe-related code, database fields, and legal documentation. Retired usage tracking and quotas. Removed `ModelSelector` from the UI and set `gemini-3.5-flash` as the default model to simplify the generation flow.
 - **2026-06-11**: Updated logo usage in `frontend/src/app/layout.tsx`, `frontend/src/app/page.tsx`, `frontend/src/app/generation/page.tsx`, and `frontend/src/components/dashboard/DashboardSidebar.tsx` to import the bundled asset from `frontend/src/content/logo.png` instead of referencing `/logo.png`.
 - **2026-06-11**: Moved the generation input character counter inside the bottom-left of `frontend/src/components/generation/InputForm.tsx` and added bottom padding so the counter and submit/stop icon remain contained within the textarea without covering input text.

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { SignUpButton, useUser } from '@clerk/nextjs';
 import { ArrowRight } from 'lucide-react';
-import VideoComparison from '@/components/home/VideoComparison';
+import CodeDrivenDemo from '@/components/home/CodeDrivenDemo';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700';
 const ctaSizeClasses = {
@@ -117,9 +117,8 @@ export default function Home() {
                 </p>
               </div>
               <div className="w-full">
-                <VideoComparison 
-                  beforeSrc="/demo_2.2.mp4" 
-                  afterSrc="/demo_2.1.mp4" 
+                <CodeDrivenDemo 
+                  filePath="/demo_2.html"
                 />
               </div>
             </article>
