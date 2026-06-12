@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractions, Decimals & Percentages</title>
+    <!-- p5.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0f172a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+        }
+        #canvas-container {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <script>
+        // Interactive state variables
+        let denoms = [2, 3, 4, 5, 8, 10, 20, 25, 50, 100];
+        let denIdx = 3; // Default denominator = 5
+        let num = 2;    // Default numerator = 2
+        let modelType = 'pie'; // 'pie' or 'grid'
+        
+        // Target values for smooth animation transitions
+        let smoothPct = 0.4;
+        
+        // UI Layout Configuration
+        const width = 800;
+        const height = 600;
+        
+        // Interactive Element boundaries
+        let sliderDenRect, sliderNumRect;
+        let btnPieRect, btnGridRect;
+        let presets = [
+            { label: "1/2", n: 1, d: 2 },
+            { label: "1/4", n: 1, d: 4 },
+            { label: "3/4", n: 3, d: 4 },
+            { label: "2/5", n: 2, d: 5 },
+            { label: "5/8", n: 5, d: 8 },
+            { label: "7/10", n: 7, d: 10 }
+        ];
+        let presetButtons = [];
+
+        function setup() {
+            let canvas = createCanvas(width, height);
+            canvas.parent('canvas-container');
+            
+            // Define UI Bounds for interactions
+            sliderDenRect = { x: 40, y: 160, w: 240, h: 12 };
+            sliderNumRect = { x: 40, y: 240, w: 240, h: 12 };
+            btnPieRect = { x: 40, y: 310, w: 110, h: 36 };
+            btnGridRect = { x: 170, y: 310, w: 110, h: 36 };
+            
+            // Compute Preset Button Layouts
+            let startY = 400;
+            for(let i = 0; i < presets.length; i++) {
+                let col = i % 2;
+                let row = Math.floor(i / 2);
+                presetButtons.push({
+                    x: 40 + col * 125,
+                    y: startY + row * 45,
+                    w: 115,
+                    h: 35,
+                    preset: presets[i]
+                });
+            }
+        }
+
+        function draw() {
+            background('#0f172a'); // TailWind slate-900
+            
+            // Smoothly animate the visual fill ratio
+            let targetPct = num / denoms[denIdx];
+            smoothPct = lerp(smoothPct, targetPct, 0.12);
+            
+            drawSidebar();
+            drawVisualizer();
+            drawEquivalencePanel();
+        }
+
+        // Left Panel - Controls
+        function drawSidebar() {
+            // Panel Base
+            fill('#1e293b'); // Slate-800
+            noStroke();
+            rect(0, 0, 320, height);
+            
+            // Title
+            fill('#f8fafc'); // Slate-50
+            textSize(20);
+            textStyle(BOLD);
+            textAlign(LEFT, TOP);
+            text("Fractions & Decimals", 25, 25);
+            textSize(14);
+            fill('#94a3b8'); // Slate-400
+            textStyle(NORMAL);
+            text("Interactive Equivalence Model", 25, 52);
+            
+            // Divider
+            stroke('#334155');
+            strokeWeight(1);
+            line(25, 80, 295, 80);
+            noStroke();
+            
+            let currentDen = denoms[denIdx];
+            
+            // --- Denominator Slider ---
+            fill('#cbd5e1');
+            textSize(13);
+            textStyle(BOLD);
+            text(`1. Denominator (Parts): ${currentDen}`, 40, 135);
+            
+            // Track
+            fill('#334155');
+            rect(sliderDenRect.x, sliderDenRect.y, sliderDenRect.w, sliderDenRect.h, 6);
+            
+            // Knob
+            let denStepX = sliderDenRect.x + (denIdx / (denoms.length - 1)) * sliderDenRect.w;
+            fill('#38bdf8'); // Sky-400
+            ellipse(denStepX, sliderDenRect.y + sliderDenRect.h/2, 20, 20);
+            
+            // --- Numerator Slider ---
+            fill('#cbd5e1');
+            text(`2. Numerator (Filled): ${num}`, 40, 215);
+            
+            // Track
+            fill('#334155');
+            rect(sliderNumRect.x, sliderNumRect.y, sliderNumRect.w, sliderNumRect.h, 6);
+            
+            // Knob
+            let numStepX = sliderNumRect.x + (num / currentDen) * sliderNumRect.w;
+            fill('#10b981'); // Emerald-500
+            ellipse(numStepX, sliderNumRect.y + sliderNumRect.h/2, 20, 20);
+            
+            // --- Model Selector Buttons ---
+            // Pie Button
+            if (modelType === 'pie') fill('#38bdf8');
+            else fill('#334155');
+            rect(btnPieRect.x, btnPieRect.y, btnPieRect.w, btnPieRect.h, 8);
+            
+            // Grid Button
+            if (modelType === 'grid') fill('#38bdf8');
+            else fill('#334155');
+            rect(btnGridRect.x, btnGridRect.y, btnGridRect.w, btnGridRect.h, 8);
+            
+            // Button Labels
+            fill('#ffffff');
+            textAlign(CENTER, CENTER);
+            textSize(13);
+            textStyle(BOLD);
+            text("Circle Pie", btnPieRect.x + btnPieRect.w/2, btnPieRect.y + btnPieRect.h/2);
+            text("10x10 Grid", btnGridRect.x + btnGridRect.w/2, btnGridRect.y + btnGridRect.h/2);
+            
+            // --- Presets Section ---
+            textAlign(LEFT, TOP);
+            fill('#cbd5e1');
+            text("Quick-Load Presets", 40, 370);
+            
+            for (let btn of presetButtons) {
+                // Highlight if current active preset
+                if (currentDen === btn.preset.d && num === btn.preset.n) {
+                    fill('#047857'); // Dark Emerald
+                    stroke('#10b981');
+                    strokeWeight(1.5);
+                } else {
+                    fill('#1e293b');
+                    stroke('#475569');
+                    strokeWeight(1);
+                }
+                rect(btn.x, btn.y, btn.w, btn.h, 6);
+                noStroke();
+                
+                fill('#f8fafc');
+                textAlign(CENTER, CENTER);
+                textSize(12);
+                textStyle(NORMAL);
+                text(`Value: ${btn.preset.label}`, btn.x + btn.w/2, btn.y + btn.h/2);
+            }
+        }
+
+        // Right Panel - Visualization Display
+        function drawVisualizer() {
+            let currentDen = denoms[denIdx];
+            let centerX = 560;
+            let centerY = 240;
+            
+            // Panel Frame
+            fill('#1e293b');
+            rect(340, 20, 440, 410, 12);
+            
+            // Model Header
+            fill('#94a3b8');
+            textSize(14);
+            textAlign(CENTER, TOP);
+            textStyle(BOLD);
+            if(modelType === 'pie') {
+                text(`PIE CHART: Shows ${num} of ${currentDen} Equal Portions`, centerX, 40);
+                drawPieModel(centerX, centerY, 110, currentDen);
+            } else {
+                text(`100-GRID: Compares ${num}/${currentDen} directly to 100%`, centerX, 40);
+                drawGridModel(centerX - 110, centerY - 110, 220);
+            }
+        }
+
+        // Draws dynamic visual segment slicing
+        function drawPieModel(cx, cy, r, segments) {
+            // Draw background circle (unfilled space)
+            fill('#334155');
+            stroke('#475569');
+            strokeWeight(3);
+            ellipse(cx, cy, r * 2, r * 2);
+            
+            // Draw filled fraction chunk
+            fill('rgba(16, 185, 129, 0.85)'); // Transparent Emerald
+            stroke('#10b981');
+            strokeWeight(2);
+            
+            let anglePerSeg = TWO_PI / segments;
+            
+            // Animate filled arc representation smoothly
+            let currentAngleLimit = smoothPct * TWO_PI;
+            arc(cx, cy, r * 2, r * 2, -HALF_PI, -HALF_PI + currentAngleLimit, PIE);
+            
+            // Draw structural overlay lines to clearly identify individual mathematical segments
+            stroke('#0f172a');
+            strokeWeight(2.5);
+            for (let i = 0; i < segments; i++) {
+                let angle = -HALF_PI + i * anglePerSeg;
+                let edgeX = cx + cos(angle) * r;
+                let edgeY = cy + sin(angle) * r;
+                line(cx, cy, edgeX, edgeY);
+            }
+            
+            // Outer Ring Border
+            noFill();
+            stroke('#64748b');
+            strokeWeight(3);
+            ellipse(cx, cy, r * 2, r * 2);
+        }
+
+        // Draws decimal/percent representation inside a 10x10 grid (100 blocks total)
+        function drawGridModel(x, y, size) {
+            let cellSize = size / 10;
+            let activeCells = smoothPct * 100;
+            
+            stroke('#0f172a');
+            strokeWeight(1.5);
+            
+            for (let row = 0; row < 10; row++) {
+                for (let col = 0; col < 10; col++) {
+                    let cellIdx = row * 10 + col;
+                    
+                    if (cellIdx < activeCells) {
+                        // Blend transition coloring for edge decimals
+                        if(cellIdx + 1 > activeCells) {
+                            let ratio = activeCells - cellIdx;
+                            fill(lerpColor(color('#334155'), color('#10b981'), ratio));
+                        } else {
+                            fill('#10b981'); // Emerald
+                        }
+                    } else {
+                        fill('#334155'); // Slate
+                    }
+                    rect(x + col * cellSize, y + (9 - row) * cellSize, cellSize, cellSize, 2);
+                }
+            }
+        }
+
+        // Mathematical Equivalency Display Panel (Bottom-Right)
+        function drawEquivalencePanel() {
+            let currentDen = denoms[denIdx];
+            let decimalVal = num / currentDen;
+            let percentVal = decimalVal * 100;
+            
+            // Base panel
+            fill('#1e293b');
+            rect(340, 450, 440, 130, 12);
+            
+            // Render Math Values
+            textAlign(CENTER, CENTER);
+            
+            // 1. Fraction Column
+            fill('#f8fafc');
+            textSize(14);
+            textStyle(BOLD);
+            text("FRACTION", 413, 475);
+            
+            // Draw Fraction Display (n/d format)
+            textSize(20);
+            fill('#38bdf8');
+            text(num, 413, 503);
+            stroke('#64748b');
+            strokeWeight(2);
+            line(398, 517, 428, 517);
+            noStroke();
+            fill('#38bdf8');
+            text(currentDen, 413, 532);
+            
+            // Simplify fractions if possible
+            let commonFactor = gcd(num, currentDen);
+            if(commonFactor > 1 && num !== 0) {
+                textSize(11);
+                fill('#94a3b8');
+                textStyle(NORMAL);
+                text(`(simp. ${num/commonFactor}/${currentDen/commonFactor})`, 413, 560);
+            }
+            
+            // Equivalency sign '='
+            fill('#64748b');
+            textSize(24);
+            textStyle(BOLD);
+            text("=", 486, 510);
+            
+            // 2. Decimal Column
+            fill('#f8fafc');
+            textSize(14);
+            text("DECIMAL", 560, 475);
+            textSize(24);
+            fill('#10b981');
+            text(decimalVal.toFixed(3).replace(/\.?0+$/, ""), 560, 510);
+            
+            // Equivalency sign '='
+            fill('#64748b');
+            text("=", 634, 510);
+            
+            // 3. Percentage Column
+            fill('#f8fafc');
+            textSize(14);
+            text("PERCENT", 707, 475);
+            textSize(24);
+            fill('#f59e0b'); // Amber-500
+            text(`${percentVal.toFixed(1).replace(/\.?0+$/, "")}%`, 707, 510);
+        }
+
+        // Greatest Common Divisor helper for simplification
+        function gcd(a, b) {
+            return b ? gcd(b, a % b) : a;
+        }
+
+        // Handle Interactive Mouse Drag Events for custom inputs
+        function mousePressed() {
+            handleInteraction();
+        }
+
+        function mouseDragged() {
+            handleInteraction();
+        }
+
+        function handleInteraction() {
+            // Check Denominator Slider Hit Test
+            if (mouseX >= sliderDenRect.x && mouseX <= sliderDenRect.x + sliderDenRect.w &&
+                mouseY >= sliderDenRect.y - 10 && mouseY <= sliderDenRect.y + sliderDenRect.h + 10) {
+                let ratio = constrain((mouseX - sliderDenRect.x) / sliderDenRect.w, 0, 1);
+                denIdx = Math.round(ratio * (denoms.length - 1));
+                
+                // Adjust numerator to not exceed new denominator size bounds
+                if (num > denoms[denIdx]) {
+                    num = denoms[denIdx];
+                }
+            }
+            
+            // Check Numerator Slider Hit Test
+            if (mouseX >= sliderNumRect.x && mouseX <= sliderNumRect.x + sliderNumRect.w &&
+                mouseY >= sliderNumRect.y - 10 && mouseY <= sliderNumRect.y + sliderNumRect.h + 10) {
+                let ratio = constrain((mouseX - sliderNumRect.x) / sliderNumRect.w, 0, 1);
+                let currentDen = denoms[denIdx];
+                num = Math.round(ratio * currentDen);
+            }
+            
+            // Check UI Button: Pie Model Select
+            if (mouseX >= btnPieRect.x && mouseX <= btnPieRect.x + btnPieRect.w &&
+                mouseY >= btnPieRect.y && mouseY <= btnPieRect.y + btnPieRect.h) {
+                modelType = 'pie';
+            }
+            
+            // Check UI Button: Grid Model Select
+            if (mouseX >= btnGridRect.x && mouseX <= btnGridRect.x + btnGridRect.w &&
+                mouseY >= btnGridRect.y && mouseY <= btnGridRect.y + btnGridRect.h) {
+                modelType = 'grid';
+            }
+            
+            // Check Quick Presets Buttons Hit Test
+            for (let btn of presetButtons) {
+                if (mouseX >= btn.x && mouseX <= btn.x + btn.w &&
+                    mouseY >= btn.y && mouseY <= btn.y + btn.h) {
+                    num = btn.preset.n;
+                    // Find actual matching denominator index
+                    let index = denoms.indexOf(btn.preset.d);
+                    if(index !== -1) {
+                        denIdx = index;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

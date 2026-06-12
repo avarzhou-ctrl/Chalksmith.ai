@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecosystems: Food Webs & The Energy Pyramid</title>
+    
+    <!-- Reveal.js Stylesheets -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <!-- Theme selection: Custom Dark Eco Theme -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/black.min.css">
+    
+    <!-- Custom CSS for High Contrast & Modern Educational Aesthetics -->
+    <style>
+        :root {
+            --bg-color: #0f172a; /* Deep Slate Blue */
+            --text-color: #f8fafc; /* Crisp Off-White */
+            --accent-green: #10b981; /* Vibrant Emerald Green */
+            --accent-yellow: #f59e0b; /* Bright Amber/Gold */
+            --accent-red: #f43f5e; /* Vibrant Coral Red */
+            --muted-text: #94a3b8; /* Soft Slate Gray */
+        }
+
+        .reveal {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+            color: var(--text-color);
+            font-weight: 700;
+            text-transform: none;
+            word-wrap: break-word;
+        }
+
+        .reveal h1 {
+            font-size: 2.5em;
+            text-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .reveal h2 {
+            color: var(--accent-green);
+            border-bottom: 2px solid rgba(16, 185, 129, 0.2);
+            padding-bottom: 10px;
+        }
+
+        /* Styling Highlights */
+        .highlight {
+            color: var(--accent-green);
+            font-weight: bold;
+        }
+
+        .alert-highlight {
+            color: var(--accent-yellow);
+            font-weight: bold;
+        }
+
+        .critical-highlight {
+            color: var(--accent-red);
+            font-weight: bold;
+        }
+
+        /* Layout Grid and Flex Utilities */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .flex-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            margin: 5px 0;
+        }
+
+        .card-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--accent-yellow);
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        /* SVG Graphic Styles */
+        svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .svg-text {
+            font-family: 'Segoe UI', sans-serif;
+            fill: #ffffff;
+        }
+
+        .svg-title {
+            font-weight: bold;
+            fill: #ffffff;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="reveal">
+    <div class="slides">
+
+        <!-- SLIDE 1: Title Slide -->
+        <section data-transition="fade-out">
+            <h1 style="color: var(--accent-green); margin-bottom: 20px;">Flow of Energy</h1>
+            <h3 style="font-weight: 400; font-size: 1.4em; color: var(--text-color);">Food Webs & The Energy Pyramid</h3>
+            <div style="margin: 40px auto; width: 150px; height: 4px; background: var(--accent-yellow); border-radius: 2px;"></div>
+            <p style="font-size: 0.9em; color: var(--muted-text);">High School Ecology & Environmental Science</p>
+            <p style="font-size: 0.7em; color: var(--muted-text); margin-top: 50px;">Use Spacebar or Arrow Keys to navigate</p>
+        </section>
+
+        <!-- SLIDE 2: Core Concept Definitions -->
+        <section data-transition="slide-in fade-out">
+            <h2 style="margin-bottom: 10px;">The Foundation of Ecosystems</h2>
+            <p style="font-size: 0.8em; text-align: left; margin-bottom: 15px;">
+                All organisms need <span class="highlight">energy</span> to survive, grow, and reproduce. How they obtain this energy defines their role in the ecosystem.
+            </p>
+            
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header" style="margin-bottom: 8px; font-size: 1.1em;">🌱 Autotrophs (Producers)</div>
+                    <p style="font-size: 0.7em; text-align: left; line-height: 1.4; margin: 0;">
+                        Organisms that capture energy from non-living sources (usually sunlight via <span class="highlight">photosynthesis</span> or chemical compounds via <span class="highlight">chemosynthesis</span>) to produce organic molecules.
+                    </p>
+                </div>
+                
+                <div class="card fragment">
+                    <div class="card-header" style="margin-bottom: 8px; font-size: 1.1em;">🦊 Heterotrophs (Consumers)</div>
+                    <p style="font-size: 0.7em; text-align: left; line-height: 1.4; margin: 0;">
+                        Organisms that must acquire energy by ingesting other living things. Includes herbivores, carnivores, omnivores, and <span class="alert-highlight">decomposers</span>.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 3: Food Chains vs. Food Webs -->
+        <section data-transition="slide-in fade-out">
+            <h2>Food Chains vs. Food Webs</h2>
+            <p style="font-size: 0.8em; margin-bottom: 15px;">
+                Ecosystems are highly interconnected. We use two models to visualize these interactions:
+            </p>
+
+            <div class="grid-2">
+                <div class="card" style="min-height: 230px;">
+                    <h4 style="color: var(--accent-yellow); font-size: 0.9em; margin-bottom: 10px;">Food Chain</h4>
+                    <p style="font-size: 0.7em; text-align: left;">
+                        A simple, linear path showing step-by-step who eats whom.
+                    </p>
+                    <div style="margin-top: 20px; font-size: 0.7em; font-weight: bold; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px;">
+                        Grass <span class="highlight">➔</span> Grasshopper <span class="highlight">➔</span> Frog <span class="highlight">➔</span> Hawk
+                    </div>
+                </div>
+
+                <div class="card" style="min-height: 230px;">
+                    <h4 style="color: var(--accent-yellow); font-size: 0.9em; margin-bottom: 10px;">Food Web</h4>
+                    <p style="font-size: 0.7em; text-align: left;">
+                        A realistic, interconnected network of multiple food chains, representing the complex interactions of an entire community.
+                    </p>
+                    <div style="margin-top: 10px; background: rgba(16, 185, 129, 0.1); border: 1px dashed var(--accent-green); padding: 8px; border-radius: 5px; font-size: 0.65em; line-height: 1.3;">
+                        <span class="critical-highlight">Crucial Rule:</span> Arrows always point in the direction of <span class="alert-highlight">energy flow</span> (from the organism eaten to the organism consuming it).
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 4: Introducing Trophic Levels -->
+        <section data-transition="slide-in fade-out">
+            <h2>Trophic Levels</h2>
+            <p style="font-size: 0.85em; margin-bottom: 25px;">
+                A <span class="highlight">trophic level</span> is the step an organism occupies in a food chain or ecological pyramid.
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; max-width: 800px; margin: 0 auto;">
+                <div class="fragment" data-fragment-index="4" style="background: rgba(244, 63, 94, 0.2); border-left: 5px solid var(--accent-red); padding: 8px 12px; text-align: left; font-size: 0.75em;">
+                    <strong>Level 4: Tertiary Consumers</strong> (e.g., Hawks, Owls - Apex Predators)
+                </div>
+                <div class="fragment" data-fragment-index="3" style="background: rgba(245, 158, 11, 0.2); border-left: 5px solid var(--accent-yellow); padding: 8px 12px; text-align: left; font-size: 0.75em;">
+                    <strong>Level 3: Secondary Consumers</strong> (e.g., Frogs, Mice - Carnivores/Omnivores)
+                </div>
+                <div class="fragment" data-fragment-index="2" style="background: rgba(16, 185, 129, 0.2); border-left: 5px solid var(--accent-green); padding: 8px 12px; text-align: left; font-size: 0.75em;">
+                    <strong>Level 2: Primary Consumers</strong> (e.g., Grasshoppers, Rabbits - Herbivores)
+                </div>
+                <div class="fragment" data-fragment-index="1" style="background: rgba(255, 255, 255, 0.1); border-left: 5px solid #fff; padding: 8px 12px; text-align: left; font-size: 0.75em;">
+                    <strong>Level 1: Producers</strong> (e.g., Plants, Phytoplankton - Autotrophs)
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 5: The Energy Pyramid Diagram -->
+        <section data-transition="slide-in fade-out">
+            <h2 style="margin-bottom: 5px;">The Energy Pyramid</h2>
+            <p style="font-size: 0.75em; margin-bottom: 10px;">
+                Visualizing available energy decreasing at each trophic level. (Click right arrow / spacebar to build)
+            </p>
+
+            <div style="width: 100%; max-width: 700px; margin: 0 auto;">
+                <svg viewBox="0 0 800 450" width="100%" style="max-height: 400px;">
+                    <!-- Base grid background helper (optional) -->
+                    <rect width="800" height="450" fill="transparent" />
+
+                    <!-- LEFT SIDE: Energy Flow Scale Arrow -->
+                    <defs>
+                        <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff9800" />
+                        </marker>
+                    </defs>
+                    <line x1="60" y1="410" x2="60" y2="40" stroke="#ff9800" stroke-width="4" marker-end="url(#arrow)" />
+                    <text x="45" y="225" class="svg-text" font-size="16" transform="rotate(-90 45 225)" fill="#ff9800" font-weight="bold">AVAILABLE ENERGY DECREASES</text>
+
+                    <!-- LEVEL 1: Producers (Bottom) -->
+                    <g class="fragment" data-fragment-index="1">
+                        <polygon points="120,410 680,410 600,310 200,310" fill="#1b5e20" stroke="#fff" stroke-width="2"/>
+                        <text x="400" y="350" class="svg-text svg-title" font-size="20" text-anchor="middle">PRODUCERS</text>
+                        <text x="400" y="380" class="svg-text" font-size="14" text-anchor="middle" fill="#c8e6c9">Plants, Grasses, Trees • 100% Energy</text>
+                    </g>
+
+                    <!-- LEVEL 2: Primary Consumers -->
+                    <g class="fragment" data-fragment-index="2">
+                        <polygon points="200,310 600,310 520,210 280,210" fill="#2e7d32" stroke="#fff" stroke-width="2"/>
+                        <text x="400" y="250" class="svg-text svg-title" font-size="20" text-anchor="middle">PRIMARY CONSUMERS</text>
+                        <text x="400" y="280" class="svg-text" font-size="14" text-anchor="middle" fill="#a5d6a7">Insects, Rabbits, Deer • 10% Energy</text>
+                    </g>
+
+                    <!-- LEVEL 3: Secondary Consumers -->
+                    <g class="fragment" data-fragment-index="3">
+                        <polygon points="280,210 520,210 440,110 360,110" fill="#ef6c00" stroke="#fff" stroke-width="2"/>
+                        <text x="400" y="150" class="svg-text svg-title" font-size="20" text-anchor="middle">SECONDARY CONSUMERS</text>
+                        <text x="400" y="180" class="svg-text" font-size="14" text-anchor="middle" fill="#ffe0b2">Frogs, Mice, Small Birds • 1% Energy</text>
+                    </g>
+
+                    <!-- LEVEL 4: Tertiary Consumers (Apex) -->
+                    <g class="fragment" data-fragment-index="4">
+                        <polygon points="360,110 440,110 400,20" fill="#c62828" stroke="#fff" stroke-width="2"/>
+                        <text x="400" y="60" class="svg-text svg-title" font-size="16" text-anchor="middle">TERTIARY CONSUMERS</text>
+                        <text x="400" y="85" class="svg-text" font-size="12" text-anchor="middle" fill="#ffcdd2">Hawks, Eagles • 0.1% Energy</text>
+                    </g>
+
+                    <!-- RIGHT SIDE: Heat Loss Indicator -->
+                    <g class="fragment" data-fragment-index="5">
+                        <path d="M 640,370 Q 740,270 710,80" fill="transparent" stroke="#ff4444" stroke-width="3" stroke-dasharray="5,5" marker-end="url(#arrow)" />
+                        <text x="730" y="190" class="svg-text" font-size="14" fill="#ff4444" font-weight="bold">90% Energy Lost</text>
+                        <text x="730" y="210" class="svg-text" font-size="12" fill="#ff8888">as Metabolic Heat</text>
+                    </g>
+                </svg>
+            </div>
+        </section>
+
+        <!-- SLIDE 6: The 10% Rule (Detailed breakdown) -->
+        <section data-transition="slide-in fade-out">
+            <h2 style="margin-bottom: 10px;">The 10% Rule</h2>
+            <p style="font-size: 0.8em; margin-bottom: 15px;">
+                On average, only <span class="highlight">10% of the energy</span> stored in one trophic level is passed to the next.
+            </p>
+
+            <div class="grid-2">
+                <div class="card" style="font-size: 0.7em; text-align: left; line-height: 1.4;">
+                    <div class="card-header" style="text-align: left; margin-bottom: 8px; font-size: 1.1em;">Where does the other 90% go?</div>
+                    <ul style="margin: 0; padding-left: 15px;">
+                        <li style="margin-bottom: 6px;"><span class="alert-highlight">Metabolic Heat:</span> Most energy is lost as thermal energy released during cellular respiration.</li>
+                        <li style="margin-bottom: 6px;"><span class="alert-highlight">Life Processes:</span> Used directly by the organism for movement, reproduction, and growth.</li>
+                        <li style="margin-bottom: 0;"><span class="alert-highlight">Waste/Detritus:</span> Parts not eaten or digested are processed by decomposers.</li>
+                    </ul>
+                </div>
+
+                <div class="card" style="font-size: 0.7em; display: flex; flex-direction: column; justify-content: center;">
+                    <div class="card-header" style="margin-bottom: 8px; font-size: 1.1em;">Math in Action</div>
+                    <p style="margin-bottom: 8px; font-size: 0.9em;">If 10,000 Joules of energy is available in the grass:</p>
+                    <div style="font-family: monospace; font-size: 1.05em; line-height: 1.4; text-align: left; padding: 8px 15px; background: rgba(0,0,0,0.25); border-radius: 6px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);">
+                        🌾 Grass = 10,000 J <br>
+                        🦗 Grasshopper = 1,000 J <br>
+                        🦎 Lizard = 100 J <br>
+                        🦅 Hawk = 10 J
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 7: Ecological Consequences of the 10% Rule -->
+        <section data-transition="slide-in fade-out">
+            <h2>Ecosystem Limitations</h2>
+            <p style="font-size: 0.85em; margin-bottom: 25px;">
+                The systematic loss of energy up the food chain leads to real-world biological constraints:
+            </p>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header" style="font-size: 1.1em; margin-bottom: 8px;">📉 Limit on Chain Length</div>
+                    <p style="font-size: 0.7em; text-align: left; line-height: 1.4; margin: 0;">
+                        Most food webs have no more than <span class="highlight">4 to 5 trophic levels</span>. Above this, there is simply not enough energy to sustain viable populations.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <div class="card-header" style="font-size: 1.1em; margin-bottom: 8px;">📉 Decreasing Biomass</div>
+                    <p style="font-size: 0.7em; text-align: left; line-height: 1.4; margin: 0;">
+                        Because energy is lost, the total dry mass of all living organisms (<span class="highlight">biomass</span>) at higher levels is significantly smaller than at the bottom.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 8: Summary and Key Review Questions -->
+        <section data-transition="slide-in">
+            <h2 style="margin-bottom: 15px;">Let's Review!</h2>
+            
+            <div style="font-size: 0.75em; text-align: left; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px;">
+                <div class="card" style="margin: 0; padding: 12px 20px;">
+                    <p style="margin: 0;"><strong class="highlight">1. Direction of Flow:</strong> Remember that ecological arrows always point from resource to consumer.</p>
+                </div>
+                <div class="card" style="margin: 0; padding: 12px 20px;">
+                    <p style="margin: 0;"><strong class="alert-highlight">2. The 10% Rule:</strong> Calculated by dividing the current energy level by 10 (or moving the decimal place one spot to the left).</p>
+                </div>
+                <div class="card" style="margin: 0; padding: 12px 20px;">
+                    <p style="margin: 0;"><strong class="critical-highlight">3. Apex Predators:</strong> Predators at the top are rare because they require massive foundational ecosystems to support their caloric requirements.</p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</div>
+
+<!-- Reveal.js JS & Plugins -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.js"></script>
+<script>
+    // Initialize reveal.js with modern presentation defaults
+    Reveal.initialize({
+        hash: true,
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        transition: 'slide', // none/fade/slide/convex/concave/zoom
+        plugins: []
+    });
+</script>
+
+</body>
+</html>

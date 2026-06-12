@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mastering Fractions, Decimals, & Percentages</title>
+    
+    <!-- Reveal.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+    <!-- Theme override for high contrast and modern look -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/black.min.css" id="theme">
+    
+    <!-- Custom styling to ensure high-contrast, beautiful layouts, and zero overlap -->
+    <style>
+        :root {
+            --bg-color: #0f172a; /* Slate 900 */
+            --text-color: #f8fafc; /* Slate 50 */
+            --accent-cyan: #06b6d4; /* Cyan 500 */
+            --accent-amber: #f59e0b; /* Amber 500 */
+            --accent-emerald: #10b981; /* Emerald 500 */
+            --card-bg: #1e293b; /* Slate 800 */
+        }
+
+        .reveal {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+            color: var(--text-color);
+            font-weight: 700;
+            text-shadow: none;
+            margin-top: 0;
+        }
+
+        .reveal h1 {
+            font-size: 2.2em;
+            line-height: 1.1;
+            margin-bottom: 20px;
+        }
+
+        .reveal h2 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+
+        .reveal h3 {
+            font-size: 1.4em;
+            margin-bottom: 10px;
+        }
+
+        .reveal h4 {
+            font-size: 1.1em;
+            margin-bottom: 8px;
+        }
+
+        .text-cyan { color: var(--accent-cyan) !important; font-weight: bold; }
+        .text-amber { color: var(--accent-amber) !important; font-weight: bold; }
+        .text-emerald { color: var(--accent-emerald) !important; font-weight: bold; }
+
+        /* Compact Highlight box */
+        .highlight-box {
+            background-color: var(--card-bg);
+            border-left: 6px solid var(--accent-cyan);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 12px 0;
+            text-align: left;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        /* Compact Card */
+        .card {
+            background-color: var(--card-bg);
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            border: 1px solid #334155;
+        }
+
+        /* SVG styles */
+        .svg-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        svg text {
+            font-family: 'Segoe UI', sans-serif;
+            font-weight: bold;
+        }
+
+        /* Responsive tables */
+        table.custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 0.75em;
+        }
+
+        table.custom-table th {
+            background-color: var(--accent-cyan);
+            color: var(--bg-color);
+            padding: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        table.custom-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #334155;
+            text-align: center;
+        }
+
+        table.custom-table tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Math layout utilities */
+        .fraction {
+            display: inline-flex;
+            flex-direction: column;
+            vertical-align: middle;
+            text-align: center;
+            padding: 0 4px;
+        }
+        .numerator {
+            border-bottom: 2px solid var(--text-color);
+            padding-bottom: 2px;
+        }
+        .denominator {
+            padding-top: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- Slide 1: Title -->
+            <section data-transition="slide">
+                <h1 class="text-cyan">Equivalence</h1>
+                <h3 style="font-size: 1.1em; margin-bottom: 20px;">Fractions, Decimals, & Percentages</h3>
+                <p style="color: #94a3b8; font-size: 0.8em; margin-bottom: 15px;">Understanding how to represent parts of a whole in three distinct, interchangeable ways.</p>
+                <div class="svg-container">
+                    <!-- Scaled structural representation to prevent overflow -->
+                    <svg width="340" height="50" viewBox="0 0 400 60">
+                        <rect x="10" y="10" width="120" height="40" fill="#06b6d4" rx="5" />
+                        <rect x="140" y="10" width="120" height="40" fill="#f59e0b" rx="5" />
+                        <rect x="270" y="10" width="120" height="40" fill="#10b981" rx="5" />
+                        <text x="70" y="35" fill="#0f172a" font-size="14" text-anchor="middle">Fraction</text>
+                        <text x="200" y="35" fill="#0f172a" font-size="14" text-anchor="middle">Decimal</text>
+                        <text x="330" y="35" fill="#0f172a" font-size="14" text-anchor="middle">Percent</text>
+                    </svg>
+                </div>
+            </section>
+
+            <!-- Slide 2: Core Concepts Definitions -->
+            <section data-transition="slide">
+                <h2 class="text-cyan">The Core Concept</h2>
+                <p style="font-size: 0.8em; margin-bottom: 20px;">Fractions, decimals, and percentages are not different values; they are <span class="text-amber">different languages</span> for expressing the exact same proportion of a whole.</p>
+                
+                <div class="grid-3">
+                    <div class="card">
+                        <h4 class="text-cyan">Fraction</h4>
+                        <p style="font-size: 0.65em; line-height: 1.4; color: #cbd5e1; margin-bottom: 10px;">Expresses a relationship of parts to a whole using a numerator and denominator.</p>
+                        <p style="font-size: 1.3em; font-weight: bold; margin: 0;"><span class="fraction"><span class="numerator">1</span><span class="denominator">4</span></span></p>
+                    </div>
+                    <div class="card">
+                        <h4 class="text-amber">Decimal</h4>
+                        <p style="font-size: 0.65em; line-height: 1.4; color: #cbd5e1; margin-bottom: 10px;">A fractional number based on powers of ten, separated by a decimal point.</p>
+                        <p style="font-size: 1.3em; font-weight: bold; margin: 0;">0.25</p>
+                    </div>
+                    <div class="card">
+                        <h4 class="text-emerald">Percent</h4>
+                        <p style="font-size: 0.65em; line-height: 1.4; color: #cbd5e1; margin-bottom: 10px;">Literally translates to "per hundred" (out of 100 parts total).</p>
+                        <p style="font-size: 1.3em; font-weight: bold; margin: 0;">25%</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 3: Visualizing Equivalence (SVG) -->
+            <section data-transition="slide">
+                <h2 class="text-cyan">Visualizing Equivalence</h2>
+                <p style="font-size: 0.75em; margin-bottom: 10px;">Notice how the same area is shaded in all three frameworks:</p>
+                
+                <div class="grid-2">
+                    <div class="svg-container" style="margin: 0;">
+                        <!-- Scaled down circle visualizer to prevent slide overflow -->
+                        <svg width="200" height="200" viewBox="0 0 120 120">
+                            <!-- Background unshaded wedge -->
+                            <circle cx="60" cy="60" r="50" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+                            <!-- 3/4 Shaded area -->
+                            <path d="M 60 10 A 50 50 0 1 1 10 60 L 60 60 Z" fill="#06b6d4" />
+                            <!-- Lines splitting the circle -->
+                            <line x1="60" y1="10" x2="60" y2="110" stroke="#0f172a" stroke-width="2"/>
+                            <line x1="10" y1="60" x2="110" y2="60" stroke="#0f172a" stroke-width="2"/>
+                            <circle cx="60" cy="60" r="4" fill="#fff" />
+                        </svg>
+                    </div>
+                    <div style="text-align: left;">
+                        <h4 class="text-amber">Three Perspectives:</h4>
+                        <ul style="font-size: 0.75em; line-height: 1.6; list-style-type: none; padding-left: 0; margin: 0;">
+                            <li class="fragment" data-fragment-index="1" style="margin-bottom: 8px;"><strong class="text-cyan">Fraction:</strong> <span class="fraction"><span class="numerator">3</span><span class="denominator">4</span></span> of the circle is shaded.</li>
+                            <li class="fragment" data-fragment-index="2" style="margin-bottom: 8px;"><strong class="text-amber">Decimal:</strong> 0.75 of the circle is shaded.</li>
+                            <li class="fragment" data-fragment-index="3"><strong class="text-emerald">Percentage:</strong> 75% of the circle is shaded.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 4: Conversion Map -->
+            <section data-transition="slide">
+                <h2 class="text-cyan">How to Convert</h2>
+                <p style="font-size: 0.75em; color: #94a3b8; margin-bottom: 15px;">Follow these fundamental routes to convert between formats:</p>
+                
+                <div class="grid-3" style="font-size: 0.7em;">
+                    <div class="card fragment" data-fragment-index="1" style="border-top: 4px solid var(--accent-cyan); padding: 12px 15px;">
+                        <h4 class="text-cyan" style="font-size: 1.05em; margin-bottom: 5px;">Fraction &rarr; Decimal</h4>
+                        <p style="color: #cbd5e1; line-height: 1.3; margin-bottom: 8px;">Divide the <span class="text-cyan">numerator</span> by the <span class="text-amber">denominator</span>.</p>
+                        <div class="highlight-box" style="margin: 0; padding: 6px 10px;">
+                            <span class="fraction"><span class="numerator">4</span><span class="denominator">5</span></span> = 4 &divide; 5 = <strong class="text-emerald">0.8</strong>
+                        </div>
+                    </div>
+
+                    <div class="card fragment" data-fragment-index="2" style="border-top: 4px solid var(--accent-amber); padding: 12px 15px;">
+                        <h4 class="text-amber" style="font-size: 1.05em; margin-bottom: 5px;">Decimal &rarr; Percent</h4>
+                        <p style="color: #cbd5e1; line-height: 1.3; margin-bottom: 8px;">Multiply by <span class="text-amber">100</span> (shift decimal point 2 places right).</p>
+                        <div class="highlight-box" style="margin: 0; padding: 6px 10px;">
+                            0.8 &times; 100 = <strong class="text-emerald">80%</strong>
+                        </div>
+                    </div>
+
+                    <div class="card fragment" data-fragment-index="3" style="border-top: 4px solid var(--accent-emerald); padding: 12px 15px;">
+                        <h4 class="text-emerald" style="font-size: 1.05em; margin-bottom: 5px;">Percent &rarr; Fraction</h4>
+                        <p style="color: #cbd5e1; line-height: 1.3; margin-bottom: 8px;">Write percentage over <span class="text-emerald">100</span> and simplify.</p>
+                        <div class="highlight-box" style="margin: 0; padding: 6px 10px;">
+                            80% = <span class="fraction"><span class="numerator">80</span><span class="denominator">100</span></span> = <span class="fraction"><span class="numerator">4</span><span class="denominator">5</span></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 5: Deep Dive: Fraction to Decimal -->
+            <section data-transition="slide">
+                <h3 class="text-cyan">Step-by-Step: Converting Fractions</h3>
+                <p style="font-size: 0.75em; margin-bottom: 15px;">Sometimes fractions do not resolve into neat decimals. Let's observe two patterns:</p>
+
+                <div class="grid-2" style="font-size: 0.7em;">
+                    <div class="card" style="padding: 15px;">
+                        <h4 class="text-emerald" style="margin-bottom: 8px;">Terminating Decimals</h4>
+                        <p style="color: #cbd5e1; margin-bottom: 10px; line-height: 1.3;">The division finishes with a remainder of zero.</p>
+                        <p style="font-size: 1.1em; line-height: 1.4; margin: 5px 0;">
+                            <span class="fraction"><span class="numerator">3</span><span class="denominator">8</span></span> = 3 &divide; 8 = <strong class="text-emerald">0.375</strong>
+                        </p>
+                        <p style="color: #94a3b8; font-size: 0.85em; margin-top: 10px;">Ideal for exact calculations (37.5%).</p>
+                    </div>
+
+                    <div class="card" style="padding: 15px;">
+                        <h4 class="text-amber" style="margin-bottom: 8px;">Recurring Decimals</h4>
+                        <p style="color: #cbd5e1; margin-bottom: 10px; line-height: 1.3;">The digit sequence repeats infinitely.</p>
+                        <p style="font-size: 1.1em; line-height: 1.4; margin: 5px 0;">
+                            <span class="fraction"><span class="numerator">2</span><span class="denominator">3</span></span> = 2 &divide; 3 = <strong class="text-amber">0.666...</strong> (or 0.6̄)
+                        </p>
+                        <p style="color: #94a3b8; font-size: 0.85em; margin-top: 10px;">Typically rounded to 0.67 or <strong class="text-amber">66.7%</strong>.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Slide 6: Essential Equivalencies Matrix -->
+            <section data-transition="slide">
+                <h2 class="text-cyan" style="margin-bottom: 10px;">Key Benchmarks</h2>
+                <p style="font-size: 0.7em; margin-bottom: 10px;">Memorizing these common equivalents speeds up arithmetic significantly:</p>
+                
+                <table class="custom-table" style="max-width: 800px; margin: 0 auto;">
+                    <thead>
+                        <tr>
+                            <th>Fraction</th>
+                            <th>Decimal</th>
+                            <th>Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="fraction"><span class="numerator">1</span><span class="denominator">10</span></span></td>
+                            <td>0.1</td>
+                            <td class="text-cyan">10%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="fraction"><span class="numerator">1</span><span class="denominator">5</span></span></td>
+                            <td>0.2</td>
+                            <td class="text-cyan">20%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="fraction"><span class="numerator">1</span><span class="denominator">4</span></span></td>
+                            <td>0.25</td>
+                            <td class="text-amber">25%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="fraction"><span class="numerator">1</span><span class="denominator">3</span></span></td>
+                            <td>0.3̄ (0.333...)</td>
+                            <td class="text-amber">33.3%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="fraction"><span class="numerator">1</span><span class="denominator">2</span></span></td>
+                            <td>0.5</td>
+                            <td class="text-emerald">50%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="fraction"><span class="numerator">3</span><span class="denominator">4</span></span></td>
+                            <td>0.75</td>
+                            <td class="text-emerald">75%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Slide 7: Quick Knowledge Check -->
+            <section data-transition="slide">
+                <h2 class="text-cyan">Concept Check</h2>
+                <p style="font-size: 0.75em; margin-bottom: 15px;">Let's test our understanding with a real-world conversion problem.</p>
+
+                <div class="card" style="text-align: left; max-width: 750px; margin: 0 auto; padding: 15px 20px;">
+                    <h4 class="text-amber" style="margin-bottom: 10px;">Scenario:</h4>
+                    <p style="font-size: 0.75em; line-height: 1.4; margin-bottom: 10px;">You got <span class="text-cyan">18 out of 25</span> answers correct on a math quiz.</p>
+                    
+                    <ul style="font-size: 0.7em; line-height: 1.5; margin: 0; list-style-type: none; padding-left: 0;">
+                        <li class="fragment" data-fragment-index="1" style="margin-bottom: 6px;">
+                            <strong>Step 1 (Fraction):</strong> Represent as <span class="fraction"><span class="numerator">18</span><span class="denominator">25</span></span>
+                        </li>
+                        <li class="fragment" data-fragment-index="2" style="margin-bottom: 6px;">
+                            <strong>Step 2 (Decimal):</strong> Calculate 18 &divide; 25 = <span class="text-emerald">0.72</span>
+                        </li>
+                        <li class="fragment" data-fragment-index="3">
+                            <strong>Step 3 (Percentage):</strong> 0.72 &times; 100 = <span class="text-emerald">72% score</span>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Slide 8: Summary -->
+            <section data-transition="slide">
+                <h2 class="text-emerald" style="margin-bottom: 15px;">Summary Checklist</h2>
+                <div class="highlight-box" style="font-size: 0.75em; line-height: 1.6; border-left-color: var(--accent-emerald); max-width: 800px; margin: 0 auto;">
+                    <ul style="list-style-type: '&#10003;  '; padding-left: 15px; margin: 0;">
+                        <li style="margin-bottom: 6px;"><strong>Fractions</strong> represent parts of a whole structurally.</li>
+                        <li style="margin-bottom: 6px;"><strong>Decimals</strong> map these relationships directly into base-10 mathematics.</li>
+                        <li style="margin-bottom: 6px;"><strong>Percentages</strong> provide a normalized benchmark of "out of 100" for fast comparison.</li>
+                        <li>Mastery of conversions enables fluid problem-solving in science, finance, and everyday logic.</li>
+                    </ul>
+                </div>
+                <p class="text-cyan" style="font-size: 1.1em; font-weight: bold; margin-top: 20px; margin-bottom: 0;">Practice makes perfect!</p>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- Reveal.js JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            transition: 'slide'
+        });
+    </script>
+</body>
+</html>

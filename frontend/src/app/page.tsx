@@ -117,7 +117,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="w-full">
-                <CodeDrivenDemo 
+                <CodeDrivenDemo
                   filePath="/demo_2.html"
                 />
               </div>

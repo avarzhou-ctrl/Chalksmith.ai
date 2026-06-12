@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mastering Elapsed Time</title>
+  
+  <!-- Reveal.js CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/black.min.css">
+  
+  <!-- Google Fonts for crisp modern typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --r-main-font: 'Plus Jakarta Sans', sans-serif;
+      --r-heading-font: 'Plus Jakarta Sans', sans-serif;
+      --r-code-font: 'Space Mono', monospace;
+      --r-background-color: #0b0f19;
+      --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 100%);
+      --accent-blue: #38bdf8;
+      --accent-amber: #fbbf24;
+      --accent-emerald: #34d399;
+      --text-muted: #94a3b8;
+    }
+
+    .reveal {
+      background: var(--bg-gradient);
+      color: #f8fafc;
+    }
+
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+      font-weight: 800;
+      text-transform: none;
+      letter-spacing: -0.02em;
+    }
+
+    .reveal h1 {
+      color: #ffffff;
+      text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .reveal h2 {
+      color: var(--accent-blue);
+      margin-bottom: 30px;
+    }
+
+    .highlight-blue {
+      color: var(--accent-blue);
+      font-weight: 700;
+    }
+
+    .highlight-amber {
+      color: var(--accent-amber);
+      font-weight: 700;
+    }
+
+    .highlight-emerald {
+      color: var(--accent-emerald);
+      font-weight: 700;
+    }
+
+    /* Card styling for structure */
+    .content-card {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      align-items: center;
+    }
+
+    /* Custom T-Chart Table */
+    .t-chart {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+
+    .t-chart th {
+      border-bottom: 3px solid var(--accent-blue);
+      padding: 12px;
+      color: var(--accent-blue);
+      font-size: 1.2rem;
+    }
+
+    .t-chart td {
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 12px;
+      font-family: var(--r-code-font);
+    }
+
+    .t-chart td:first-child {
+      border-right: 2px solid rgba(255,255,255,0.2);
+    }
+
+    /* Clock SVG Styling */
+    .clock-hand {
+      stroke-linecap: round;
+      transform-origin: 100px 100px;
+    }
+
+    .subtext {
+      font-size: 0.8em;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- Slide 1: Title Slide -->
+      <section data-transition="zoom">
+        <h1 style="font-size: 2.8em; margin-bottom: 0.2em;">Mastering <span class="highlight-blue">Elapsed Time</span></h1>
+        <p style="color: var(--text-muted); font-size: 1.2em; margin-bottom: 1.5em;">How to calculate the duration of events with precision</p>
+        
+        <div style="display: flex; justify-content: center; align-items: center; gap: 40px; margin-top: 50px;">
+          <!-- Custom Vector Clock Graphic -->
+          <svg width="120" height="120" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="90" fill="none" stroke="var(--accent-blue)" stroke-width="8" />
+            <circle cx="100" cy="100" r="6" fill="#fff" />
+            <!-- Hour Hand -->
+            <line x1="100" y1="100" x2="100" y2="50" stroke="var(--accent-amber)" stroke-width="6" class="clock-hand" style="transform: rotate(45deg);" />
+            <!-- Minute Hand -->
+            <line x1="100" y1="100" x2="145" y2="100" stroke="#fff" stroke-width="4" class="clock-hand" style="transform: rotate(-20deg);" />
+          </svg>
+          <div style="text-align: left;">
+            <p style="margin: 0; font-weight: 600; color: var(--accent-amber);">Interactive Math Lesson</p>
+            <p style="margin: 0; font-size: 0.8em; color: var(--text-muted);">Visual Strategies & Walkthroughs</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 2: Core Concepts -->
+      <section data-transition="slide-in fade-out">
+        <h2>What is <span class="highlight-blue">Elapsed Time</span>?</h2>
+        <div class="content-card" style="margin-top: 20px;">
+          <p style="font-size: 1.1em; line-height: 1.6;">
+            <span class="highlight-blue">Elapsed time</span> is the measure of how much time passes from the <span class="highlight-emerald">start</span> of an event to the <span class="highlight-amber">end</span> of that event.
+          </p>
+        </div>
+        
+        <div class="grid-2" style="margin-top: 40px;">
+          <div class="content-card" style="border-left: 5px solid var(--accent-emerald);">
+            <h4 style="margin: 0; color: var(--accent-emerald);">Start Time</h4>
+            <p style="margin: 10px 0 0 0; font-size: 0.9em; color: var(--text-muted);">The moment an event begins.</p>
+            <p style="font-family: var(--r-code-font); margin: 5px 0 0 0; font-weight: bold;">Example: 8:30 AM</p>
+          </div>
+          <div class="content-card" style="border-left: 5px solid var(--accent-amber);">
+            <h4 style="margin: 0; color: var(--accent-amber);">End Time</h4>
+            <p style="margin: 10px 0 0 0; font-size: 0.9em; color: var(--text-muted);">The moment an event finishes.</p>
+            <p style="font-family: var(--r-code-font); margin: 5px 0 0 0; font-weight: bold;">Example: 10:15 AM</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 3: The Base-60 Pitfall -->
+      <section>
+        <h2>The <span class="highlight-amber">Base-60 Warning</span></h2>
+        <div class="content-card">
+          <p style="font-size: 1.1em; margin-bottom: 20px;">
+            Why can't we just use standard column subtraction?
+          </p>
+          <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgb(239, 68, 68); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <p style="margin: 0; font-weight: bold; color: #f87171;">Common Fatal Error:</p>
+            <p style="margin: 5px 0 0 0; font-family: var(--r-code-font);">10:15 - 8:30 is NOT calculated as "10.15 - 8.30 = 1.85"</p>
+          </div>
+          <p style="font-size: 0.95em;">
+            Standard subtraction uses <span class="highlight-blue">Base-10</span> (units of 100). <br>
+            Time tracking uses <span class="highlight-emerald">Base-60</span> (1 Hour = 60 Minutes).
+          </p>
+          <p style="font-size: 0.9em; color: var(--accent-amber); margin-top: 15px; font-weight: bold;">
+            To calculate elapsed time accurately, we must use visual frameworks or regroup hours into 60 minutes.
+          </p>
+        </div>
+      </section>
+
+      <!-- Slide 4: Method 1 - The Number Line -->
+      <section>
+        <h3>Strategy 1: <span class="highlight-blue">The Linear Timeline</span></h3>
+        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 20px;">Great for mapping jumps to the next hour marker.</p>
+        
+        <div class="content-card" style="padding: 20px;">
+          <!-- Visual Number Line SVG -->
+          <svg viewBox="0 0 800 220" width="100%" height="220" style="background: #111827; border-radius: 8px; padding: 10px;">
+            <!-- Main Axis Line -->
+            <line x1="50" y1="140" x2="750" y2="140" stroke="#4b5563" stroke-width="4" />
+            
+            <!-- Start Tick (8:30) -->
+            <circle cx="100" cy="140" r="7" fill="var(--accent-emerald)" />
+            <text x="100" y="180" fill="#fff" font-size="16" font-family="monospace" text-anchor="middle">8:30 AM</text>
+            
+            <!-- Hour Milestone (9:00) -->
+            <circle cx="300" cy="140" r="7" fill="#fff" />
+            <text x="300" y="180" fill="#fff" font-size="16" font-family="monospace" text-anchor="middle">9:00 AM</text>
+            
+            <!-- Hour Milestone (10:00) -->
+            <circle cx="600" cy="140" r="7" fill="#fff" />
+            <text x="600" y="180" fill="#fff" font-size="16" font-family="monospace" text-anchor="middle">10:00 AM</text>
+            
+            <!-- End Tick (10:15) -->
+            <circle cx="700" cy="140" r="7" fill="var(--accent-amber)" />
+            <text x="700" y="180" fill="#fff" font-size="16" font-family="monospace" text-anchor="middle">10:15 AM</text>
+            
+            <!-- Jump 1 Arc -->
+            <path d="M 100,140 A 100,100 0 0,1 300,140" fill="none" stroke="var(--accent-emerald)" stroke-width="3" stroke-dasharray="4" />
+            <text x="200" y="80" fill="var(--accent-emerald)" font-size="16" font-weight="bold" text-anchor="middle">+30 min</text>
+            
+            <!-- Jump 2 Arc -->
+            <path d="M 300,140 A 150,150 0 0,1 600,140" fill="none" stroke="var(--accent-blue)" stroke-width="3" />
+            <text x="450" y="50" fill="var(--accent-blue)" font-size="16" font-weight="bold" text-anchor="middle">+1 hour</text>
+            
+            <!-- Jump 3 Arc -->
+            <path d="M 600,140 A 50,50 0 0,1 700,140" fill="none" stroke="var(--accent-amber)" stroke-width="3" stroke-dasharray="4" />
+            <text x="650" y="95" fill="var(--accent-amber)" font-size="16" font-weight="bold" text-anchor="middle">+15 min</text>
+          </svg>
+        </div>
+        
+        <p style="margin-top: 20px; font-size: 1.1em;">
+          Total Time = <span class="highlight-blue">1 hour</span> + <span class="highlight-emerald">30 min</span> + <span class="highlight-amber">15 min</span> = <span class="highlight-emerald" style="border-bottom: 2px dashed; padding-bottom: 2px;">1 hr 45 min</span>
+        </p>
+      </section>
+
+      <!-- Slide 5: Method 2 - The T-Chart -->
+      <section>
+        <h3>Strategy 2: <span class="highlight-blue">The T-Chart Method</span></h3>
+        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 15px;">Excellent for accounting long durations step-by-step.</p>
+        
+        <div class="grid-2">
+          <div class="content-card">
+            <table class="t-chart">
+              <thead>
+                <tr>
+                  <th>Time Counter</th>
+                  <th>Amount Added</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>8:30 AM</td>
+                  <td>Start</td>
+                </tr>
+                <tr class="fragment" data-fragment-index="1">
+                  <td>9:30 AM</td>
+                  <td style="color: var(--accent-blue);">+ 1 hour</td>
+                </tr>
+                <tr class="fragment" data-fragment-index="2">
+                  <td>10:00 AM</td>
+                  <td style="color: var(--accent-emerald);">+ 30 min</td>
+                </tr>
+                <tr class="fragment" data-fragment-index="3">
+                  <td>10:15 AM</td>
+                  <td style="color: var(--accent-amber);">+ 15 min</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div style="text-align: left;">
+            <p style="font-size: 0.95em; line-height: 1.6;">
+              <span class="highlight-blue">Rule:</span> Add hours first to get close to the destination, then adjust the remaining minutes.
+            </p>
+            <div class="fragment content-card" data-fragment-index="4" style="margin-top: 20px; padding: 15px; background: rgba(52, 211, 153, 0.1);">
+              <h5 style="margin: 0; color: var(--accent-emerald);">Summing it up:</h5>
+              <p style="margin: 5px 0 0 0; font-family: var(--r-code-font);">1 hr + 30 min + 15 min = <strong>1 hour 45 minutes</strong></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 6: Guided Practice 1 -->
+      <section>
+        <h2>Practice 1: <span class="highlight-emerald">Within Day boundaries</span></h2>
+        <p style="font-size: 0.9em; color: var(--text-muted);">Calculate the elapsed time from <span class="highlight-blue">3:15 PM</span> to <span class="highlight-amber">7:40 PM</span>.</p>
+        
+        <div class="content-card" style="text-align: left; max-width: 800px; margin: 0 auto;">
+          <div class="fragment" style="margin-bottom: 15px;">
+            <p style="margin: 0;"><span class="highlight-blue">Step 1:</span> Leap forward by full hours without overshoot.</p>
+            <p style="margin: 5px 0 0 20px; font-family: var(--r-code-font); color: var(--text-muted);">3:15 PM &rarr; 7:15 PM = <span class="highlight-blue">4 hours</span></p>
+          </div>
+          <div class="fragment" style="margin-bottom: 15px;">
+            <p style="margin: 0;"><span class="highlight-amber">Step 2:</span> Compute remaining minutes to reach target.</p>
+            <p style="margin: 5px 0 0 20px; font-family: var(--r-code-font); color: var(--text-muted);">7:15 PM &rarr; 7:40 PM = <span class="highlight-amber">25 minutes</span> (since 40 - 15 = 25)</p>
+          </div>
+          <div class="fragment" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 15px;">
+            <p style="margin: 0; font-size: 1.2em; font-weight: bold; text-align: center;">
+              Total Elapsed Time: <span class="highlight-emerald">4 hours 25 minutes</span>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 7: Guided Practice 2 (Crossing AM/PM) -->
+      <section>
+        <h2>Practice 2: <span class="highlight-amber">Crossing AM to PM</span></h2>
+        <p style="font-size: 0.9em; color: var(--text-muted);">An event starts at <span class="highlight-blue">10:45 AM</span> and concludes at <span class="highlight-amber">2:15 PM</span>.</p>
+        
+        <div class="content-card" style="text-align: left; max-width: 800px; margin: 0 auto;">
+          <div class="fragment" style="margin-bottom: 12px;">
+            <p style="margin: 0;"><span class="highlight-emerald">Anchor Strategy:</span> Use 12:00 PM (Noon) as your anchor.</p>
+          </div>
+          <div class="fragment" style="margin-bottom: 12px; margin-left: 20px; border-left: 3px solid var(--accent-blue); padding-left: 15px;">
+            <p style="margin: 0; font-weight: bold; color: var(--accent-blue);">Segment A: Morning run to Noon</p>
+            <p style="margin: 5px 0 0 0; font-family: var(--r-code-font); font-size: 0.9em;">10:45 AM &rarr; 12:00 PM = <span class="highlight-blue">1 hour 15 minutes</span></p>
+          </div>
+          <div class="fragment" style="margin-bottom: 12px; margin-left: 20px; border-left: 3px solid var(--accent-amber); padding-left: 15px;">
+            <p style="margin: 0; font-weight: bold; color: var(--accent-amber);">Segment B: Afternoon run from Noon</p>
+            <p style="margin: 5px 0 0 0; font-family: var(--r-code-font); font-size: 0.9em;">12:00 PM &rarr; 2:15 PM = <span class="highlight-amber">2 hours 15 minutes</span></p>
+          </div>
+          <div class="fragment" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; margin-top: 15px; text-align: center;">
+            <p style="margin: 0; font-size: 1.1em;">Combine segments: 1hr 15m + 2hr 15m</p>
+            <p style="margin: 5px 0 0 0; font-size: 1.3em; font-weight: bold; color: var(--accent-emerald);">Result: 3 hours 30 minutes</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 8: The Regrouping Method (Alternative) -->
+      <section>
+        <h2>The <span class="highlight-blue">Regrouping Math</span> Strategy</h2>
+        <p style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 20px;">For algebraic calculations, borrow 1 Hour (60 mins) when subtraction is blocked.</p>
+        
+        <div class="grid-2">
+          <div class="content-card">
+            <h4 style="color: var(--accent-amber); margin-top: 0;">Problem:</h4>
+            <p style="font-family: var(--r-code-font); font-size: 0.9em;">
+              &nbsp;&nbsp;5:15 PM <br>
+              - 2:45 PM
+            </p>
+            <p style="font-size: 0.8em; color: var(--text-muted);">Since 15 is smaller than 45, standard column subtraction fails.</p>
+          </div>
+          
+          <div class="content-card fragment">
+            <h4 style="color: var(--accent-emerald); margin-top: 0;">Regroup:</h4>
+            <p style="font-size: 0.9em;">Borrow 1 hour from the 5 hours (leaving 4). Add 60 minutes to the 15 minutes.</p>
+            <p style="font-family: var(--r-code-font); color: var(--accent-emerald); font-size: 1.1em; font-weight: bold; margin: 10px 0 0 0;">
+              New Math Setup:<br>
+              &nbsp;&nbsp;4:75<br>
+              - 2:45<br>
+              ------<br>
+              &nbsp;&nbsp;2:30 &rarr; 2h 30m
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 9: Review & Golden Rules -->
+      <section data-transition="slide-in">
+        <h2>Key Takeaways for <span class="highlight-blue">Success</span></h2>
+        <div class="content-card" style="text-align: left; max-width: 900px; margin: 0 auto;">
+          <ul style="list-style-type: none; padding: 0;">
+            <li style="margin-bottom: 20px; display: flex; align-items: start; gap: 15px;">
+              <span style="background: var(--accent-blue); color: #000; border-radius: 50%; width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; font-weight: bold; flex-shrink: 0;">1</span>
+              <div>
+                <strong>Watch the 12-Hour Shift:</strong> When crossing AM to PM, remember that Noon (12:00 PM) marks the transition point.
+              </div>
+            </li>
+            <li style="margin-bottom: 20px; display: flex; align-items: start; gap: 15px;">
+              <span style="background: var(--accent-emerald); color: #000; border-radius: 50%; width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; font-weight: bold; flex-shrink: 0;">2</span>
+              <div>
+                <strong>Choose Your Strategy:</strong> Use <span class="highlight-blue">Number Lines</span> for quick mental visual jumps, and <span class="highlight-emerald">T-Charts</span> to log complex segments.
+              </div>
+            </li>
+            <li style="margin-bottom: 0px; display: flex; align-items: start; gap: 15px;">
+              <span style="background: var(--accent-amber); color: #000; border-radius: 50%; width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; font-weight: bold; flex-shrink: 0;">3</span>
+              <div>
+                <strong>Convert Carefully:</strong> Always maintain the rule: <span class="highlight-amber">1 Hour = 60 Minutes</span>. Never treat time digits as decimals!
+              </div>
+            </li>
+          </ul>
+        </div>
+        <p style="margin-top: 30px; color: var(--accent-blue); font-weight: bold;">Now you are ready to solve any duration problem!</p>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Reveal.js JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: 'c/t',
+      controls: true,
+      progress: true,
+      center: true,
+      transition: 'slide',
+      backgroundTransition: 'fade'
+    });
+  </script>
+</body>
+</html>
+---

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Web Energy Pyramid</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0f0f1a;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      color: #e0e0e0;
+    }
+    #canvas-container {
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #333;
+    }
+    .instructions {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: rgba(15, 15, 26, 0.85);
+      padding: 10px 15px;
+      border-radius: 6px;
+      border-left: 4px solid #3498db;
+      pointer-events: none;
+      max-width: 300px;
+    }
+    .instructions h3 {
+      margin: 0 0 5px 0;
+      font-size: 16px;
+      color: #3498db;
+    }
+    .instructions p {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container">
+    <div class="instructions">
+      <h3>The 10% Rule</h3>
+      <p>Only about <b>10%</b> of the energy enters the next trophic level. The remaining <b>90%</b> is lost as metabolic heat and waste. Hover over levels or trigger the simulation to visualize energy loss!</p>
+    </div>
+  </div>
+
+  <script>
+    let tiers = [];
+    let particles = [];
+    let selectedTier = -1;
+    let simButton;
+    let isSimulating = false;
+
+    function setup() {
+      const canvas = createCanvas(900, 600);
+      canvas.parent('canvas-container');
+      
+      // Initialize Trophic Tiers (Apex down to Producers)
+      // Each tier: { levelIndex, name, energy, organisms, desc, emoji, yMin, yMax, color }
+      tiers = [
+        {
+          index: 0,
+          name: "Tertiary Consumers (Apex)",
+          energy: "10 kcal (0.1%)",
+          organisms: "Hawks, Owls, Apex Predators",
+          desc: "Top predators. Drastically reduced biomass due to extreme energy loss at lower levels.",
+          emojis: ["🦅", "🦉"],
+          yMin: 120, yMax: 200,
+          wTop: 40, wBot: 120,
+          color: color(231, 76, 60)
+        },
+        {
+          index: 1,
+          name: "Secondary Consumers",
+          energy: "100 kcal (1%)",
+          organisms: "Snakes, Frogs, Small Predators",
+          desc: "Carnivores and omnivores that feed on primary consumers.",
+          emojis: ["🐍", "🐸"],
+          yMin: 200, yMax: 300,
+          wTop: 120, wBot: 240,
+          color: color(230, 126, 34)
+        },
+        {
+          index: 2,
+          name: "Primary Consumers",
+          energy: "1,000 kcal (10%)",
+          organisms: "Rabbits, Insects, Grasshoppers",
+          desc: "Herbivores that feed directly on primary producers.",
+          emojis: ["🐇", "🦗", "🐁"],
+          yMin: 300, yMax: 420,
+          wTop: 240, wBot: 400,
+          color: color(241, 196, 15)
+        },
+        {
+          index: 3,
+          name: "Primary Producers",
+          energy: "10,000 kcal (100%)",
+          organisms: "Plants, Algae, Phytoplankton",
+          desc: "Capture solar energy via photosynthesis to build organic matter.",
+          emojis: ["🌿", "🌻", "🌲", "🌾"],
+          yMin: 420, yMax: 540,
+          wTop: 400, wBot: 580,
+          color: color(46, 204, 113)
+        }
+      ];
+
+      // Interactive Control Button
+      simButton = createButton('🚀 Trigger Energy Flow');
+      simButton.position(25, height - 55);
+      simButton.parent('canvas-container');
+      simButton.style('padding', '10px 18px');
+      simButton.style('background', '#3498db');
+      simButton.style('border', 'none');
+      simButton.style('color', '#fff');
+      simButton.style('font-weight', 'bold');
+      simButton.style('border-radius', '4px');
+      simButton.style('cursor', 'pointer');
+      simButton.mousePressed(startEnergySimulation);
+    }
+
+    function draw() {
+      background(18, 18, 28);
+      
+      // Draw Grid / Environment
+      drawBackgroundDecorations();
+      
+      // Update and Draw Tiers
+      detectHover();
+      drawPyramid();
+      
+      // Simulate and Draw Energy Flow
+      updateParticles();
+      
+      // Info Panel Render
+      drawInfoPanel();
+    }
+
+    function drawBackgroundDecorations() {
+      // Light rays representing Sun Input
+      noStroke();
+      fill(255, 242, 117, 12);
+      triangle(100, 0, 400, 0, 300, 600);
+      triangle(0, 0, 200, 0, 100, 600);
+      
+      // Label Sun Input
+      fill(255, 242, 117, 150);
+      textSize(12);
+      textAlign(LEFT);
+      text("☀️ Solar Energy Input", 25, 110);
+    }
+
+    function drawPyramid() {
+      strokeWeight(1.5);
+      
+      for (let t of tiers) {
+        let isHovered = (selectedTier === t.index);
+        
+        // Base fill and stroke styling
+        if (isHovered) {
+          fill(red(t.color), green(t.color), blue(t.color), 180);
+          stroke(255, 255, 255, 220);
+        } else {
+          fill(red(t.color), green(t.color), blue(t.color), 80);
+          stroke(red(t.color), green(t.color), blue(t.color), 180);
+        }
+        
+        // Draw Trapezoid/Triangle representing the level
+        let cx = 300; // Pyramid center X
+        beginShape();
+        vertex(cx - t.wTop / 2, t.yMin);
+        vertex(cx + t.wTop / 2, t.yMin);
+        vertex(cx + t.wBot / 2, t.yMax);
+        vertex(cx - t.wBot / 2, t.yMax);
+        endShape(CLOSE);
+        
+        // Render Emojis Inside Tiers
+        fill(255);
+        textSize(22);
+        textAlign(CENTER, CENTER);
+        let midY = (t.yMin + t.yMax) / 2;
+        for (let i = 0; i < t.emojis.length; i++) {
+          let spacing = t.wBot * 0.4;
+          let offset = (i - (t.emojis.length - 1) / 2) * (spacing / t.emojis.length);
+          text(t.emojis[i], cx + offset, midY);
+        }
+
+        // Tier percentage label on the left
+        textAlign(RIGHT, CENTER);
+        textSize(13);
+        fill(220);
+        noStroke();
+        text(t.energy.split(' ')[1] || t.energy, cx - (t.wBot/2) - 15, midY);
+      }
+    }
+
+    function detectHover() {
+      let cx = 300;
+      selectedTier = -1;
+      
+      // Check which level mouse coordinates fall into
+      if (mouseX > 10 && mouseX < 590) { // Pyramid X boundaries
+        for (let t of tiers) {
+          if (mouseY >= t.yMin && mouseY < t.yMax) {
+            // Precise trapezoid hit check
+            let pct = map(mouseY, t.yMin, t.yMax, 0, 1);
+            let curWidth = lerp(t.wTop, t.wBot, pct);
+            if (abs(mouseX - cx) <= curWidth / 2) {
+              selectedTier = t.index;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    function drawInfoPanel() {
+      // Panel Box Background
+      fill(28, 28, 45);
+      stroke(52, 152, 219, 100);
+      strokeWeight(1);
+      rect(600, 30, 270, 540, 8);
+      
+      // Header
+      noStroke();
+      fill(255);
+      textSize(18);
+      textAlign(LEFT);
+      text("Trophic Analysis", 620, 60);
+      
+      stroke(255, 255, 255, 40);
+      line(620, 75, 850, 75);
+      
+      let t = (selectedTier !== -1) ? tiers[selectedTier] : tiers[3]; // Fallback to Producers info
+      
+      // Dynamic content rendering
+      noStroke();
+      fill(t.color);
+      textSize(15);
+      text(t.name, 620, 105);
+      
+      fill(255, 242, 117);
+      textSize(13);
+      text("⚡ Energy Stored: " + t.energy, 620, 135);
+      
+      fill(200);
+      textSize(12);
+      text("🐾 Representative Taxa:", 620, 165);
+      fill(255);
+      text(t.organisms, 620, 185);
+      
+      fill(200);
+      text("📘 Ecological Role:", 620, 225);
+      fill(170);
+      rect(620, 235, 230, 80, 4);
+      fill(255);
+      textSize(11);
+      textWrap(WORD);
+      text(t.desc, 630, 245, 210);
+
+      // System Heat Loss Readout
+      fill(243, 156, 18);
+      textSize(13);
+      text("🔥 Energy Transfers:", 620, 350);
+      
+      stroke(243, 156, 18, 50);
+      fill(243, 156, 18, 15);
+      rect(620, 365, 230, 190, 4);
+      
+      noStroke();
+      fill(230, 126, 34);
+      textSize(11);
+      let heatPct = "90%";
+      let transPct = "10%";
+      text(`• Heat Loss (Metabolism/Waste): ~${heatPct}`, 630, 390);
+      fill(46, 204, 113);
+      text(`• Passed to Next Level: ~${transPct}`, 630, 415);
+      
+      // Legend / Mini Graphic showing 10% transfer
+      stroke(255, 30);
+      line(630, 440, 840, 440);
+      noStroke();
+      fill(200);
+      text("Thermodynamics Rule (10% Rule):", 630, 460);
+      textSize(10.5);
+      fill(150);
+      text("As energy climbs each tier, biological\nprocesses burn off the majority of caloric\nintake. Hence, ecosystem food chains\nrarely exceed 4-5 links.", 630, 480);
+    }
+
+    function startEnergySimulation() {
+      particles = [];
+      isSimulating = true;
+      // Spawn 100 base particles at the primary producers level
+      for (let i = 0; i < 100; i++) {
+        particles.push(new EnergyParticle(300 + random(-200, 200), 520, i));
+      }
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.update();
+        p.show();
+        if (p.isDead) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    // EnergyParticle Class mapping physical energy flow limits
+    class EnergyParticle {
+      constructor(x, y, id) {
+        this.x = x;
+        this.y = y;
+        this.id = id;
+        this.vx = random(-0.5, 0.5);
+        this.vy = random(-1.5, -2.5);
+        this.size = 8;
+        this.color = color(46, 204, 113); // Green for active energy
+        this.mode = "UP"; // UP = going vertical, HEAT = escaping
+        this.life = 255;
+        this.fadeSpeed = 3;
+      }
+
+      update() {
+        if (this.mode === "UP") {
+          this.x += this.vx;
+          this.y += this.vy;
+          
+          // Constrain within dynamic pyramid slope as it rises
+          let cx = 300;
+          // Map global Y across active pyramid height (120 to 540)
+          let currentMaxW = map(this.y, 120, 540, 40, 580);
+          if (abs(this.x - cx) > currentMaxW / 2) {
+            this.vx *= -1; // bounce inwards
+          }
+
+          // Rule transitions triggers
+          // Producer -> Primary Consumer Boundary (y=420)
+          if (this.y < 420 && this.y >= 417) {
+            // Keep 10% active, 90% turn to thermal loss
+            if (this.id % 10 !== 0) {
+              this.convertToHeat();
+            } else {
+              this.color = color(241, 196, 15);
+            }
+          }
+          // Primary -> Secondary Consumer Boundary (y=300)
+          else if (this.y < 300 && this.y >= 297) {
+            if (this.id % 100 !== 0) {
+              this.convertToHeat();
+            } else {
+              this.color = color(230, 126, 34);
+            }
+          }
+          // Secondary -> Apex Boundary (y=200)
+          else if (this.y < 200 && this.y >= 197) {
+            if (this.id !== 0) { // Only the single chosen golden survivor continues
+              this.convertToHeat();
+            } else {
+              this.color = color(231, 76, 60);
+            }
+          }
+          
+          // Natural boundary termination at top
+          if (this.y < 120) {
+            this.mode = "HEAT";
+          }
+        } else {
+          // Heat dissipation physics
+          this.x += this.vx;
+          this.y += this.vy;
+          this.life -= this.fadeSpeed;
+        }
+      }
+
+      convertToHeat() {
+        this.mode = "HEAT";
+        this.color = color(231, 76, 60); // Red/Orange heat signature
+        this.vx = (this.x > 300) ? random(1, 3.5) : random(-3.5, -1); // escape sideways
+        this.vy = random(-0.5, -1.5);
+        this.fadeSpeed = random(2, 6);
+      }
+
+      get isDead() {
+        return this.life <= 0 || this.y < 50 || this.x < 10 || this.x > 590;
+      }
+
+      show() {
+        noStroke();
+        fill(red(this.color), green(this.color), blue(this.color), this.life);
+        
+        if (this.mode === "HEAT") {
+          // draw heat wave particle
+          ellipse(this.x, this.y, this.size * 0.7);
+          // Render a tiny heat dissipation squiggly arrow/text
+          if (frameCount % 30 === 0 && this.life > 150) {
+            textSize(8);
+            fill(231, 76, 60, this.life - 50);
+            text("🔥 heat lost", this.x, this.y - 10);
+          }
+        } else {
+          // Glow effect for active calories
+          fill(red(this.color), green(this.color), blue(this.color), 50);
+          ellipse(this.x, this.y, this.size * 1.8);
+          fill(this.color);
+          ellipse(this.x, this.y, this.size);
+        }
+      }
+    }
+  </script>
+</body>
+</html>

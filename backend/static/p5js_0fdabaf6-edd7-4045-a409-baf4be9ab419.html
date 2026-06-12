@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Energy Pyramid</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #canvas-container {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <script>
+        let levels = [
+            {
+                name: "Tertiary Consumers",
+                energy: "10 J (0.1%)",
+                organisms: "Apex Predators (e.g., Hawks, Owls)",
+                role: "Top carnivores with the least available energy.",
+                color: [230, 57, 70],
+                hoverColor: [255, 90, 100],
+                yMin: 100, yMax: 200,
+                desc: "Energy is highly concentrated but scarce. Biomass is lowest at this level."
+            },
+            {
+                name: "Secondary Consumers",
+                energy: "100 J (1%)",
+                organisms: "Carnivores & Omnivores (e.g., Snakes, Frogs)",
+                role: "Eat primary consumers.",
+                color: [241, 135, 1],
+                hoverColor: [255, 160, 40],
+                yMin: 200, yMax: 300,
+                desc: "90% of energy from herbivores is lost through heat, respiration, and waste."
+            },
+            {
+                name: "Primary Consumers",
+                energy: "1,000 J (10%)",
+                organisms: "Herbivores (e.g., Grasshoppers, Rabbits)",
+                role: "Eat primary producers directly.",
+                color: [253, 197, 0],
+                hoverColor: [255, 215, 50],
+                yMin: 300, yMax: 400,
+                desc: "Convert plant biomass into animal tissues. High loss of metabolic energy."
+            },
+            {
+                name: "Primary Producers",
+                energy: "10,000 J (100%)",
+                organisms: "Plants, Algae, Phytoplankton",
+                role: "Convert solar energy via photosynthesis.",
+                color: [43, 147, 72],
+                hoverColor: [60, 180, 95],
+                yMin: 400, yMax: 500,
+                desc: "The foundation of all ecological energy. Captures sunlight to produce glucose."
+            }
+        ];
+
+        let particles = [];
+        let hoveredLevel = -1;
+        let button;
+        let autoEmit = true;
+
+        function setup() {
+            let canvas = createCanvas(900, 600);
+            canvas.parent('canvas-container');
+            
+            // UI Button to trigger energy pulse
+            button = createButton('Trigger Energy Flow');
+            button.position(150, 530);
+            button.mousePressed(emitEnergyPulse);
+            styleButton(button);
+        }
+
+        function draw() {
+            background(18, 18, 24);
+            drawTitle();
+            detectHover();
+            drawPyramid();
+            handleParticles();
+            drawInfoPanel();
+            drawLegend();
+        }
+
+        function drawTitle() {
+            fill(255);
+            noStroke();
+            textAlign(LEFT, TOP);
+            textSize(24);
+            textStyle(BOLD);
+            text("ECOLOGICAL ENERGY PYRAMID", 40, 30);
+            
+            fill(150);
+            textSize(12);
+            textStyle(NORMAL);
+            text("The 10% Rule: Only ~10% of energy transfers to the next trophic level.", 40, 60);
+        }
+
+        function detectHover() {
+            hoveredLevel = -1;
+            // The pyramid's bounds: Peak at (250, 100), bottom corners at (50, 500) and (450, 500)
+            // Center of pyramid is at X = 250.
+            if (mouseX >= 40 && mouseX <= 460 && mouseY >= 100 && mouseY <= 500) {
+                // Calculate expected width at current mouse Y
+                let halfWidthAtY = (mouseY - 100) * 0.5; 
+                if (abs(mouseX - 250) <= halfWidthAtY) {
+                    // Identify which level
+                    for (let i = 0; i < levels.length; i++) {
+                        if (mouseY >= levels[i].yMin && mouseY < levels[i].yMax) {
+                            hoveredLevel = i;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        function drawPyramid() {
+            strokeWeight(2);
+            for (let i = 0; i < levels.length; i++) {
+                let lvl = levels[i];
+                let isHovered = (hoveredLevel === i);
+                
+                // Color configuration
+                let col = isHovered ? lvl.hoverColor : lvl.color;
+                fill(col[0], col[1], col[2], 180);
+                stroke(col[0], col[1], col[2]);
+                
+                // Calculate trapezoid coordinates
+                let yT = lvl.yMin;
+                let yB = lvl.yMax;
+                let wT = (yT - 100) * 0.5; // half-width at top of level
+                let wB = (yB - 100) * 0.5; // half-width at bottom of level
+                
+                beginShape();
+                vertex(250 - wT, yT);
+                vertex(250 + wT, yT);
+                vertex(250 + wB, yB);
+                vertex(250 - wB, yB);
+                endShape(CLOSE);
+                
+                // Draw Label on the level itself
+                fill(255);
+                noStroke();
+                textAlign(CENTER, CENTER);
+                textSize(12);
+                textStyle(BOLD);
+                text(lvl.name, 250, (yT + yB)/2 - 8);
+                textSize(11);
+                textStyle(NORMAL);
+                text(lvl.energy, 250, (yT + yB)/2 + 8);
+            }
+        }
+
+        function handleParticles() {
+            // Automatically emit weak background flow
+            if (autoEmit && frameCount % 6 === 0) {
+                particles.push(new EnergyParticle(random(60, 440), 495));
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.update();
+                p.display();
+                if (p.isDead()) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function emitEnergyPulse() {
+            for (let i = 0; i < 80; i++) {
+                particles.push(new EnergyParticle(random(70, 430), 495, true));
+            }
+        }
+
+        function drawInfoPanel() {
+            let xStart = 500;
+            let yStart = 100;
+            let w = 360;
+            let h = 400;
+
+            // Draw Card Background
+            fill(30, 30, 40);
+            stroke(60, 60, 80);
+            strokeWeight(1);
+            rect(xStart, yStart, w, h, 8);
+
+            if (hoveredLevel !== -1) {
+                let lvl = levels[hoveredLevel];
+                
+                // Colored Header Accent
+                fill(lvl.color[0], lvl.color[1], lvl.color[2]);
+                rect(xStart, yStart, w, 15, 8, 8, 0, 0);
+
+                // Content
+                fill(255);
+                noStroke();
+                textAlign(LEFT, TOP);
+                
+                textSize(20);
+                textStyle(BOLD);
+                text(lvl.name.toUpperCase(), xStart + 20, yStart + 35);
+                
+                // Key metrics
+                fill(lvl.color[0], lvl.color[1], lvl.color[2]);
+                textSize(16);
+                text(`Available Energy: ${lvl.energy}`, xStart + 20, yStart + 70);
+
+                stroke(255, 255, 255, 30);
+                line(xStart + 20, yStart + 100, xStart + w - 20, yStart + 100);
+                noStroke();
+
+                fill(220);
+                textSize(13);
+                textStyle(BOLD);
+                text("ORGANISM EXAMPLES:", xStart + 20, yStart + 120);
+                textStyle(NORMAL);
+                fill(180);
+                text(lvl.organisms, xStart + 20, yStart + 140, w - 40);
+
+                fill(220);
+                textStyle(BOLD);
+                text("ECOLOGICAL ROLE:", xStart + 20, yStart + 190);
+                textStyle(NORMAL);
+                fill(180);
+                text(lvl.role, xStart + 20, yStart + 210, w - 40);
+
+                fill(220);
+                textStyle(BOLD);
+                text("ENERGY TRANSFER METRICS:", xStart + 20, yStart + 260);
+                textStyle(NORMAL);
+                fill(180);
+                text(lvl.desc, xStart + 20, yStart + 280, w - 40);
+
+                // Highlighted 10% concept note
+                fill(255, 100, 100, 20);
+                stroke(255, 100, 100, 50);
+                rect(xStart + 20, yStart + 335, w - 40, 45, 4);
+                noStroke();
+                fill(255, 180, 180);
+                textSize(11);
+                textAlign(CENTER, CENTER);
+                text("90% of energy at this level is lost as METABOLIC HEAT.", xStart + w/2, yStart + 357);
+
+            } else {
+                // Interactive prompt when nothing is hovered
+                fill(255, 255, 255, 20);
+                rect(xStart, yStart, w, 15, 8, 8, 0, 0);
+                
+                fill(255);
+                noStroke();
+                textAlign(LEFT, TOP);
+                textSize(18);
+                textStyle(BOLD);
+                text("Ecosystem Energy Dynamics", xStart + 20, yStart + 40);
+                
+                fill(180);
+                textSize(13);
+                textStyle(NORMAL);
+                let introText = "Energy decreases exponentially as it moves up trophic levels due to the laws of thermodynamics.\n\n" +
+                                "• Hover over individual levels of the pyramid to analyze trophic data.\n\n" +
+                                "• Observe the dynamic energy particles flowing upward. Notice how the vast majority escape laterally as heat.\n\n" +
+                                "• Use the control button below the pyramid to dispatch a massive energy pulse and watch the transfer dynamics in action.";
+                text(introText, xStart + 20, yStart + 80, w - 40);
+            }
+        }
+
+        function drawLegend() {
+            let xL = 500;
+            let yL = 520;
+            
+            fill(255, 220, 100);
+            ellipse(xL + 10, yL + 10, 8, 8);
+            fill(180);
+            textAlign(LEFT, CENTER);
+            textSize(11);
+            text("Useful Energy Transfer (10%)", xL + 25, yL + 10);
+
+            fill(255, 100, 100);
+            ellipse(xL + 210, yL + 10, 8, 8);
+            fill(180);
+            text("Lost Metabolic Heat (90%)", xL + 225, yL + 10);
+        }
+
+        function styleButton(btn) {
+            btn.style('background-color', '#2b9348');
+            btn.style('color', '#ffffff');
+            btn.style('border', 'none');
+            btn.style('padding', '10px 20px');
+            btn.style('border-radius', '4px');
+            btn.style('cursor', 'pointer');
+            btn.style('font-weight', 'bold');
+            btn.style('font-size', '13px');
+            btn.style('transition', '0.2s');
+            
+            btn.mouseOver(() => btn.style('background-color', '#3cb05c'));
+            btn.mouseOut(() => btn.style('background-color', '#2b9348'));
+        }
+
+        // Particle Class
+        class EnergyParticle {
+            constructor(x, y, isPulse = false) {
+                this.x = x;
+                this.y = y;
+                this.vx = random(-0.3, 0.3);
+                this.vy = isPulse ? random(-2.5, -1.5) : random(-1.5, -0.8);
+                this.size = random(4, 7);
+                this.type = 'energy'; // 'energy' (upward) or 'heat' (waste)
+                this.alpha = 255;
+                this.color = [255, 230, 100];
+                this.isPulse = isPulse;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Threshold boundaries check for energy degradation (Trophic interfaces)
+                if (this.type === 'energy') {
+                    // Check if crossing boundaries at 400, 300, 200
+                    if ((this.y < 400 && this.y > 395) || (this.y < 300 && this.y > 295) || (this.y < 200 && this.y > 195)) {
+                        // 10% rule: 90% chance to scatter as heat
+                        if (random(1) > 0.10) {
+                            this.type = 'heat';
+                            this.color = [255, random(80, 120), 80];
+                            this.vx = random() > 0.5 ? random(1, 2.5) : random(-2.5, -1);
+                            this.vy = random(-0.5, 0.5); // drift horizontally
+                        }
+                    }
+                }
+
+                if (this.type === 'heat') {
+                    this.alpha -= 3.5; // lose visibility rapidly
+                    this.size *= 0.98;
+                } else {
+                    // Slight sway for energy rising up
+                    this.vx += sin(frameCount * 0.05 + this.x) * 0.05;
+                }
+
+                // Fade slowly if rising out of bounds
+                if (this.y < 100) {
+                    this.alpha -= 5;
+                }
+            }
+
+            display() {
+                noStroke();
+                fill(this.color[0], this.color[1], this.color[2], this.alpha);
+                ellipse(this.x, this.y, this.size, this.size);
+                
+                // Extra glow for key energy packets
+                if (this.type === 'energy' && this.isPulse) {
+                    fill(this.color[0], this.color[1], this.color[2], this.alpha * 0.3);
+                    ellipse(this.x, this.y, this.size * 2, this.size * 2);
+                }
+            }
+
+            isDead() {
+                return this.alpha <= 0 || this.y < 95 || this.x < 10 || this.x > 490;
+            }
+        }
+    </script>
+</body>
+</html>

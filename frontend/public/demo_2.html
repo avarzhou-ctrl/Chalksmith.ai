@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit Circle to Sine Wave</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+    <style>
+        body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
+        #ui { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; border: 1px solid #444; pointer-events: auto; }
+        canvas { display: block; }
+        .label { color: #00f2ff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h3 style="margin:0 0 10px 0">Unit Circle & Sine Wave</h3>
+        <label>Rotation Speed</label><br>
+        <input type="range" id="speed" min="0" max="0.1" step="0.001" value="0.02"><br>
+        <p style="font-size: 12px; max-width: 250px;">The <span class="label">blue vertical line</span> represents the <b>Sine</b> of the angle θ. As the point rotates, this height is projected to the right to form the wave.</p>
+        <p id="stats" style="font-family: monospace; color: #00ff00;"></p>
+    </div>
+
+    <script>
+        let angle = 0;
+        let wave = [];
+        let speedSlider;
+        let radius = 100;
+        let centerX = 150;
+        let centerY;
+        let waveStartX = 350;
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            centerY = height / 2;
+            speedSlider = document.getElementById('speed');
+        }
+
+        function draw() {
+            background(20);
+            
+            let speed = parseFloat(speedSlider.value);
+            let x = radius * cos(angle);
+            let y = radius * sin(angle);
+            
+            // Draw Axis lines
+            stroke(70);
+            line(centerX - radius - 20, centerY, width, centerY); // X-axis
+            line(centerX, centerY - radius - 20, centerX, centerY + radius + 20); // Y-axis circle
+            
+            // Draw Unit Circle
+            noFill();
+            stroke(150);
+            strokeWeight(2);
+            ellipse(centerX, centerY, radius * 2);
+
+            // Draw Angle (Arc)
+            fill(255, 255, 0, 50);
+            noStroke();
+            arc(centerX, centerY, 40, 40, angle > 0 ? 0 : angle, angle > 0 ? angle : 0);
+
+            // Sine projection (Vertical line)
+            stroke(0, 242, 255);
+            strokeWeight(3);
+            line(centerX + x, centerY, centerX + x, centerY + y);
+            
+            // Hypotenuse (Radius)
+            stroke(255);
+            strokeWeight(2);
+            line(centerX, centerY, centerX + x, centerY + y);
+            
+            // Moving Point
+            fill(255, 0, 100);
+            noStroke();
+            ellipse(centerX + x, centerY + y, 10);
+
+            // Update Wave data
+            wave.unshift(y);
+            if (wave.length > width - waveStartX) wave.pop();
+
+            // Draw projection line to wave
+            stroke(0, 242, 255, 100);
+            strokeWeight(1);
+            drawingContext.setLineDash([5, 5]);
+            line(centerX + x, centerY + y, waveStartX, centerY + y);
+            drawingContext.setLineDash([]);
+
+            // Draw Sine Wave
+            noFill();
+            stroke(0, 242, 255);
+            strokeWeight(2);
+            beginShape();
+            for (let i = 0; i < wave.length; i++) {
+                vertex(i + waveStartX, centerY + wave[i]);
+            }
+            endShape();
+
+            // Labels
+            fill(255);
+            noStroke();
+            textSize(16);
+            text("Unit Circle", centerX - 40, centerY + radius + 40);
+            text("Sine Wave: y = sin(θ)", waveStartX, centerY + radius + 40);
+            
+            // Real-time values
+            let deg = ((-degrees(angle)) % 360 + 360) % 360;
+            document.getElementById('stats').innerHTML = 
+                `θ: ${deg.toFixed(1)}°<br>sin(θ): ${(-y/radius).toFixed(3)}`;
+
+            angle -= speed;
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+            centerY = height / 2;
+        }
+    </script>
+</body>
+</html>
