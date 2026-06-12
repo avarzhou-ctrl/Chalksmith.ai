@@ -16,6 +16,24 @@ export default clerkMiddleware(async (auth, request) => {
   const pathname = url.pathname
   const isAppRoot = host === APP_HOST && pathname === '/'
 
+  if (host && MARKETING_HOSTS.has(host)) {
+    if (pathname === '/generation') {
+      const redirectUrl = new URL('/', request.url)
+      redirectUrl.hostname = APP_HOST
+      redirectUrl.protocol = 'https:'
+      redirectUrl.search = url.search
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    if (pathname === '/dashboard') {
+      const redirectUrl = new URL('/home', request.url)
+      redirectUrl.hostname = APP_HOST
+      redirectUrl.protocol = 'https:'
+      redirectUrl.search = url.search
+      return NextResponse.redirect(redirectUrl)
+    }
+  }
+
   if (isAppRoot || isProtectedRoute(request)) {
     await auth.protect()
   }
@@ -39,24 +57,6 @@ export default clerkMiddleware(async (auth, request) => {
     if (pathname === '/dashboard') {
       url.pathname = '/home'
       return NextResponse.redirect(url)
-    }
-  }
-
-  if (host && MARKETING_HOSTS.has(host)) {
-    if (pathname === '/generation') {
-      const redirectUrl = new URL('/', request.url)
-      redirectUrl.hostname = APP_HOST
-      redirectUrl.protocol = 'https:'
-      redirectUrl.search = url.search
-      return NextResponse.redirect(redirectUrl)
-    }
-
-    if (pathname === '/dashboard') {
-      const redirectUrl = new URL('/home', request.url)
-      redirectUrl.hostname = APP_HOST
-      redirectUrl.protocol = 'https:'
-      redirectUrl.search = url.search
-      return NextResponse.redirect(redirectUrl)
     }
   }
 

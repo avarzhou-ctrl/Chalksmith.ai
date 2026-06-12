@@ -99,7 +99,7 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
           <iframe
             title="Unit Circle and Sine Wave"
             src={filePath}
-            className="w-full h-full border-none bg-primary-text"
+            className="w-full h-full border-none bg-primary-bg"
           />
         )}
       </div>
