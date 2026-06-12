@@ -73,14 +73,14 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="mx-auto w-full max-w-6xl px-4 py-16 text-center text-sm leading-6 text-secondary-text sm:px-6 lg:px-8" id="content">
+        <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center text-sm leading-6 text-secondary-text sm:px-6 lg:px-8" id="content">
           <video 
             src="/demo_1.mp4" 
             autoPlay 
             loop 
             muted 
             playsInline 
-            className="mx-auto rounded-lg border border-secondary-bg shadow-lg shadow-accent/20" 
+            className="mx-auto rounded-3xl border border-secondary-bg shadow-2xl shadow-accent/20 w-full" 
           />
         </div>
 
@@ -131,7 +131,7 @@ export default function Home() {
                     Start from syllabus notes, readings, or lesson goals so every generated asset stays close to your curriculum.
                   </p>
                 </div>
-                <div className="mt-auto min-h-56 rounded-lg border border-secondary-bg bg-primary-text p-4 text-secondary-bg">
+                <div className="mt-auto min-h-56 rounded-lg border border-border bg-secondary-bg p-4 text-primary-text">
                   <div className="grid h-full place-items-center text-center text-sm font-semibold">
                     <span>Coming soon!</span>
                   </div>
@@ -145,9 +145,16 @@ export default function Home() {
                     Make edits within seconds while reviewing the code and lesson structure that produced the final result.
                   </p>
                 </div>
-                <div className="mt-auto min-h-56 rounded-lg border border-secondary-bg bg-primary-text p-4 text-secondary-bg">
-                  <div className="grid h-full place-items-center text-center text-sm font-semibold">
-                    <span>Fast edit preview</span>
+                <div className="w-full mt-auto">
+                  <div className="w-full bg-primary-bg rounded-3xl overflow-hidden border border-border shadow-2xl">
+                    <video 
+                      src="/demo_3.mp4" 
+                      autoPlay 
+                      loop 
+                      muted 
+                      playsInline 
+                      className="w-full h-full" 
+                    />
                   </div>
                 </div>
               </article>

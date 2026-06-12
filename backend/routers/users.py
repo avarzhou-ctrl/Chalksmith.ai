@@ -20,21 +20,44 @@ async def register_new_clerk_user(
 ):
     # Enforce secure server-to-server connection
     if not x_chalksmith_secret or x_chalksmith_secret != INTERNAL_SECRET:
+        print(f"WEBHOOK AUTH FAILURE: Expected {INTERNAL_SECRET}, got {x_chalksmith_secret}")
         raise HTTPException(status_code=403, detail="Forbidden")
 
+    if not payload.id or not payload.email:
+        print(f"WEBHOOK ERROR: Missing id or email in payload: {payload}")
+        raise HTTPException(status_code=400, detail="Missing id or email")
+
+    print(f"WEBHOOK RECEIVED: Processing user {payload.id} ({payload.email})")
     # Check if user already exists
     existing_user = db.get(User, payload.id)
     if existing_user:
+        # Update email if it changed
+        if existing_user.email != payload.email:
+            print(f"WEBHOOK UPDATE: Updating email for {payload.id} to {payload.email}")
+            existing_user.email = payload.email
+            db.add(existing_user)
+            db.commit()
+            db.refresh(existing_user)
+            return {"status": "success", "message": "User email updated.", "user_id": existing_user.id}
+        
+        print(f"WEBHOOK SKIP: User {payload.id} already synchronized.")
         return {"message": "User already synchronized."}
 
     # Create the new user record in Neon Postgres
+    print(f"WEBHOOK CREATE: Creating new user {payload.id}")
     new_user = User(
         id=payload.id,
         email=payload.email
     )
     
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        print(f"WEBHOOK SUCCESS: User {payload.id} registered.")
+    except Exception as e:
+        print(f"WEBHOOK ERROR: Failed to commit user {payload.id}: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database commit failed")
     
     return {"status": "success", "user_id": new_user.id}

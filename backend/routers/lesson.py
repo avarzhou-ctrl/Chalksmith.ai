@@ -203,6 +203,14 @@ async def generate_lesson_stream(
             # Stage 4: Finalizing
             yield f"data: {json.dumps({'status': 'finalizing', 'message': 'Saving lesson to database...', 'progress': 95})}\n\n"
             
+            # Ensure user exists to satisfy foreign key constraint (race condition fallback)
+            if x_user_id:
+                user = session.get(User, x_user_id)
+                if not user:
+                    print(f"LAZY USER CREATION: User {x_user_id} missing during stream finalization. Creating placeholder.")
+                    user = User(id=x_user_id, email=f"pending_{x_user_id}@chalksmith.ai")
+                    session.add(user)
+
             new_id = str(uuid.uuid4())
             db_lesson = Lesson(
                 id=new_id,
@@ -311,6 +319,14 @@ async def create_lesson(
         # Return as 422 so frontend can detect it as a render/syntax error
         raise HTTPException(status_code=422, detail=str(e))
     
+    # Ensure user exists to satisfy foreign key constraint (race condition fallback)
+    if x_user_id:
+        user = session.get(User, x_user_id)
+        if not user:
+            print(f"LAZY USER CREATION: User {x_user_id} missing during create_lesson. Creating placeholder.")
+            user = User(id=x_user_id, email=f"pending_{x_user_id}@chalksmith.ai")
+            session.add(user)
+
     db_lesson = Lesson(
         id=str(uuid.uuid4()),
         user_id=x_user_id,

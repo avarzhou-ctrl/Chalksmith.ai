@@ -40,17 +40,22 @@ export async function POST(req: Request) {
     return new Response('Error occured', { status: 400 });
   }
 
-  // Handle the creation event
+  // Handle the creation or update event
   const eventType = evt.type;
-  if (eventType === 'user.created') {
+  if (eventType === 'user.created' || eventType === 'user.updated') {
     const { id, email_addresses } = evt.data;
     const primaryEmail = email_addresses[0]?.email_address;
+
+    if (!primaryEmail) {
+      console.error('Webhook Error: No email address found for user', id);
+      return new Response('Error occured -- no email address', { status: 400 });
+    }
 
     const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
     // Send the data to your FastAPI backend to register the user in Neon
     try {
-      await fetch(`${API_BASE_URL}/users/register`, {
+      const response = await fetch(`${API_BASE_URL}/users/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,8 +66,16 @@ export async function POST(req: Request) {
           email: primaryEmail,
         }),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Failed to sync user to FastAPI: ${response.status} ${errorText}`);
+        return new Response(`Database sync failed: ${response.status}`, { status: 500 });
+      }
+
+      console.log(`Successfully synced user ${id} to backend`);
     } catch (error) {
-      console.error('Failed to sync user to FastAPI:', error);
+      console.error('Failed to sync user to FastAPI (Network Error):', error);
       return new Response('Database sync failed', { status: 500 });
     }
   }
