@@ -110,7 +110,7 @@ export default function Home() {
           <h2 className="text-3xl font-bold text-primary-text sm:text-5xl">Why choose Chalksmith?</h2>
           <div className="mt-8 grid gap-6">
             <article className="rounded-lg border border-secondary-bg bg-secondary-bg p-8">
-              <div className="max-w-2xl mb-8">
+              <div className="mb-8">
                 <h3 className="text-3xl font-semibold text-primary-text">Code-driven production.</h3>
                 <p className="mt-4 text-lg leading-7 text-secondary-text">
                   Generate reusable videos, interactives, and slides from source code instead of one-off static files.

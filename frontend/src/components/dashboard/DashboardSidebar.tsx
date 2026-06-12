@@ -17,7 +17,9 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
                     <>
                         <div className="flex items-center min-w-0">
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden mr-3 shrink-0">
-                                <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+                                <a href="https://chalksmith.ai">
+                                    <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+                                </a>
                             </div>
                             <h1 className="text-xl font-bold tracking-tight text-primary-text truncate animate-in fade-in duration-300">Chalksmith.ai</h1>
                         </div>

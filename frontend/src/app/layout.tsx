@@ -1,11 +1,12 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next'
-import { ClerkProvider } from '@clerk/nextjs'
+import { ClerkProvider, Show, UserButton, SignUpButton } from '@clerk/nextjs'
+import { dark } from '@clerk/themes'
+import { LogIn } from 'lucide-react'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
 import Link from 'next/link'
-import ProfileLink from '../components/home/ProfileLink'
 
 const inter = Inter({
   variable: '--font-inter',
@@ -49,7 +50,31 @@ export default async function RootLayout({
                 About us
               </a>
             </nav>
-            <ProfileLink />
+
+            { /* User Profile / Auth Button */ }
+            <Show when="signed-in">
+              <UserButton 
+                appearance={{
+                  baseTheme: dark,
+                  elements: {
+                    userButtonAvatarBox: "h-12 w-12", 
+                    userButtonTrigger: "h-12 w-12"
+                  },
+                }} 
+              />
+            </Show>
+
+            <Show when="signed-out">
+              <SignUpButton mode="modal">
+                <button
+                  type="button"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700"
+                >
+                  Create Account
+                  <LogIn className="size-4" aria-hidden="true" />
+                </button>
+              </SignUpButton>
+            </Show>
           </header>
           {children}
         </ClerkProvider>

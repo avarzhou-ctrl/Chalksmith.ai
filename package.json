@@ -7,6 +7,7 @@
   ],
   "dependencies": {
     "@clerk/nextjs": "^7.4.3",
+    "@clerk/themes": "^2.4.57",
     "gray-matter": "^4.0.3",
     "marked": "^18.0.5",
     "next-mdx-remote": "^6.0.0",

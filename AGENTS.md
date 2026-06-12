@@ -80,7 +80,7 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
-- **2026-06-12**: Updated `frontend/src/components/home/ProfileLink.tsx` to refresh Clerk user state on homepage focus, visibility changes, and browser history restores so signing out of Chalksmith on the app side is reflected when returning to the homepage.
+- **2026-06-12**: Fixed Clerk `UserButton` dark styling in `frontend/src/app/layout.tsx` by importing the `dark` theme object from `@clerk/themes` instead of passing the ignored string value, and removed the unused `ProfileLink` import.
 - **2026-06-12**: Fixed signed-in users being redirected to sign-in from marketing app links by reordering `frontend/src/proxy.ts` so `chalksmith.ai/generation` and `chalksmith.ai/dashboard` redirect to `app.chalksmith.ai` before Clerk route protection runs.
 - **2026-06-12**: Fixed the homepage code-driven demo by updating `frontend/src/components/home/CodeDrivenDemo.tsx` to reuse the generation page's code toggle appearance, show a title/description header, extract the embedded p5.js source for matching syntax colors, keep code overflow inside the demo frame, and updated `frontend/src/app/page.tsx` to render the demo.
 - **2026-06-11**: Removed all subscription, billing, and Stripe-related code, database fields, and legal documentation. Retired usage tracking and quotas. Removed `ModelSelector` from the UI and set `gemini-3.5-flash` as the default model to simplify the generation flow.
