@@ -1,7 +1,6 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next'
 import { ClerkProvider, Show, UserButton, SignUpButton } from '@clerk/nextjs'
-import { dark } from '@clerk/themes'
 import { LogIn } from 'lucide-react'
 import { Inter } from 'next/font/google'
 import './globals.css'
@@ -55,7 +54,6 @@ export default async function RootLayout({
             <Show when="signed-in">
               <UserButton 
                 appearance={{
-                  baseTheme: dark,
                   elements: {
                     userButtonAvatarBox: "h-12 w-12", 
                     userButtonTrigger: "h-12 w-12"
