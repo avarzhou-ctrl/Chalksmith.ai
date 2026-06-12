@@ -250,7 +250,7 @@ export default function Page() {
             {/* Header Bar */}
             <div className="flex flex-row p-4 m-1 gap-4 shrink-0 items-end">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden mb-1">
-                <a href="/dashboard">
+                <a href="https://app.chalksmith.ai/home">
                   <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
                 </a>
               </div>

@@ -107,7 +107,7 @@ export default function Dashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <Link
-                      href="/generation"
+                      href="https://app.chalksmith.ai"
                       className="min-h-48 rounded-lg border border-border hover:border-accent bg-surface/30 border-dashed flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-all duration-300 ease-in-out hover:bg-surface/40 group"
                     >
                       <CirclePlus className="text-accent/80 group-hover:text-accent transition-all duration-300 ease-in-out" size={55} />

@@ -1,11 +1,43 @@
 'use client'
 
+import { useEffect } from 'react'
 import { SignUpButton, useUser } from '@clerk/nextjs'
 import { LogIn, UserRound } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ProfileLink() {
   const { isLoaded, isSignedIn, user } = useUser()
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !user) {
+      return
+    }
+
+    const refreshUser = () => {
+      if (document.visibilityState === 'visible') {
+        void user.reload()
+      }
+    }
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        window.location.reload()
+        return
+      }
+
+      refreshUser()
+    }
+
+    window.addEventListener('focus', refreshUser)
+    window.addEventListener('pageshow', handlePageShow)
+    document.addEventListener('visibilitychange', refreshUser)
+
+    return () => {
+      window.removeEventListener('focus', refreshUser)
+      window.removeEventListener('pageshow', handlePageShow)
+      document.removeEventListener('visibilitychange', refreshUser)
+    }
+  }, [isLoaded, isSignedIn, user])
 
   if (!isLoaded || !isSignedIn) {
     return (
@@ -23,7 +55,7 @@ export default function ProfileLink() {
 
   return (
     <Link
-      href="/dashboard"
+      href="https://app.chalksmith.ai/home"
       className="grid size-10 place-items-center overflow-hidden rounded-full border border-stone-700 bg-stone-800 text-stone-200 transition-colors hover:border-accent hover:text-accent"
       aria-label="Open dashboard"
     >
