@@ -28,7 +28,7 @@ function BuildLessonCta() {
 
   if (isLoaded && isSignedIn) {
     return (
-      <PrimaryCtaLink href="/generation" size="lg">
+      <PrimaryCtaLink href="https://app.chalksmith.ai" size="lg">
         Build a lesson now
         <ArrowRight size={18} />
       </PrimaryCtaLink>
