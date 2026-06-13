@@ -272,8 +272,7 @@ export default function Page() {
                     download
                     className="flex items-center text-xs font-medium gap-1.5 h-8.5 px-3 py-1.5 rounded-xl border border-border bg-transparent text-secondary-text hover:border-accent hover:text-accent transition-all duration-300"
                     title={`Download ${format === 'remotion' || format === 'manim' ? 'Video'
-                                     : format === 'p5.js' ? 'HTML' 
-                                     : 'PDF'}`}
+                                     : 'HTML'}`}
                   >
                     <Download size={14} />
                     <span>Export</span>

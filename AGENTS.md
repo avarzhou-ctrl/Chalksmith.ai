@@ -80,6 +80,7 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-06-13**: Added a strict Reveal.js screen containment rule in `backend/services/llm.py` so generated presentations keep all slide elements within the visible viewport instead of clipping or overflowing.
 - **2026-06-13**: Fixed lesson generation finalization crashing with `name 'User' is not defined` by importing `User` in `backend/routers/lesson.py` before checking or lazily creating authenticated users.
 - **2026-06-13**: Fixed missing icon assets by adding `frontend/public/favicon.ico` and pointing the Apple icon metadata in `frontend/src/app/layout.tsx` at `frontend/public/logo.png`.
 - **2026-06-13**: Hardened Clerk webhook user syncing by updating `frontend/src/app/api/webhooks/clerk/route.ts` to verify the raw Svix request body, select Clerk's primary email address, and fail clearly when backend webhook env vars are missing; updated `backend/routers/users.py` to avoid logging internal secrets and report missing webhook auth configuration.

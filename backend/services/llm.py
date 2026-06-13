@@ -372,6 +372,7 @@ VISUAL DESIGN:
 - **Highlights:** **Highlight important terms** and keywords using distinct, contrasting colors or bolding to make them stand out.
 - **Diagrams:** For visual topics (e.g., geometry, biology, physics), include relevant diagrams using inline SVG or CSS. Ensure diagrams are clear and accurately labeled.
 - **Layout & Overlap:** Ensure there is **NO overlap** between text, diagrams, shapes, or colors. Use proper padding, margins, and alignment to keep elements distinct.
+- **Strict Screen Containment:** Every slide element MUST remain fully within the visible reveal.js slide viewport at all times. Content must never extend, clip, overflow, or render off-screen horizontally or vertically; split dense material into additional slides instead of shrinking or overflowing it.
 
 CONTENT STRUCTURE:
 - **Definitions:** Explicitly define unclear, technical, or domain-specific terms (e.g., scientific jargon) either immediately when introduced or in a dedicated glossary slide.
