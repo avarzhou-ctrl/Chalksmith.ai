@@ -1,11 +1,60 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { SignUpButton, useUser } from '@clerk/nextjs'
 import { LogIn, UserRound } from 'lucide-react'
 import Link from 'next/link'
 
+const AUTH_REFRESH_KEY = 'chalksmith-home-auth-refresh-at'
+const AUTH_REFRESH_COOLDOWN_MS = 3000
+
+function reloadForFreshAuthState() {
+  const lastRefresh = Number(window.sessionStorage.getItem(AUTH_REFRESH_KEY) || 0)
+
+  if (Date.now() - lastRefresh < AUTH_REFRESH_COOLDOWN_MS) {
+    return
+  }
+
+  window.sessionStorage.setItem(AUTH_REFRESH_KEY, String(Date.now()))
+  window.location.reload()
+}
+
 export default function ProfileLink() {
   const { isLoaded, isSignedIn, user } = useUser()
+  const wasHiddenRef = useRef(false)
+
+  useEffect(() => {
+    if (!isLoaded) {
+      return
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        wasHiddenRef.current = true
+        return
+      }
+
+      if (wasHiddenRef.current) {
+        reloadForFreshAuthState()
+      }
+    }
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) { // User pressed Back or Forward key
+        reloadForFreshAuthState() // Hard refresh
+      }
+    }
+
+    window.addEventListener('focus', reloadForFreshAuthState)
+    window.addEventListener('pageshow', handlePageShow)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('focus', reloadForFreshAuthState)
+      window.removeEventListener('pageshow', handlePageShow)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [isLoaded])
 
   if (!isLoaded || !isSignedIn) {
     return (

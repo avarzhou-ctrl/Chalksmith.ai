@@ -3,6 +3,32 @@ import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
+function getBackendUrl() {
+  const configuredUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
+
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, '');
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return 'http://localhost:8000';
+  }
+
+  return null;
+}
+
+function getPrimaryEmail(data: WebhookEvent['data']) {
+  if (!('email_addresses' in data) || !Array.isArray(data.email_addresses)) {
+    return null;
+  }
+
+  const primaryEmailAddress = data.email_addresses.find(
+    (emailAddress) => emailAddress.id === data.primary_email_address_id
+  );
+
+  return primaryEmailAddress?.email_address ?? data.email_addresses[0]?.email_address ?? null;
+}
+
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
@@ -20,9 +46,8 @@ export async function POST(req: Request) {
     return new Response('Error occured -- no svix headers', { status: 400 });
   }
 
-  // Get the body
-  const payload = await req.json();
-  const body = JSON.stringify(payload);
+  // Svix signs the exact request body, so verify the raw text before parsing it.
+  const body = await req.text();
 
   // Create a new Svix instance with your secret
   const wh = new Webhook(WEBHOOK_SECRET);
@@ -43,15 +68,26 @@ export async function POST(req: Request) {
   // Handle the creation or update event
   const eventType = evt.type;
   if (eventType === 'user.created' || eventType === 'user.updated') {
-    const { id, email_addresses } = evt.data;
-    const primaryEmail = email_addresses[0]?.email_address;
+    const { id } = evt.data;
+    const primaryEmail = getPrimaryEmail(evt.data);
 
     if (!primaryEmail) {
       console.error('Webhook Error: No email address found for user', id);
       return new Response('Error occured -- no email address', { status: 400 });
     }
 
-    const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const API_BASE_URL = getBackendUrl();
+    const INTERNAL_BACKEND_SECRET = process.env.INTERNAL_BACKEND_SECRET;
+
+    if (!API_BASE_URL) {
+      console.error('Webhook Error: API_URL or NEXT_PUBLIC_API_URL is required in production');
+      return new Response('Webhook backend URL is not configured', { status: 500 });
+    }
+
+    if (!INTERNAL_BACKEND_SECRET) {
+      console.error('Webhook Error: INTERNAL_BACKEND_SECRET is not configured');
+      return new Response('Webhook backend secret is not configured', { status: 500 });
+    }
 
     // Send the data to your FastAPI backend to register the user in Neon
     try {
@@ -59,7 +95,7 @@ export async function POST(req: Request) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Chalksmith-Secret': process.env.INTERNAL_BACKEND_SECRET || '',
+          'X-Chalksmith-Secret': INTERNAL_BACKEND_SECRET,
         },
         body: JSON.stringify({
           id: id,

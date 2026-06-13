@@ -6,7 +6,6 @@ from pydantic import BaseModel
 import os
 
 router = APIRouter()
-INTERNAL_SECRET = os.environ.get("INTERNAL_BACKEND_SECRET")
 
 class UserRegisterPayload(BaseModel):
     id: str
@@ -19,8 +18,14 @@ async def register_new_clerk_user(
     db: Session = Depends(get_session)
 ):
     # Enforce secure server-to-server connection
+    INTERNAL_SECRET = os.environ.get("INTERNAL_BACKEND_SECRET")
+
+    if not INTERNAL_SECRET:
+        print("WEBHOOK AUTH CONFIG ERROR: INTERNAL_BACKEND_SECRET is not configured.")
+        raise HTTPException(status_code=500, detail="Webhook auth is not configured")
+
     if not x_chalksmith_secret or x_chalksmith_secret != INTERNAL_SECRET:
-        print(f"WEBHOOK AUTH FAILURE: Expected {INTERNAL_SECRET}, got {x_chalksmith_secret}")
+        print("WEBHOOK AUTH FAILURE: Invalid X-Chalksmith-Secret header.")
         raise HTTPException(status_code=403, detail="Forbidden")
 
     if not payload.id or not payload.email:

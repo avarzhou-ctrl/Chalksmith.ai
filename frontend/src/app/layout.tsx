@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://chalksmith.ai'),
   icons: {
     icon: '/favicon.ico',
-    apple: '/icon.png',
+    apple: '/logo.png',
   },
 }
 

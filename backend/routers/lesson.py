@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Header, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, desc
 from backend.database import get_session
-from backend.models import LessonRequest, LessonRenameRequest, LessonResponse, LessonListResponse, Lesson
+from backend.models import LessonRequest, LessonRenameRequest, LessonResponse, LessonListResponse, Lesson, User
 from backend.services.llm import generate_lesson
 from backend.services.render import render_manim_lesson, render_remotion_lesson, render_p5js_lesson, render_revealjs_lesson
 from backend.services.export import export_service
