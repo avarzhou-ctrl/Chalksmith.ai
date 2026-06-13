@@ -10,6 +10,9 @@ from backend.routers import lesson, users
 from backend.database import create_db_and_tables, get_session
 from backend.services.fetch_docs import fetch_manim_reference
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(current_dir, ".env.local"))
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Ensure database schema is initialized before handling requests
@@ -23,16 +26,23 @@ async def lifespan(app: FastAPI):
     
     yield
 
-app = FastAPI(lifespan=lifespan)
+async def verify_internal_secret(x_chalksmith_secret: str = Header(None, alias="X-Chalksmith-Secret")):
+    INTERNAL_SECRET = os.environ.get("INTERNAL_BACKEND_SECRET")
+    if not INTERNAL_SECRET:
+        print("WEBHOOK AUTH CONFIG ERROR: INTERNAL_BACKEND_SECRET is not configured.")
+        raise HTTPException(status_code=500, detail="Webhook auth is not configured")
 
-# Use absolute path for static assets for deployment and runtime stability
-current_dir = os.path.dirname(os.path.abspath(__file__))
+    if not x_chalksmith_secret or x_chalksmith_secret != INTERNAL_SECRET:
+        print("WEBHOOK AUTH FAILURE: Invalid X-Chalksmith-Secret header.")
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+app = FastAPI(lifespan=lifespan, dependencies=[Depends(verify_internal_secret)])
+
+# Static files setup for LLM-generated content
 static_dir = os.path.join(current_dir, "static")
-
 if not os.path.exists(static_dir):
     os.makedirs(static_dir)
 
-# Check if static directory is writable
 if not os.access(static_dir, os.W_OK):
     print(f"CRITICAL: Static directory {static_dir} is NOT writable. File generation will fail.")
 else:
@@ -40,16 +50,13 @@ else:
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Allowed origins for development (localhost) and production.
-load_dotenv(os.path.join(current_dir, ".env.local"))
-
+# CORS setup
 default_origins = [
     "http://localhost:3000",
     "https://chalksmith.ai",
     "https://www.chalksmith.ai",
     "https://app.chalksmith.ai",
 ]
-
 origins = list(dict.fromkeys(default_origins))
 origin_regex = r"^https://chalksmith-ai-[a-z0-9-]+\.vercel\.app$"
 
@@ -65,15 +72,12 @@ app.add_middleware(
 app.include_router(lesson.router, prefix="/content")
 app.include_router(users.router, prefix="/users")
 
-INTERNAL_SECRET = os.environ.get("INTERNAL_BACKEND_SECRET")
-
 class GenerationRequest(BaseModel):
     prompt: str
 
 @app.post("/lesson")
 async def process_generation(
     payload: GenerationRequest, 
-    x_chalksmith_secret: str = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: str = Header(None, alias="X-User-Id"),
     db: Session = Depends(get_session)
 ):

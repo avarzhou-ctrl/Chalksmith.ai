@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, status
 from sqlmodel import Session
+from backend.crud.users import sync_clerk_user
 from backend.database import get_session
-from backend.models import User
 from pydantic import BaseModel
 import os
 
@@ -32,37 +32,21 @@ async def register_new_clerk_user(
         print(f"WEBHOOK ERROR: Missing id or email in payload: {payload}")
         raise HTTPException(status_code=400, detail="Missing id or email")
 
-    print(f"WEBHOOK RECEIVED: Processing user {payload.id} ({payload.email})")
-    # Check if user already exists
-    existing_user = db.get(User, payload.id)
-    if existing_user:
-        # Update email if it changed
-        if existing_user.email != payload.email:
-            print(f"WEBHOOK UPDATE: Updating email for {payload.id} to {payload.email}")
-            existing_user.email = payload.email
-            db.add(existing_user)
-            db.commit()
-            db.refresh(existing_user)
-            return {"status": "success", "message": "User email updated.", "user_id": existing_user.id}
-        
+    try:
+        print(f"WEBHOOK RECEIVED: Processing user {payload.id} ({payload.email})")
+        user, sync_status = sync_clerk_user(db, payload.id, payload.email)
+    except Exception as e:
+        db.rollback()
+        print(f"WEBHOOK ERROR: Failed to commit user {payload.id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Database commit failed")
+
+    if sync_status == "updated":
+        print(f"WEBHOOK UPDATE: Updated email for {payload.id} to {payload.email}")
+        return {"status": "success", "message": "User email updated.", "user_id": user.id}
+
+    if sync_status == "existing":
         print(f"WEBHOOK SKIP: User {payload.id} already synchronized.")
         return {"message": "User already synchronized."}
 
-    # Create the new user record in Neon Postgres
-    print(f"WEBHOOK CREATE: Creating new user {payload.id}")
-    new_user = User(
-        id=payload.id,
-        email=payload.email
-    )
-    
-    try:
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-        print(f"WEBHOOK SUCCESS: User {payload.id} registered.")
-    except Exception as e:
-        print(f"WEBHOOK ERROR: Failed to commit user {payload.id}: {str(e)}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Database commit failed")
-    
-    return {"status": "success", "user_id": new_user.id}
+    print(f"WEBHOOK SUCCESS: User {payload.id} registered.")
+    return {"status": "success", "user_id": user.id}

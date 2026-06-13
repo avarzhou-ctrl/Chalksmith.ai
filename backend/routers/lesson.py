@@ -1,13 +1,20 @@
-import uuid
 import json
 import asyncio
 import os
 from typing import Optional
 from fastapi import APIRouter, Depends, Header, Request, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select, desc
+from sqlmodel import Session
+from backend.crud.lessons import (
+    create_lesson_record,
+    delete_lesson_record,
+    get_lesson_by_details,
+    get_lesson_for_user,
+    get_user_lessons,
+    update_lesson_title,
+)
 from backend.database import get_session
-from backend.models import LessonRequest, LessonRenameRequest, LessonResponse, LessonListResponse, Lesson, User
+from backend.models import LessonRequest, LessonRenameRequest, LessonResponse, LessonListResponse
 from backend.services.llm import generate_lesson
 from backend.services.render import render_manim_lesson, render_remotion_lesson, render_p5js_lesson, render_revealjs_lesson
 from backend.services.export import export_service
@@ -22,8 +29,7 @@ async def delete_lesson(
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
     # Delete the lesson from the database and remove its associated physical file
-    statement = select(Lesson).where(Lesson.id == lesson_id, Lesson.user_id == x_user_id)
-    db_lesson = session.exec(statement).first()
+    db_lesson = get_lesson_for_user(session, lesson_id, x_user_id)
 
     if not db_lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
@@ -49,8 +55,7 @@ async def delete_lesson(
         # We log and continue as the primary goal is database cleanup
         print(f"Failed to delete file for lesson {lesson_id}: {e}")
 
-    session.delete(db_lesson)
-    session.commit()
+    delete_lesson_record(session, db_lesson)
 
     return {"status": "success", "message": "Lesson deleted successfully"}
 
@@ -67,16 +72,9 @@ async def edit_lesson_title(
     if not new_title:
         raise HTTPException(status_code=400, detail="Lesson title cannot be empty")
 
-    statement = select(Lesson).where(Lesson.id == lesson_id, Lesson.user_id == x_user_id)
-    db_lesson = session.exec(statement).first()
-
+    db_lesson = update_lesson_title(session, lesson_id, x_user_id, new_title)
     if not db_lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
-    
-    db_lesson.topic = new_title
-    session.add(db_lesson)
-    session.commit()
-    session.refresh(db_lesson)
 
     return {"status": "success", "message": "Lesson title updated successfully", "new_title": db_lesson.topic}
 
@@ -117,8 +115,7 @@ async def generate_lesson_stream(
             if lesson_id:
                 yield f"data: {json.dumps({'status': 'loading_context', 'message': 'Loading previous lesson context...', 'progress': 15})}\n\n"
                 # Load previous context to enable iterative edits based on the current lesson state
-                statement = select(Lesson).where(Lesson.id == lesson_id, Lesson.user_id == x_user_id)
-                db_lesson = session.exec(statement).first()
+                db_lesson = get_lesson_for_user(session, lesson_id, x_user_id)
                 if not db_lesson:
                     yield f"data: {json.dumps({'status': 'error', 'message': 'Lesson not found'})}\n\n"
                     return
@@ -202,18 +199,9 @@ async def generate_lesson_stream(
 
             # Stage 4: Finalizing
             yield f"data: {json.dumps({'status': 'finalizing', 'message': 'Saving lesson to database...', 'progress': 95})}\n\n"
-            
-            # Ensure user exists to satisfy foreign key constraint (race condition fallback)
-            if x_user_id:
-                user = session.get(User, x_user_id)
-                if not user:
-                    print(f"LAZY USER CREATION: User {x_user_id} missing during stream finalization. Creating placeholder.")
-                    user = User(id=x_user_id, email=f"pending_{x_user_id}@chalksmith.ai")
-                    session.add(user)
 
-            new_id = str(uuid.uuid4())
-            db_lesson = Lesson(
-                id=new_id,
+            db_lesson = create_lesson_record(
+                session,
                 user_id=x_user_id,
                 topic=active_topic,
                 model=model,
@@ -222,10 +210,6 @@ async def generate_lesson_stream(
                 code=lesson["code"],
                 summary=lesson["summary"]
             )
-
-            session.add(db_lesson)
-            session.commit()
-            session.refresh(db_lesson)
 
             result = LessonResponse(
                 id=db_lesson.id,
@@ -253,8 +237,7 @@ async def get_lesson_by_id(
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
     # Retrieve a specific lesson by its unique ID, used for loading lessons from dashboard links
-    statement = select(Lesson).where(Lesson.id == lesson_id, Lesson.user_id == x_user_id)
-    db_lesson = session.exec(statement).first()
+    db_lesson = get_lesson_for_user(session, lesson_id, x_user_id)
 
     if not db_lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
@@ -281,8 +264,7 @@ async def create_lesson(
     previous_code = None
     if request.lesson_id:
         # Load previous code to provide the LLM with context for iterative edits
-        statement = select(Lesson).where(Lesson.id == request.lesson_id, Lesson.user_id == x_user_id)
-        db_lesson = session.exec(statement).first()
+        db_lesson = get_lesson_for_user(session, request.lesson_id, x_user_id)
         if not db_lesson:
             raise HTTPException(status_code=404, detail="Lesson not found")
 
@@ -318,17 +300,9 @@ async def create_lesson(
     except Exception as e:
         # Return as 422 so frontend can detect it as a render/syntax error
         raise HTTPException(status_code=422, detail=str(e))
-    
-    # Ensure user exists to satisfy foreign key constraint (race condition fallback)
-    if x_user_id:
-        user = session.get(User, x_user_id)
-        if not user:
-            print(f"LAZY USER CREATION: User {x_user_id} missing during create_lesson. Creating placeholder.")
-            user = User(id=x_user_id, email=f"pending_{x_user_id}@chalksmith.ai")
-            session.add(user)
 
-    db_lesson = Lesson(
-        id=str(uuid.uuid4()),
+    db_lesson = create_lesson_record(
+        session,
         user_id=x_user_id,
         topic=request.topic,
         model=request.model,
@@ -337,10 +311,6 @@ async def create_lesson(
         code=lesson["code"],
         summary=lesson["summary"]
     )
-
-    session.add(db_lesson)
-    session.commit()
-    session.refresh(db_lesson)
 
     return LessonResponse(
         id=db_lesson.id,
@@ -360,14 +330,7 @@ async def get_lesson(
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
     # Retrieves the most recent version of a specific lesson
-    statement = select(Lesson).where(
-        Lesson.topic == topic, 
-        Lesson.model == model, 
-        Lesson.format == format,
-        Lesson.user_id == x_user_id,
-    ).order_by(desc(Lesson.created_at))
-    results = session.exec(statement)
-    db_lesson = results.first()
+    db_lesson = get_lesson_by_details(session, topic, model, format, x_user_id)
 
     if not db_lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
@@ -387,7 +350,7 @@ async def list_lessons(
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
     # Lists all existing lessons, sorted by creation date (newest first) for the dashboard
-    db_lessons = session.exec(select(Lesson).where(Lesson.user_id == x_user_id).order_by(desc(Lesson.created_at))).all()
+    db_lessons = get_user_lessons(session, x_user_id)
 
     return [
         LessonListResponse(
@@ -410,8 +373,7 @@ async def export_lesson(
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
     # Triggers export service to convert lesson to static formats like PDF/MP4
-    statement = select(Lesson).where(Lesson.id == id, Lesson.user_id == x_user_id)
-    db_lesson = session.exec(statement).first()
+    db_lesson = get_lesson_for_user(session, id, x_user_id)
 
     if not db_lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")

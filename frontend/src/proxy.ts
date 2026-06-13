@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { PROXY_AUTH_USER_ID_HEADER } from './lib/auth-headers'
 
 const APP_HOST = 'app.chalksmith.ai'
 const MARKETING_HOSTS = new Set(['chalksmith.ai', 'www.chalksmith.ai'])
@@ -9,12 +10,18 @@ const isProtectedRoute = createRouteMatcher([
   '/home(.*)',
   '/api/generate(.*)'
 ]);
+const isProtectedLessonApiRoute = createRouteMatcher([
+  '/api/lesson-generate(.*)',
+  '/api/lesson-record(.*)',
+  '/api/lesson-list(.*)',
+  '/api/lessons(.*)',
+  '/api/lesson-export(.*)',
+]);
  
 export default clerkMiddleware(async (auth, request) => {
   const url = request.nextUrl.clone()
   const host = request.headers.get('host')?.split(':')[0]
   const pathname = url.pathname
-  const isAppRoot = host === APP_HOST && pathname === '/'
 
   if (host && MARKETING_HOSTS.has(host)) {
     if (pathname === '/generation') {
@@ -34,7 +41,20 @@ export default clerkMiddleware(async (auth, request) => {
     }
   }
 
-  if (isAppRoot || isProtectedRoute(request)) {
+  if (isProtectedLessonApiRoute(request)) {
+    const { userId } = await auth.protect()
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.delete('x-user-id')
+    requestHeaders.set(PROXY_AUTH_USER_ID_HEADER, userId)
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    })
+  }
+
+  if (isProtectedRoute(request)) {
     await auth.protect()
   }
 
@@ -67,9 +87,9 @@ export const config = {
   matcher: [
     // Skip Next.js internals and all static files, unless found in search params
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    // Always run for Clerk's auto-proxy path
-    '/__clerk/:path*',
     // Always run for API routes
-    '/(api|trpc)(.*)'
+    '/(api|trpc)(.*)',
+    // Always run for Clerk-specific frontend API routes
+    '/__clerk/(.*)',
   ],
 }

@@ -80,6 +80,8 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-06-13**: Added backend CRUD modules in `backend/crud/lessons.py` and `backend/crud/users.py`, moved lesson and user SQLModel database reads/writes out of `backend/routers/lesson.py` and `backend/routers/users.py`, and kept tenant-isolated lesson fetching in `get_user_lessons`.
+- **2026-06-13**: Moved Clerk protection for lesson API routes into `frontend/src/proxy.ts`, added the trusted proxy auth header helper in `frontend/src/lib/auth-headers.ts`, and removed duplicated route-level `auth()` calls from `frontend/src/app/api/lesson-generate/route.ts`, `frontend/src/app/api/lesson-record/route.ts`, `frontend/src/app/api/lesson-list/route.ts`, `frontend/src/app/api/lessons/route.ts`, and `frontend/src/app/api/lesson-export/route.ts` so lesson handlers rely on proxy-verified identity without opening unauthenticated access.
 - **2026-06-13**: Updated the homepage interaction cue hover styling in `frontend/src/components/home/CodeDrivenDemo.tsx` so it transitions into the same amber treatment as the material toggle.
 - **2026-06-13**: Added a small interaction cue to `frontend/src/components/home/CodeDrivenDemo.tsx` so homepage visitors know they can try the embedded preview controls.
 - **2026-06-13**: Added a strict Reveal.js screen containment rule in `backend/services/llm.py` so generated presentations keep all slide elements within the visible viewport instead of clipping or overflowing.

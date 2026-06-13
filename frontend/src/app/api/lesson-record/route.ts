@@ -1,11 +1,11 @@
-import { auth } from '@clerk/nextjs/server';
+import { getProxyAuthUserId } from '@/lib/auth-headers';
 import { NextResponse } from 'next/server';
 
 const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await auth();
+    const userId = getProxyAuthUserId(request);
     if (!userId) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
     }
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const { userId } = await auth();
+    const userId = getProxyAuthUserId(request);
     if (!userId) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
     }
@@ -77,7 +77,7 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { userId } = await auth();
+    const userId = getProxyAuthUserId(request);
     if (!userId) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
     }
@@ -112,7 +112,7 @@ export async function DELETE(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const { userId } = await auth();
+    const userId = getProxyAuthUserId(request);
     if (!userId) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
     }
