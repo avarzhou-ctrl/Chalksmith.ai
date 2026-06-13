@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Button from '../ui/Button';
-import { Code, Eye } from 'lucide-react';
+import { Code, Eye, MousePointerClick } from 'lucide-react';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -73,6 +73,13 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
             )}
           </Button>
         </div>
+
+        {!showCode && (
+          <div className="group absolute bottom-4 left-4 z-10 flex cursor-default items-center gap-2 rounded-lg border border-accent bg-accent/90 shadow-lg shadow-accent/20 px-3 py-1.5 text-xs font-medium text-primary-text backdrop-blur-md">
+            <MousePointerClick size={14} className="text-primary-text"/>
+            <span>Try the slider in this preview!</span>
+          </div>
+        )}
 
         {showCode ? (
           <div className="min-w-0 min-h-full w-full overflow-auto bg-primary-bg p-8 font-mono text-sm">
