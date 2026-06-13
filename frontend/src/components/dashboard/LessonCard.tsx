@@ -5,9 +5,9 @@ import { PencilLine, EllipsisVertical, Trash2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { TriangleAlert } from "lucide-react";
-import React from "react";
 import EditableTitle from "@/components/generation/EditableTitle";
 import { renameLesson } from "@/lib/api";
+import { useState, useRef, useEffect } from "react";
 
 interface LessonCardProps {
     id: string;
@@ -28,12 +28,12 @@ export default function LessonCard({
     createdAt,
     onDelete,
 }: LessonCardProps) {
-    const [displayTitle, setDisplayTitle] = React.useState(title);
-    const [renameError, setRenameError] = React.useState<string | null>(null);
-    const [isRenaming, setIsRenaming] = React.useState(false);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
-    const [isActionsOpen, setIsActionsOpen] = React.useState(false);
-    const actionsRef = React.useRef<HTMLDivElement>(null);
+    const [displayTitle, setDisplayTitle] = useState(title);
+    const [renameError, setRenameError] = useState<string | null>(null);
+    const [isRenaming, setIsRenaming] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isActionsOpen, setIsActionsOpen] = useState(false);
+    const actionsRef = useRef<HTMLDivElement>(null);
     const formatLabels: Record<string, string> = {
         manim: 'Pro Video',
         remotion: 'Instant Video',
@@ -41,9 +41,9 @@ export default function LessonCard({
         'reveal.js': 'Presentation',
     };
     
-    const [isRenameModalOpen, setIsRenameModalOpen] = React.useState(false);
+    const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
 
-    React.useEffect(() => {
+    useEffect(() => {
         setDisplayTitle(title);
     }, [title]);
 
@@ -54,7 +54,7 @@ export default function LessonCard({
     }).format(new Date(createdAt));
     const formatLabel = formatLabels[format] ?? format;
 
-    React.useEffect(() => {
+    useEffect(() => {
         const closeActions = (event: MouseEvent) => {
             if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
                 setIsActionsOpen(false);

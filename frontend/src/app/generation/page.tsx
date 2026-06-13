@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import EditableTitle from "@/components/generation/EditableTitle";
 import Button from "@/components/ui/Button";
-import { LessonResponse, generateLessonStreaming, GenerationStatus, deleteLesson, fetchLessonById } from "@/lib/api";
+import { LessonResponse, generateLessonStreaming, GenerationStatus, deleteLesson, fetchLessonById, renameLesson } from "@/lib/api";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { Eye, Code, Flame, Download, TriangleAlert, Loader2 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -35,6 +35,11 @@ export default function Page() {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   
+  // State for renaming
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [displayTitle, setDisplayTitle] = useState(title);
+
   // Ref to track the active EventSource cleanup function for mid-generation cancellation
   const generationCleanupRef = useRef<(() => void) | null>(null);
 
@@ -158,6 +163,10 @@ export default function Page() {
     loadSavedLesson();
   }, []);
 
+  useEffect(() => {
+    setDisplayTitle(title);
+  }, [title]);
+
   const generateLesson = async (overridePrompt?: string) => {
     // If overridePrompt is provided and is a string (Auto-Fix), use it; otherwise fallback to 'topic'
     const activePrompt = typeof overridePrompt === 'string' ? overridePrompt : topic;
@@ -241,6 +250,26 @@ export default function Page() {
     generateLesson(fixPrompt);
   }
 
+  const handleRenameLesson = async (newTitle: string, id: string) => {
+    const trimmedTitle = newTitle.trim();
+
+    if (!trimmedTitle || trimmedTitle === title || !id) {
+      return;
+    }
+
+    try {
+        setRenameError(null);
+        setIsRenaming(true);
+        await renameLesson(id, trimmedTitle);
+        setTitle(trimmedTitle);
+        setDisplayTitle(trimmedTitle);
+      } catch (error) {
+        setRenameError(error instanceof Error ? error.message : 'Failed to rename lesson');
+      } finally {
+        setIsRenaming(false);
+      }
+    };
+
   return (
     <main className="app-route-without-site-header flex flex-row h-screen w-full bg-primary-bg overflow-hidden font-sans text-primary-text">
       <Group orientation="horizontal" id="main-layout">
@@ -254,7 +283,16 @@ export default function Page() {
                   <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
                 </a>
               </div>
-              <EditableTitle initialTitle={title} onChange={setTitle}/>
+              <EditableTitle
+                initialTitle={displayTitle}
+                onChange={(newTitle) => {
+                  if (result?.id) {
+                    handleRenameLesson(newTitle, result.id);
+                  } else {
+                    setTitle(newTitle);
+                  }
+                }}
+              />
               <div className="flex gap-2 pb-1">
                 <Button 
                   variant="outline" 
