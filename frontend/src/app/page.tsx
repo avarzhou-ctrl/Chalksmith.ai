@@ -36,7 +36,13 @@ function BuildLessonCta() {
   }
 
   return (
-    <SignUpButton mode="modal">
+    <SignUpButton
+      mode="modal"
+      forceRedirectUrl="https://app.chalksmith.ai"
+      fallbackRedirectUrl="https://app.chalksmith.ai"
+      signInForceRedirectUrl="https://app.chalksmith.ai"
+      signInFallbackRedirectUrl="https://app.chalksmith.ai"
+    >
       <button type="button" className={`${ctaBaseClasses} ${ctaSizeClasses.lg}`}>
         Build a lesson now
         <ArrowRight size={18} />

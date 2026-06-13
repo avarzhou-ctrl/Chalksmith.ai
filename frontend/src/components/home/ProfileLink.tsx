@@ -58,7 +58,13 @@ export default function ProfileLink() {
 
   if (!isLoaded || !isSignedIn) {
     return (
-      <SignUpButton mode="modal">
+      <SignUpButton
+        mode="modal"
+        forceRedirectUrl="https://app.chalksmith.ai"
+        fallbackRedirectUrl="https://app.chalksmith.ai"
+        signInForceRedirectUrl="https://app.chalksmith.ai"
+        signInFallbackRedirectUrl="https://app.chalksmith.ai"
+      >
         <button
           type="button"
           className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700"

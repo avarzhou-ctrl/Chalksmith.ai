@@ -6,6 +6,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 
 import Link from 'next/link'
+import { GENERATION_REDIRECT_URL } from '@/lib/auth-redirects'
 
 const inter = Inter({
   variable: '--font-inter',
@@ -63,7 +64,13 @@ export default async function RootLayout({
             </Show>
 
             <Show when="signed-out">
-              <SignUpButton mode="modal">
+              <SignUpButton
+                mode="modal"
+                forceRedirectUrl={GENERATION_REDIRECT_URL}
+                fallbackRedirectUrl={GENERATION_REDIRECT_URL}
+                signInForceRedirectUrl={GENERATION_REDIRECT_URL}
+                signInFallbackRedirectUrl={GENERATION_REDIRECT_URL}
+              >
                 <button
                   type="button"
                   className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700"
