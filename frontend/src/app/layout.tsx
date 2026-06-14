@@ -14,7 +14,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'Chalksmith | Code-Driven STEM Animations',
-  description: 'AI-powered tool for creating educational content.',
+  description: 'An AI-driven tool for generating code-driven educational STEM animations from natural language.',
   metadataBase: new URL('https://chalksmith.ai'),
   icons: {
     icon: '/favicon.ico',

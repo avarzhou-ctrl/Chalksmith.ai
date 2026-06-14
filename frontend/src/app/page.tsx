@@ -176,7 +176,7 @@ export default function Home() {
         <section id="call_to_action" className="mx-auto w-full max-w-6xl px-4 pb-40 pt-8 sm:px-6 lg:px-8">
           <div className="text-left rounded-lg border border-secondary-bg bg-secondary-bg p-5 md:grid-cols-[0.8fr_1.2fr]">
             <h2 className="mt-5 text-3xl font-bold text-primary-text sm:text-5xl">
-              Stop spending 12 hours a week on slide decks.
+              Stop spending 12 hours a week creating lessons.
             </h2>
             <p className="mt-4 text-2xl font-semibold text-accent">Try Chalksmith.ai today.</p>
             <div className="mt-7 mb-4 inline-flex">
