@@ -19,7 +19,7 @@ Supported, exportable formats include:
 
 ### Video Walkthrough
 <div align="center">
-  <video src="https://github.com/user-attachments/assets/YOUR_UPLOADED_VIDEO_ID" width="100%" controls>
+  <video src="https://github.com/user-attachments/assets/be35e3f2-7c95-4cef-80a8-daf3e694acc8" width="100%" controls>
     Your browser does not support the video tag.
   </video>
 </div>
