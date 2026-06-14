@@ -13,6 +13,10 @@ Supported, exportable formats include:
 * Presentation (reveal.js library)
 * Video (Manim library)
 
+*Disclaimer:* This website is currently in beta-testing stage, feel free the reach out with any errors.
+
+## Examples
+
 ### Video Walkthrough
 <div align="center">
   <video src="https://github.com/user-attachments/assets/YOUR_UPLOADED_VIDEO_ID" width="100%" controls>
@@ -20,14 +24,8 @@ Supported, exportable formats include:
   </video>
 </div>
 
-*Disclaimer:* This website is currently in beta-testing stage, feel free the reach out with any errors.
-
-## Examples
-
-<div align="center">
-  <img src="https://via.placeholder.com/800x400.png?text=Interactive+STEM+Demonstration" alt="Interactive STEM Demo" width="600px">
-  <p><i>Left: p5.js Interactive Session | Right: Manim Video Export</i></p>
-</div>
+### Lesson Examples
+[**Examples**](https://chalksmith.ai/#examples)
 
 ### Sample Topics
 * Fractions, Percentages, and Decimals
@@ -45,7 +43,7 @@ Supported, exportable formats include:
 * Natural Selection
 
 ## Motivation
-Did you know **teachers** spend up to **12 hours** per week on lessons?––5 hours collecting resources, 7 hours building them from scratch. As a high schooler attending an international school with a highly diverse student body, I acutely perceived this issue, especially in STEM subjects where prior experience differed drastically.
+Did you know **teachers** spend up to **12 hours** per week on lessons?—5 hours collecting resources, 7 hours building them from scratch. As a high schooler attending an international school with a highly diverse student body, I acutely perceived this issue, especially in STEM subjects where prior experience differed drastically.
 
 From this issue emerged the incentive to create a solution. Over these past few months, I learned how to code, design, and deploy websites, and tested my website with over 50+ students and teachers across K12 grades.
 
@@ -67,11 +65,6 @@ Follow these steps to configure your local development environment. You will nee
 ### 1. Clone the Repository
 
 Clone the project from GitHub and navigate into the root workspace directory:
-```bash
-git clone [https://github.com/yourusername/chalksmith.git](https://github.com/yourusername/chalksmith.git)
-cd chalksmith
-
-### 1. Clone the Repository
 ```bash
 git clone [https://github.com/avarzhou-ctrl/Chalksmith.ai.git](https://github.com/avarzhou-ctrl/Chalksmith.ai.git)
 cd Chalksmith.ai
@@ -145,11 +138,11 @@ uvicorn backend.main:app --reload
 The FastAPI worker engine will start listening for proxied payload calls locally at ```http://localhost:8000```.
 
 ## 5. Local Webhook Testing Verification
-Because Clerk webhooks require a public domain address to push account lifecycle mutations (```user.created``) down to your local loop, you must expose your local port securely.
+Because Clerk webhooks require a public domain address to push account lifecycle mutations (```user.created```) down to your local loop, you must expose your local port securely.
 
-For this step, please refer to Clerk's [syncing data with webhooks](https://clerk.com/docs/guides/development/webhooks/syncing) documentation as I have not personally tested this out yet!
+For this step, please refer to Clerk's [syncing data with webhooks](https://clerk.com/docs/guides/development/webhooks/syncing) documentation!
 
 ## Contact
 💬 **Contact us:** Feel free to reach out with any errors you encounter to our support email, [help@chalksmith.ai](mailto:help@chalksmith.ai)!
 
-🖥️ **Author:** I'm [Ava Zhou](https://github.com/avarzhou-ctrl), and I started building this website in my freshman year of high school as part of a school project, which was also coincidentally my first website and personal project! The creation of this project stemmed from a desire to learn more about the systems and architecture behind websites and solve real-world problems. Reach out to my personal email if you want to connect: [avarzhou@gmail.com](mailto:avarzhou@gmail.com).
+🖥️ **Author:** I'm [Ava Zhou](https://github.com/avarzhou-ctrl). I started building Chalksmith during my high school freshman year as part of a school project—marking my very first full-stack web application. The project grew from a curiosity about systems architecture and a desire to build real-world tools. Want to connect? Feel free to reach out at [avarzhou@gmail.com](mailto:avarzhou@gmail.com).
