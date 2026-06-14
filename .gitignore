@@ -1,14 +1,18 @@
 .venv/
+.env.local/
 
-# === Backend (Python/FastAPI) ===
+# === Backend (FastAPI) ===
 backend/.env/
+backend/.env.local/
 backend/__pycache__/
 backend/*.py[cod]
 backend/.pytest_cache/
 backend/*.db
-# backend/static/
+backend/static/
+!backend/.env.example
 
-# === Frontend (Next.js/Javascript) ===
+# === Frontend (Next.js) ===
+frtonend/.env.local/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
