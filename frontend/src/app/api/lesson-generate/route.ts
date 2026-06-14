@@ -30,11 +30,11 @@ export async function GET(request: Request) {
     if (!response.ok) {
       const errorText = await response.text();
       const error = safeJson(errorText) ?? { detail: errorText || 'Generation stream failed' };
-      return NextResponse.json(error, { status: response.status });
+      return createSseErrorResponse(getErrorMessage(error), response.status);
     }
 
     if (!response.body) {
-      return NextResponse.json({ detail: 'Generation stream unavailable' }, { status: 502 });
+      return createSseErrorResponse('Generation stream unavailable', 502);
     }
 
     return new Response(response.body, {
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     });
   } catch (err) {
     console.error('Generation Stream API Error:', err);
-    return NextResponse.json({ detail: 'Internal Server Error' }, { status: 500 });
+    return createSseErrorResponse('Internal Server Error', 500);
   }
 }
 
@@ -56,4 +56,33 @@ function safeJson(value: string) {
   } catch {
     return null;
   }
+}
+
+function getErrorMessage(error: unknown) {
+  if (error && typeof error === 'object' && 'detail' in error && typeof error.detail === 'string') {
+    return error.detail;
+  }
+
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+
+  return 'Generation stream failed';
+}
+
+function createSseErrorResponse(message: string, upstreamStatus: number) {
+  const payload = {
+    status: 'error',
+    message,
+    progress: 0,
+    upstreamStatus,
+  };
+
+  return new Response(`data: ${JSON.stringify(payload)}\n\n`, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
+  });
 }

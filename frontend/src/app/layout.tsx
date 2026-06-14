@@ -6,7 +6,6 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 
 import Link from 'next/link'
-import { GENERATION_REDIRECT_URL } from '@/lib/auth-redirects'
 
 const inter = Inter({
   variable: '--font-inter',
@@ -66,10 +65,10 @@ export default async function RootLayout({
             <Show when="signed-out">
               <SignUpButton
                 mode="modal"
-                forceRedirectUrl={GENERATION_REDIRECT_URL}
-                fallbackRedirectUrl={GENERATION_REDIRECT_URL}
-                signInForceRedirectUrl={GENERATION_REDIRECT_URL}
-                signInFallbackRedirectUrl={GENERATION_REDIRECT_URL}
+                forceRedirectUrl="https://app.chalksmith.ai"
+                fallbackRedirectUrl="https://app.chalksmith.ai"
+                signInForceRedirectUrl="https://app.chalksmith.ai"
+                signInFallbackRedirectUrl="https://app.chalksmith.ai"
               >
                 <button
                   type="button"
