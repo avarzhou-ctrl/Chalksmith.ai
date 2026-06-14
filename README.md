@@ -12,7 +12,7 @@ Supported, exportable formats include:
 * Presentation (reveal.js library)
 * Video (Manim library)
 
-*Disclaimer:* This website is currently in beta-testing stage, feel free the reach out with any errors.
+*Disclaimer:* This website is currently in the beta-testing stage, feel free the reach out with any errors.
 
 ## Examples
 
@@ -44,7 +44,7 @@ Supported, exportable formats include:
 ## Motivation
 Did you know **teachers** spend up to **12 hours** per week on lessons?—5 hours collecting resources, 7 hours building them from scratch. As a high schooler attending an international school with a highly diverse student body, I acutely perceived this issue, especially in STEM subjects where prior experience differed drastically.
 
-From this issue emerged the incentive to create a solution. Over these past few months, I learned how to code, design, and deploy websites, and tested my website with over 50+ students and teachers across K12 grades.
+From this issue emerged the incentive to create a solution. Over these past few months, I learned how to code, design, and deploy websites, and tested my website with over **50+ students and teachers** across K12 grades.
 
 ## Tech Stack
 
