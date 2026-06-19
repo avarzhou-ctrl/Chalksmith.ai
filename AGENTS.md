@@ -37,14 +37,27 @@
 - **Typography:** Inter (sans-serif) as the primary font with stone-50/stone-400 text colors.
 - **Layout:** 75/25 split for generation (Preview/Chat).
 
-###
-
 ## Commands
 ### Backend
 uvicorn backend.main:app --reload
 
 ### Frontend
 npm run dev
+
+### GitHub Commits
+When told to reformat commits, follow the Conventional Commits (https://www.conventionalcommits.org/en/v1.0.0/) format.
+
+**Structure:** <type>[optional scope]: <description>
+- **Type:** Define the nature of the change.
+    * feat: Adding a new feature.
+    * fix: Resolving a bug.
+    * docs: Changes to documentation or README.
+    * refactor: Code restructuring without changing behavior.
+    * perf: Performance-related improvements.
+    * test: Adding or updating tests.
+- **Scope:** The specific area of the project affected (e.g., ui, api, engine)
+- **Summary:** A concise, imperative sentence (e.g., Add support for...). Use the imperative mood (e.g., "Add," not "Added").
+- **Example:** "feat: allow provided config object to extend other configs"
 
 ## Boundaries
 ### Do
@@ -54,6 +67,7 @@ npm run dev
 
 ### Don't
 - do not add new heavy dependencies without approval
+- do not commit without permission
 - do not commit API keys
 - do not use divs when a component exists already 
 - do not use px for spacing; use Tailwind's spacing scale (e.g., p-4, m-2)

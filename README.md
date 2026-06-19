@@ -121,7 +121,7 @@ Open a secondary terminal window to run your media compilation compute worker. I
 cd backend
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 uvicorn backend.main:app --reload
 ```
 
@@ -130,7 +130,7 @@ uvicorn backend.main:app --reload
 cd backend
 python -m venv venv
 venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 uvicorn backend.main:app --reload
 ```
 

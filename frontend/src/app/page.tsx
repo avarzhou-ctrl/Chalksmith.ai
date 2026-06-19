@@ -211,6 +211,7 @@ export default function Home() {
                 <h3 className="font-semibold text-stone-50">Contact</h3>
                 <ul className="mt-4 space-y-3">
                   <li><a className="hover:text-accent" href="mailto:help@chalksmith.ai">help@chalksmith.ai</a></li>
+                  <li><a className="hover:text-accent" href="https://github.com/avarzhou-ctrl/Chalksmith.ai/">GitHub</a></li>
                 </ul>
               </div>
             </div>
