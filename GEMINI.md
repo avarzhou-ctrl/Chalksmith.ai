@@ -55,8 +55,9 @@ When told to reformat commits, follow the Conventional Commits (https://www.conv
     * refactor: Code restructuring without changing behavior.
     * perf: Performance-related improvements.
     * test: Adding or updating tests.
-- **Scope:** The specific area of the project affected (e.g., ui, api, engine)
+- **Scope (optional):** The specific area of the project affected (e.g., ui, api, engine)
 - **Summary:** A concise, imperative sentence (e.g., Add support for...). Use the imperative mood (e.g., "Add," not "Added").
+- **Example:** "feat: allow provided config object to extend other configs"
 
 ## Boundaries
 ### Do

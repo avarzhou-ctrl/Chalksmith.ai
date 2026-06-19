@@ -55,7 +55,7 @@ When told to reformat commits, follow the Conventional Commits (https://www.conv
     * refactor: Code restructuring without changing behavior.
     * perf: Performance-related improvements.
     * test: Adding or updating tests.
-- **Scope:** The specific area of the project affected (e.g., ui, api, engine)
+- **Scope (optional):** The specific area of the project affected (api, auth, dashboard, db, frontend, generation, home, render, ui)
 - **Summary:** A concise, imperative sentence (e.g., Add support for...). Use the imperative mood (e.g., "Add," not "Added").
 - **Example:** "feat: allow provided config object to extend other configs"
 
@@ -94,6 +94,7 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-06-19**: Added a diagram-backed bullet-point architecture section in `README.md` that embeds `Architecture.png` and explains how the Next.js frontend, FastAPI backend, Neon database, Clerk/Svix auth flow, LLM providers, and rendering pipelines work together.
 - **2026-06-14**: Updated `frontend/src/app/api/lesson-generate/route.ts` so generation proxy failures are returned as SSE error messages instead of JSON responses that EventSource reports only as a generic connection error, and recorded the change in `AGENTS.md`.
 - **2026-06-13**: Added a shared auth redirect target in `frontend/src/lib/auth-redirects.ts`, wired marketing sign-up buttons in `frontend/src/app/page.tsx`, `frontend/src/app/layout.tsx`, and `frontend/src/components/home/ProfileLink.tsx` to send completed sign-up/sign-in flows directly to the app generation page, updated the dashboard create-new link in `frontend/src/app/dashboard/page.tsx`, restored `frontend/.env.example` with Clerk multi-domain notes, and allowed env example files in `.gitignore`.
 - **2026-06-13**: Fixed saved lesson dashboard navigation crashing in `frontend/src/app/generation/page.tsx` by removing an invalid named `React` import, using named React hooks consistently, and guarding title rename handling until a loaded lesson result exists.

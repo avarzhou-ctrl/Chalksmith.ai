@@ -55,6 +55,19 @@ From this issue emerged the incentive to create a solution. Over these past few 
 | **Database** | Neon Postgres | Scalable relational data storage |
 | **Authentication**| Clerk, Svix Webhooks | Secure authentication and account sync |
 
+## Architecture
+
+![Chalksmith architecture diagram](Architecture.png)
+
+Chalksmith is organized as a full-stack teaching-material generation system with separate layers for the user interface, secure compute work, persistent storage, and media rendering.
+
+* **Frontend:** The Next.js app handles the teacher and student experience, including lesson prompts, account-protected dashboard pages, and generated lesson previews.
+* **API boundary:** Frontend API routes communicate with the FastAPI backend so sensitive provider keys and long-running rendering workflows stay off the browser.
+* **Backend:** The FastAPI layer validates requests, calls the selected LLM provider, saves lesson metadata, and routes generated code to the correct output pipeline.
+* **Rendering pipelines:** Generated code becomes p5.js interactives, Reveal.js presentations, or Manim videos depending on the selected lesson format.
+* **Data and auth:** Neon Postgres stores user and lesson data, while Clerk manages authentication and Svix webhooks keep account records synchronized.
+* **Separation of concerns:** Keeping the public interface, compute layer, database, authentication, and rendering jobs separate makes Chalksmith easier to secure, debug, and extend.
+
 ---
 
 ## Local Development Setup
@@ -69,10 +82,10 @@ git clone [https://github.com/avarzhou-ctrl/Chalksmith.ai.git](https://github.co
 cd Chalksmith.ai
 ```
 
-## 2. Environment Configuration
+### 2. Environment Configuration
 You need to establish local environment files for both layers to bridge network tokens and database connections.
 
-### Frontend (.env.local)
+#### Frontend (.env.local)
 Create a ```.env.local``` file inside the ```frontend/``` directory.
 
 ```bash
@@ -86,7 +99,7 @@ API_BASE_URL=http://localhost:8000
 INTERNAL_BACKEND_SECRET=your_local_secure_bridge_token
 ```
 
-### Backend (.env.local)
+#### Backend (.env.local)
 Create a ```.env.local``` file inside the ```backend/``` directory.
 ```bash
 # LLM API keys
@@ -100,7 +113,7 @@ INTERNAL_BACKEND_SECRET=your_local_secure_bridge_token
 FRONTEND_ORIGINS=http://localhost:3000
 ```
 
-## 3. Spin Up the Frontend (Next.js)
+### 3. Spin Up the Frontend (Next.js)
 Open a new terminal window, install the Node package modules, and spin up the local development serverless loop:
 (Note: run commands from root)
 
@@ -112,11 +125,11 @@ npm run dev
 
 The user interface will compile and initialize locally at ```http://localhost:3000``.
 
-## 4. Spin Up the Backend (FastAPI)
+### 4. Spin Up the Backend (FastAPI)
 Open a secondary terminal window to run your media compilation compute worker. Initialize a virtual environment, activate it, and launch the server instance:
 (Note: run commands from root)
 
-### macOS / Linux
+#### macOS / Linux
 ```bash
 cd backend
 python3 -m venv venv
@@ -125,7 +138,7 @@ pip install -r backend/requirements.txt
 uvicorn backend.main:app --reload
 ```
 
-### Windows (Command Prompt)
+#### Windows (Command Prompt)
 ```bash
 cd backend
 python -m venv venv
@@ -136,7 +149,7 @@ uvicorn backend.main:app --reload
 
 The FastAPI worker engine will start listening for proxied payload calls locally at ```http://localhost:8000```.
 
-## 5. Local Webhook Testing Verification
+### 5. Local Webhook Testing Verification
 Because Clerk webhooks require a public domain address to push account lifecycle mutations (```user.created```) down to your local loop, you must expose your local port securely.
 
 For this step, please refer to Clerk's [syncing data with webhooks](https://clerk.com/docs/guides/development/webhooks/syncing) documentation!
