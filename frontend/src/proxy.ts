@@ -11,7 +11,6 @@ const isProtectedRoute = createRouteMatcher([
   '/api/generate(.*)'
 ]);
 const isProtectedLessonApiRoute = createRouteMatcher([
-  '/api/lesson-generate(.*)',
   '/api/lesson-record(.*)',
   '/api/lesson-list(.*)',
   '/api/lessons(.*)',

@@ -1,4 +1,5 @@
 import { getProxyAuthUserId } from '@/lib/auth-headers';
+import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
 const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -7,9 +8,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
-    const userId = getProxyAuthUserId(request);
+    const proxyUserId = getProxyAuthUserId(request);
+    const { userId: clerkUserId } = await auth();
+    const userId = proxyUserId || clerkUserId;
+
     if (!userId) {
-      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 });
+      return createSseErrorResponse('Unauthorized', 401);
     }
 
     const { searchParams } = new URL(request.url);
