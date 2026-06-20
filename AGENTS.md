@@ -94,6 +94,7 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-06-20**: Constrained `frontend/src/components/ui/Modal.tsx` to a viewport-safe maximum height with an internal scroll area, and tightened the generation error modal in `frontend/src/app/generation/page.tsx` so long error/source text scrolls without overflowing off-screen.
 - **2026-06-20**: Moved `/api/lesson-generate` authentication into `frontend/src/app/api/lesson-generate/route.ts` and removed it from the protected lesson API proxy matcher in `frontend/src/proxy.ts` so EventSource generation failures return SSE error payloads instead of Clerk middleware 404 HTML responses.
 - **2026-06-20**: Updated `deploy/daemontools/chalksmith-backend/run` so the VPS backend service binds to `0.0.0.0` for direct network exposure instead of loopback-only access.
 - **2026-06-20**: Added daemontools deployment support for the FastAPI backend with `deploy/daemontools/chalksmith-backend/run`, `deploy/daemontools/chalksmith-backend/log/run`, and `scripts/server/chalksmith-backend`, guarded macOS-only `pyobjc` requirements, and updated the NumPy pin in `backend/requirements.txt` so Ubuntu Python 3.12 installs can complete.

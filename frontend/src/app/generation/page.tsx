@@ -578,24 +578,24 @@ export default function Page() {
         onClose={() => setIsErrorModalOpen(false)} 
         title="Blueprint Error"
       >
-        <div className="flex flex-col items-center">
+        <div className="flex min-h-0 flex-col items-center">
           <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
             <TriangleAlert className="text-accent" size={24} />
           </div>
-          <p className="mb-4 text-center text-sm">
+          <p className="mb-4 text-center text-sm break-words">
             Unfortunately Chalksmith generated an invalid lesson because of {error}. Click Auto-Fix to have Chalksmith attempt to correct the issue, or view the source code to debug further.
           </p>
           
           {result && (
-            <div className="w-full mb-6">
+            <div className="mb-6 min-h-0 w-full">
               <p className="text-xs font-semibold text-secondary-text mb-2 uppercase tracking-wider">Source Code:</p>
-              <pre className="p-4 bg-black/40 rounded-xl border border-white/5 text-[10px] text-amber-400 font-mono text-left max-h-80 overflow-auto whitespace-pre-wrap">
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/5 bg-black/40 p-4 text-left font-mono text-[10px] text-amber-400">
                 {result.code}
               </pre>
             </div>
           )}
 
-          <div className="flex flex-row gap-3 w-full">
+          <div className="flex w-full shrink-0 flex-row gap-3">
             <Button 
               variant="secondary" 
               className="w-full" 

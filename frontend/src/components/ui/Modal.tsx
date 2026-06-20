@@ -35,7 +35,7 @@ export default function Modal({
             />
 
             { /* Modal Content */ }
-            <div className="relative bg-secondary-bg border border-border rounded-2xl shadow-2xl w-full max-w-md pt-8 px-8 pb-10 z-10 animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-secondary-bg pt-8 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                 {/* Close Button */}
                 <button
                     onClick={onClose}
@@ -45,12 +45,12 @@ export default function Modal({
                 </button>
 
                 {/* Header */}
-                <div className="mb-6 text-center">
+                <div className="mb-6 shrink-0 px-8 text-center">
                     <h2 className="text-xl font-bold text-primary-text">{title}</h2>
                 </div>
 
                 {/* Message */}
-                <div className="text-center text-secondary-text leading-relaxed">
+                <div className="min-h-0 overflow-y-auto px-8 pb-10 text-center leading-relaxed text-secondary-text">
                     {children}
                 </div>
             </div>
