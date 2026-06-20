@@ -94,6 +94,8 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-06-20**: Updated `deploy/daemontools/chalksmith-backend/run` so the VPS backend service binds to `0.0.0.0` for direct network exposure instead of loopback-only access.
+- **2026-06-20**: Added daemontools deployment support for the FastAPI backend with `deploy/daemontools/chalksmith-backend/run`, `deploy/daemontools/chalksmith-backend/log/run`, and `scripts/server/chalksmith-backend`, guarded macOS-only `pyobjc` requirements, and updated the NumPy pin in `backend/requirements.txt` so Ubuntu Python 3.12 installs can complete.
 - **2026-06-19**: Added a diagram-backed bullet-point architecture section in `README.md` that embeds `Architecture.png` and explains how the Next.js frontend, FastAPI backend, Neon database, Clerk/Svix auth flow, LLM providers, and rendering pipelines work together.
 - **2026-06-14**: Updated `frontend/src/app/api/lesson-generate/route.ts` so generation proxy failures are returned as SSE error messages instead of JSON responses that EventSource reports only as a generic connection error, and recorded the change in `AGENTS.md`.
 - **2026-06-13**: Added a shared auth redirect target in `frontend/src/lib/auth-redirects.ts`, wired marketing sign-up buttons in `frontend/src/app/page.tsx`, `frontend/src/app/layout.tsx`, and `frontend/src/components/home/ProfileLink.tsx` to send completed sign-up/sign-in flows directly to the app generation page, updated the dashboard create-new link in `frontend/src/app/dashboard/page.tsx`, restored `frontend/.env.example` with Clerk multi-domain notes, and allowed env example files in `.gitignore`.

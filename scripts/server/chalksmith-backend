@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_DIR="${APP_DIR:-$HOME/apps/Chalksmith-ai}"
+SERVICE_ROOT="${SERVICE_ROOT:-$HOME/service}"
+SERVICE_NAME="${SERVICE_NAME:-chalksmith-backend}"
+SERVICE_DIR="$SERVICE_ROOT/$SERVICE_NAME"
+SOURCE_SERVICE_DIR="$APP_DIR/deploy/daemontools/$SERVICE_NAME"
+LOG_FILE="$APP_DIR/logs/$SERVICE_NAME/current"
+
+usage() {
+  cat <<EOF
+Usage: $0 <command>
+
+Commands:
+  install       Create venv, install Python and Node dependencies, and install service files
+  install-only  Install or refresh service files without dependency installation
+  start         Start supervise for this service
+  stop          Stop the service and ask supervise to exit
+  restart       Restart the service under supervise
+  status        Show daemontools service status
+  tail          Follow multilog output
+
+Environment overrides:
+  APP_DIR=$APP_DIR
+  SERVICE_ROOT=$SERVICE_ROOT
+  SERVICE_NAME=$SERVICE_NAME
+EOF
+}
+
+require_app_dir() {
+  if [ ! -d "$APP_DIR" ]; then
+    echo "App directory does not exist: $APP_DIR" >&2
+    exit 1
+  fi
+}
+
+install_service_files() {
+  require_app_dir
+
+  if [ ! -d "$SOURCE_SERVICE_DIR" ]; then
+    echo "Service template not found: $SOURCE_SERVICE_DIR" >&2
+    exit 1
+  fi
+
+  mkdir -p "$SERVICE_ROOT" "$APP_DIR/logs/$SERVICE_NAME"
+  rm -rf "$SERVICE_DIR.tmp"
+  mkdir -p "$SERVICE_DIR.tmp"
+  cp -R "$SOURCE_SERVICE_DIR/." "$SERVICE_DIR.tmp/"
+  chmod +x "$SERVICE_DIR.tmp/run" "$SERVICE_DIR.tmp/log/run"
+
+  if [ -d "$SERVICE_DIR" ]; then
+    rm -rf "$SERVICE_DIR.previous"
+    mv "$SERVICE_DIR" "$SERVICE_DIR.previous"
+  fi
+
+  mv "$SERVICE_DIR.tmp" "$SERVICE_DIR"
+  echo "Installed service files to $SERVICE_DIR"
+}
+
+install_dependencies() {
+  require_app_dir
+  cd "$APP_DIR"
+
+  python3 -m venv .venv
+  . .venv/bin/activate
+  python -m pip install --upgrade pip wheel setuptools
+  python -m pip install -r backend/requirements.txt
+
+  npm ci
+  mkdir -p backend/static logs/"$SERVICE_NAME"
+
+  if [ ! -f backend/.env.local ]; then
+    cp backend/.env.example backend/.env.local.example-on-server
+    echo "Created backend/.env.local.example-on-server. Create backend/.env.local before starting the service."
+  fi
+}
+
+is_supervised() {
+  svstat "$SERVICE_DIR" >/dev/null 2>&1
+}
+
+is_svscan_running() {
+  pgrep -u "$(id -u)" -f "svscan $SERVICE_ROOT" >/dev/null 2>&1
+}
+
+start_service() {
+  if [ ! -d "$SERVICE_DIR" ]; then
+    install_service_files
+  fi
+
+  if ! is_svscan_running; then
+    nohup svscan "$SERVICE_ROOT" >"$SERVICE_ROOT/svscan.log" 2>&1 &
+    sleep 1
+  fi
+
+  svc -u "$SERVICE_DIR" "$SERVICE_DIR/log" 2>/dev/null || true
+  sleep 1
+  svstat "$SERVICE_DIR" "$SERVICE_DIR/log" || true
+}
+
+stop_service() {
+  if [ ! -d "$SERVICE_DIR" ]; then
+    echo "Service is not installed at $SERVICE_DIR"
+    return
+  fi
+
+  svc -dx "$SERVICE_DIR" "$SERVICE_DIR/log" 2>/dev/null || true
+  sleep 1
+  svstat "$SERVICE_DIR" "$SERVICE_DIR/log" 2>/dev/null || true
+}
+
+restart_service() {
+  if ! is_supervised; then
+    start_service
+    return
+  fi
+
+  svc -t "$SERVICE_DIR"
+  sleep 1
+  svstat "$SERVICE_DIR" "$SERVICE_DIR/log"
+}
+
+case "${1:-}" in
+  install)
+    install_dependencies
+    install_service_files
+    ;;
+  install-only)
+    install_service_files
+    ;;
+  start)
+    start_service
+    ;;
+  stop)
+    stop_service
+    ;;
+  restart)
+    restart_service
+    ;;
+  status)
+    svstat "$SERVICE_DIR" "$SERVICE_DIR/log"
+    ;;
+  tail)
+    tail -F "$LOG_FILE"
+    ;;
+  ""|help|--help|-h)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 1
+    ;;
+esac

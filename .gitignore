@@ -1,5 +1,6 @@
 .venv/
 .env.local/
+commands.md
 
 # === Backend (FastAPI) ===
 backend/.env/

@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+APP_DIR=${APP_DIR:-/home/avazhou/apps/Chalksmith-ai}
+LOG_DIR=${LOG_DIR:-$APP_DIR/logs/chalksmith-backend}
+RUN_AS_USER=${RUN_AS_USER:-avazhou}
+
+if [ "$(id -u)" = "0" ] && [ -n "$RUN_AS_USER" ] && [ "${CHALKSMITH_LOG_DROPPED:-}" != "1" ]; then
+  export APP_DIR LOG_DIR RUN_AS_USER
+  export CHALKSMITH_LOG_DROPPED=1
+  exec setuidgid "$RUN_AS_USER" "$0"
+fi
+
+mkdir -p "$LOG_DIR"
+exec multilog t s10000000 n20 "$LOG_DIR"
