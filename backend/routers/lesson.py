@@ -2,7 +2,7 @@ import json
 import asyncio
 import os
 from typing import Optional
-from fastapi import APIRouter, Depends, Header, Request, HTTPException
+from fastapi import APIRouter, Depends, File, Form, Header, Request, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session
 from backend.crud.lessons import (
@@ -18,8 +18,145 @@ from backend.models import LessonRequest, LessonRenameRequest, LessonResponse, L
 from backend.services.llm import generate_lesson
 from backend.services.render import render_manim_lesson, render_remotion_lesson, render_p5js_lesson, render_revealjs_lesson
 from backend.services.export import export_service
+from backend.services.sources import extract_source_context
 
 router = APIRouter()
+
+
+def lesson_generation_events(
+    *,
+    topic: str,
+    model: str,
+    format: str,
+    req: Request,
+    session: Session,
+    x_user_id: Optional[str],
+    lesson_id: Optional[str] = None,
+    prompt: Optional[str] = None,
+    source_context: Optional[str] = None,
+):
+    async def event_generator():
+        # Queue bridges synchronous executor threads with the async SSE generator
+        queue = asyncio.Queue()
+
+        def status_callback(msg, prog):
+            # Synchronous callback for the executor to push updates thread-safely
+            loop.call_soon_threadsafe(queue.put_nowait, (msg, prog))
+
+        try:
+            yield f"data: {json.dumps({'status': 'initializing', 'message': 'Initializing generation...', 'progress': 10})}\n\n"
+            await asyncio.sleep(0.1)
+
+            previous_code = None
+            active_topic = topic
+            if lesson_id:
+                yield f"data: {json.dumps({'status': 'loading_context', 'message': 'Loading previous lesson context...', 'progress': 15})}\n\n"
+                db_lesson = get_lesson_for_user(session, lesson_id, x_user_id)
+                if not db_lesson:
+                    yield f"data: {json.dumps({'status': 'error', 'message': 'Lesson not found'})}\n\n"
+                    return
+
+                previous_code = db_lesson.code
+                if not active_topic:
+                    active_topic = db_lesson.topic
+
+            if source_context:
+                yield f"data: {json.dumps({'status': 'loading_context', 'message': 'Using uploaded source context...', 'progress': 20})}\n\n"
+
+            yield f"data: {json.dumps({'status': 'generating', 'message': f'Chalksmith is thinking about {active_topic}...', 'progress': 30})}\n\n"
+
+            loop = asyncio.get_event_loop()
+            lesson = await loop.run_in_executor(
+                None,
+                lambda: generate_lesson(
+                    active_topic,
+                    model,
+                    format,
+                    previous_code=previous_code,
+                    edit_prompt=prompt,
+                    source_context=source_context,
+                )
+            )
+
+            if await req.is_disconnected():
+                print("Client disconnected after LLM generation. Aborting.")
+                return
+
+            yield f"data: {json.dumps({'status': 'rendering', 'message': f'Rendering {format} assets...', 'progress': 60})}\n\n"
+
+            if format == "remotion":
+                render_task = asyncio.create_task(render_remotion_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
+            elif format == "manim":
+                render_task = asyncio.create_task(render_manim_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
+            elif format == "p5.js":
+                render_task = asyncio.create_task(render_p5js_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
+            elif format == "reveal.js":
+                render_task = asyncio.create_task(render_revealjs_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
+            else:
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Unsupported format'})}\n\n"
+                return
+
+            try:
+                while not render_task.done():
+                    if await req.is_disconnected():
+                        print(f"Client disconnected during {format} rendering. Cancelling task.")
+                        render_task.cancel()
+                        try:
+                            await asyncio.wait_for(render_task, timeout=2.0)
+                        except (asyncio.CancelledError, asyncio.TimeoutError):
+                            pass
+                        return
+
+                    try:
+                        msg, prog = await asyncio.wait_for(queue.get(), timeout=0.1)
+                        yield f"data: {json.dumps({'status': 'rendering', 'message': msg, 'progress': prog})}\n\n"
+                    except asyncio.TimeoutError:
+                        continue
+
+                while not queue.empty():
+                    msg, prog = queue.get_nowait()
+                    yield f"data: {json.dumps({'status': 'rendering', 'message': msg, 'progress': prog})}\n\n"
+
+                file_url = await render_task
+                if file_url is None:
+                    yield f"data: {json.dumps({'status': 'error', 'message': 'Rendering failed'})}\n\n"
+                    return
+            except asyncio.CancelledError:
+                render_task.cancel()
+                raise
+            except Exception as e:
+                yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+                return
+
+            yield f"data: {json.dumps({'status': 'finalizing', 'message': 'Saving lesson to database...', 'progress': 95})}\n\n"
+
+            db_lesson = create_lesson_record(
+                session,
+                user_id=x_user_id,
+                topic=active_topic,
+                model=model,
+                format=format,
+                url=file_url,
+                code=lesson["code"],
+                summary=lesson["summary"]
+            )
+
+            result = LessonResponse(
+                id=db_lesson.id,
+                url=db_lesson.url,
+                code=db_lesson.code,
+                summary=db_lesson.summary
+            )
+
+            yield f"data: {json.dumps({'status': 'complete', 'result': result.dict(), 'progress': 100})}\n\n"
+
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            print(f"CRITICAL ERROR IN SSE STREAM: {error_detail}")
+            yield f"data: {json.dumps({'status': 'error', 'message': str(e), 'detail': error_detail})}\n\n"
+
+    return event_generator()
 
 @router.delete("/lesson/{lesson_id}")
 async def delete_lesson(
@@ -90,143 +227,50 @@ async def generate_lesson_stream(
     x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
-    """
-    Streaming endpoint for lesson generation.
-    Yields JSON objects indicating progress and finally the result.
-    """
+    return StreamingResponse(
+        lesson_generation_events(
+            topic=topic,
+            model=model,
+            format=format,
+            lesson_id=lesson_id,
+            prompt=prompt,
+            req=req,
+            session=session,
+            x_user_id=x_user_id,
+        ),
+        media_type="text/event-stream",
+    )
 
-    base_url = str(req.base_url).rstrip("/")
 
-    async def event_generator():
-        # Queue bridges synchronous executor threads with the async SSE generator
-        queue = asyncio.Queue()
+@router.post("/lesson/generate")
+async def generate_lesson_stream_with_source(
+    req: Request,
+    topic: str = Form(...),
+    model: str = Form(...),
+    format: str = Form(...),
+    lesson_id: Optional[str] = Form(None),
+    prompt: Optional[str] = Form(None),
+    source: Optional[UploadFile] = File(None),
+    session: Session = Depends(get_session),
+    x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
+    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
+):
+    source_context = await extract_source_context(source)
 
-        def status_callback(msg, prog):
-            # Synchronous callback for the executor to push updates thread-safely
-            loop.call_soon_threadsafe(queue.put_nowait, (msg, prog))
-
-        try:
-            # Stage 1: Initializing
-            yield f"data: {json.dumps({'status': 'initializing', 'message': 'Initializing generation...', 'progress': 10})}\n\n"
-            await asyncio.sleep(0.1)
-
-            previous_code = None
-            active_topic = topic
-            if lesson_id:
-                yield f"data: {json.dumps({'status': 'loading_context', 'message': 'Loading previous lesson context...', 'progress': 15})}\n\n"
-                # Load previous context to enable iterative edits based on the current lesson state
-                db_lesson = get_lesson_for_user(session, lesson_id, x_user_id)
-                if not db_lesson:
-                    yield f"data: {json.dumps({'status': 'error', 'message': 'Lesson not found'})}\n\n"
-                    return
-
-                previous_code = db_lesson.code
-                if not active_topic:
-                    active_topic = db_lesson.topic
-
-            # Stage 2: LLM Thinking/Generating
-            yield f"data: {json.dumps({'status': 'generating', 'message': f'Chalksmith is thinking about {active_topic}...', 'progress': 30})}\n\n"
-            
-            loop = asyncio.get_event_loop()
-            # Run LLM generation in an executor to avoid blocking the main async event loop during long API calls
-            # LLM API calls are currently synchronous, but we check for disconnection before moving to rendering
-            lesson = await loop.run_in_executor(
-                None, 
-                lambda: generate_lesson(
-                    active_topic, 
-                    model, 
-                    format, 
-                    previous_code=previous_code, 
-                    edit_prompt=prompt
-                )
-            )
-
-            if await req.is_disconnected():
-                print("Client disconnected after LLM generation. Aborting.")
-                return
-
-            # Stage 3: Rendering
-            yield f"data: {json.dumps({'status': 'rendering', 'message': f'Rendering {format} assets...', 'progress': 60})}\n\n"
-            
-            # Start rendering as an async task to allow for clean cancellation if the client disconnects
-            if format == "remotion":
-                render_task = asyncio.create_task(render_remotion_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
-            elif format == "manim":
-                render_task = asyncio.create_task(render_manim_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
-            elif format == "p5.js":
-                render_task = asyncio.create_task(render_p5js_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
-            elif format == "reveal.js":
-                render_task = asyncio.create_task(render_revealjs_lesson(active_topic, model, lesson["code"], on_progress=status_callback))
-            else:
-                yield f"data: {json.dumps({'status': 'error', 'message': 'Unsupported format'})}\n\n"
-                return
-
-            # Continuously poll for progress updates while monitoring the connection state
-            try:
-                while not render_task.done():
-                    if await req.is_disconnected():
-                        print(f"Client disconnected during {format} rendering. Cancelling task.")
-                        render_task.cancel()
-                        # Wait a moment for the task to receive the cancellation and clean up its subprocesses
-                        try:
-                            await asyncio.wait_for(render_task, timeout=2.0)
-                        except (asyncio.CancelledError, asyncio.TimeoutError):
-                            pass
-                        return
-                    
-                    try:
-                        # Non-blocking check of the progress queue
-                        msg, prog = await asyncio.wait_for(queue.get(), timeout=0.1)
-                        yield f"data: {json.dumps({'status': 'rendering', 'message': msg, 'progress': prog})}\n\n"
-                    except asyncio.TimeoutError:
-                        continue
-                
-                # Exhaust the queue of any remaining messages to ensure no final progress updates are missed
-                while not queue.empty():
-                    msg, prog = queue.get_nowait()
-                    yield f"data: {json.dumps({'status': 'rendering', 'message': msg, 'progress': prog})}\n\n"
-
-                file_url = await render_task
-                if file_url is None:
-                    yield f"data: {json.dumps({'status': 'error', 'message': 'Rendering failed'})}\n\n"
-                    return
-            except asyncio.CancelledError:
-                render_task.cancel()
-                raise
-            except Exception as e:
-                yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
-                return
-
-            # Stage 4: Finalizing
-            yield f"data: {json.dumps({'status': 'finalizing', 'message': 'Saving lesson to database...', 'progress': 95})}\n\n"
-
-            db_lesson = create_lesson_record(
-                session,
-                user_id=x_user_id,
-                topic=active_topic,
-                model=model,
-                format=format,
-                url=file_url,
-                code=lesson["code"],
-                summary=lesson["summary"]
-            )
-
-            result = LessonResponse(
-                id=db_lesson.id,
-                url=db_lesson.url,
-                code=db_lesson.code,
-                summary=db_lesson.summary
-            )
-            
-            yield f"data: {json.dumps({'status': 'complete', 'result': result.dict(), 'progress': 100})}\n\n"
-
-        except Exception as e:
-            import traceback
-            error_detail = traceback.format_exc()
-            print(f"CRITICAL ERROR IN SSE STREAM: {error_detail}")
-            yield f"data: {json.dumps({'status': 'error', 'message': str(e), 'detail': error_detail})}\n\n"
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        lesson_generation_events(
+            topic=topic,
+            model=model,
+            format=format,
+            lesson_id=lesson_id,
+            prompt=prompt,
+            req=req,
+            session=session,
+            x_user_id=x_user_id,
+            source_context=source_context,
+        ),
+        media_type="text/event-stream",
+    )
 
 @router.get("/lesson/{lesson_id}")
 async def get_lesson_by_id(

@@ -16,7 +16,6 @@ Environment variables required:
 """
 
 import os
-import sys
 import time
 from rich.console import Console
 from typing import Optional
@@ -29,7 +28,6 @@ LLM_REGION_ERROR_MESSAGE = (
     "This AI model is not available from your current country or region. "
     "Please try a different model, connect from a supported region, or contact Chalksmith support if this seems wrong."
 )
-
 
 class LLMAccessError(RuntimeError):
     """Raised when an LLM provider blocks access because of location or account availability."""
@@ -230,7 +228,20 @@ def generate_content_with_ark(topic: str, model: str, format_type: str, raw_prom
 # PROMPT GENERATION
 # -----------------------------------------------------------------------------
 
-def get_prompt_for_format(topic: str, format_type: str) -> str:
+def get_source_context_block(source_context: Optional[str] = None) -> str:
+    if not source_context:
+        return ""
+
+    return f"""
+UPLOADED SOURCE CONTEXT:
+The user uploaded source material for this lesson. Use it as the primary curriculum reference when it is relevant.
+Stay faithful to the uploaded source. Do not invent source-specific facts that are not supported by this context.
+If the source does not contain enough information for the requested lesson, fill gaps with grade-appropriate explanation and keep the content accurate.
+
+{source_context}
+"""
+
+def get_prompt_for_format(topic: str, format_type: str, source_context: Optional[str] = None) -> str:
 
     """Generate appropriate prompt based on output format."""
     
@@ -254,12 +265,15 @@ def get_prompt_for_format(topic: str, format_type: str) -> str:
     The summary should be factual and capture the essence of the lesson content.
     After the summary, type "---CODE_START---" on a new line, then output the complete, executable source code for the lesson.
     """
+    source_context_block = get_source_context_block(source_context)
 
     if format_type == "remotion":
         return f"""
 Create a structured JSON object to be used as props for a Remotion video template to teach "{topic}".
 
 {base_prompt}
+
+{source_context_block}
 
 STRICT REQUIREMENTS:
 - **Output ONLY valid JSON for the code section.** Do not include markdown code fences (```json ... ```), explanations, or any text outside the JSON object within the code section.
@@ -295,6 +309,8 @@ CONTENT ACCURACY:
 Create a COMPLETE, EXECUTABLE Python script using **Manim Community Edition (manim>=0.17)** to teach "{topic}".
 
 {base_prompt}
+
+{source_context_block}
 
 STRICT REQUIREMENTS (must follow exactly):
 - **STRICT STANDARD LIBRARY ONLY:** Use ONLY classes and methods available in standard Manim Community Edition. DO NOT use third-party plugins or hypothetical classes.
@@ -362,6 +378,8 @@ Return ONLY the Python source code.
 
 {base_prompt}
 
+{source_context_block}
+
 GENERAL:
 - Include complete HTML structure with reveal.js CDN links (use a modern version)
 - Have multiple slides with clear progression
@@ -391,6 +409,8 @@ Return ONLY the HTML code, no explanations."""
         return f"""Create a COMPLETE interactive p5.js visualization to teach "{topic}".
 
 {base_prompt}
+
+{source_context_block}
 
 The code should:
 - Include complete HTML structure with p5.js CDN
@@ -479,25 +499,33 @@ def parse_llm_response(content: str) -> dict:
             "code": content.strip()
         }
 
-def generate_lesson(topic: str, model: str, format_type: str, previous_code: str = None, edit_prompt: str = None) -> dict:
+def generate_lesson(
+    topic: str,
+    model: str,
+    format_type: str,
+    previous_code: str = None,
+    edit_prompt: str = None,
+    source_context: Optional[str] = None,
+) -> dict:
     """Entry point for both fresh generation and iterative editing."""
     if previous_code and edit_prompt:
-        return get_edit_prompt(previous_code, topic, edit_prompt, format_type, model)
+        return get_edit_prompt(previous_code, topic, edit_prompt, format_type, model, source_context=source_context)
 
     provider = detect_provider(model)
+    generation_prompt = get_prompt_for_format(topic, format_type, source_context=source_context)
     try:
         with _spinner(f"Generating lesson about '{topic}' using {model} ({provider}) in {format_type} format..."):
             time.sleep(0.1)
             if provider == "openai":
-                content = generate_content_with_openai(topic, model, format_type)
+                content = generate_content_with_openai(topic, model, format_type, raw_prompt=generation_prompt)
             elif provider == "zhipuai":
-                content = generate_content_with_zhipuai(topic, model, format_type)
+                content = generate_content_with_zhipuai(topic, model, format_type, raw_prompt=generation_prompt)
             elif provider == "deepseek":
-                content = generate_content_with_deepseek(topic, model, format_type)
+                content = generate_content_with_deepseek(topic, model, format_type, raw_prompt=generation_prompt)
             elif provider == "gemini":
-                content = generate_content_with_gemini(topic, model, format_type)
+                content = generate_content_with_gemini(topic, model, format_type, raw_prompt=generation_prompt)
             elif provider == "ark":
-                content = generate_content_with_ark(topic, model, format_type)
+                content = generate_content_with_ark(topic, model, format_type, raw_prompt=generation_prompt)
             else:
                 raise ValueError(f"Unknown provider: {provider}")
     except Exception as error:
@@ -510,7 +538,14 @@ def generate_lesson(topic: str, model: str, format_type: str, previous_code: str
 
     return lesson
 
-def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, format_type: str, model: str) -> dict:
+def get_edit_prompt(
+    current_code: str,
+    original_prompt: str,
+    edit_prompt: str,
+    format_type: str,
+    model: str,
+    source_context: Optional[str] = None,
+) -> dict:
     """Constructs a targeted editing prompt to modify existing code."""
     
     # Detect if this is an automated fix (system-triggered) or a user-requested change
@@ -549,6 +584,8 @@ def get_edit_prompt(current_code: str, original_prompt: str, edit_prompt: str, f
     {base_instructions}
 
     ORIGINAL TOPIC: {original_prompt}
+
+    {get_source_context_block(source_context)}
 
     CURRENT CODE:
     {current_code}

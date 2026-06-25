@@ -511,7 +511,7 @@ export default function Page() {
             }
           }}
           minSize="20%" 
-          maxSize="50%" 
+          maxSize="30%" 
           defaultSize="25%"
           id="right-panel"
         >

@@ -79,7 +79,7 @@ export default function GenerationSidebar({
       </div>
 
       {!isCollapsed && (
-        <Group orientation="vertical" id="interaction-layout">
+        <Group orientation="vertical" id="interaction-layout" className="flex-1 min-h-0">
           {/* Chat History */}
           <Panel minSize={30}>
             <div className="h-full overflow-y-auto px-5 space-y-4 scroll-smooth pb-4">
@@ -119,8 +119,8 @@ export default function GenerationSidebar({
           <Separator className="h-1 bg-border/20 hover:bg-accent/40 transition-colors cursor-row-resize" />
 
           {/* Control Panel */}
-          <Panel minSize="20%" defaultSize="40%">
-            <div className="h-full p-6 bg-primary-bg/50 border-t border-border flex flex-col gap-6 backdrop-blur-lg overflow-y-auto">
+          <Panel minSize="20%" maxSize="50" defaultSize="30%">
+            <div className="p-6 bg-primary-bg/50 border-t border-border flex flex-col gap-6 backdrop-blur-lg overflow-y-auto">
               <InputForm
                 model={model}
                 format={format}

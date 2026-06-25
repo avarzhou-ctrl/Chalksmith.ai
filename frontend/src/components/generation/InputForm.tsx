@@ -2,9 +2,9 @@
 
 import { GenerationStatus } from '@/lib/api';
 import FormatSelector from './FormatSelector';
-// import ModelSelector from './ModelSelector';
-import TextArea from '@/components/ui/TextArea';
+import Textarea from '@/components/ui/TextArea';
 import { CircleArrowUp, CirclePause } from 'lucide-react';
+import { useState } from 'react';
 
 const TOPIC_CHARACTER_LIMIT = 100;
 
@@ -35,61 +35,66 @@ export default function InputForm({
     isEditMode,
     generationStatus
 }: InputFormProps) {
+    const [files, setFiles] = useState<File[]>([]);
+
+    const handleFileDrop = (newFiles: File[]) => {
+        setFiles(prevFiles => [...prevFiles, ...newFiles]);
+        console.log("Files dropped: ", newFiles);
+    };
+
+    const generationButton = (
+        <div>
+            {disabled ? (
+                <button
+                    type="button"
+                    title="Stop Generation"
+                    onClick={() => onStopGenerate()}
+                    className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors"
+                >
+                    <CirclePause size={20} />
+                </button>
+            ) : (
+                <button
+                    type="button"
+                    title="Start Generation"
+                    onClick={() => onGenerate()}
+                    disabled={!topic.trim() || !format}
+                    className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:opacity-40"
+                >
+                    <CircleArrowUp size={20} />
+                </button>
+            )}
+        </div>
+    );
+
     return (
-        <div className="flex flex-col w-full min-w-0">
+        <div className="flex flex-col w-full min-w-0 flex-1">
             <div className="flex flex-row gap-4 min-w-0">
-                {/* <div className="flex-1 min-w-0"> */}
-                    {/* <ModelSelector value={model} onChange={onModelChange} disabled={disabled} /> */}
-                {/* </div> */}
                 <div className="flex-1 min-w-0">
-                    {/* Disabling format change in Edit Mode as changing formats mid-conversation is unsupported */}
                     <FormatSelector value={format} onChange={onFormatChange} disabled={disabled || isEditMode} />
                 </div>
             </div>
-            <div className="relative mt-4 group">
-                <TextArea 
+            <div className="relative mt-4 group flex-1 flex flex-col">
+                <Textarea 
+                    topic={topic}
+                    format={format}
                     placeholder={isEditMode ? "How should I edit this lesson?" : "Describe your topic..."}
                     disabled={disabled}
                     value={topic}
                     maxLength={TOPIC_CHARACTER_LIMIT}
                     onChange={(e) => onTopicChange(e.target.value)}
                     onKeyDown={(e) => {
-                        // Standard chat UX: Enter sends, Shift+Enter adds a new line
                         if (e.key === 'Enter' && !e.shiftKey && topic.trim() && !disabled) {
                             e.preventDefault();
                             onGenerate();
                         }
                     }}
-                    className="h-24 resize-none pb-8 pr-12"
+                    onFileDrop={handleFileDrop}
+                    className="flex-1 resize-none"
+                    generationButton={generationButton}
                 />
-
-                <p className="pointer-events-none absolute bottom-3 left-4 text-xs text-secondary-text">
-                    {topic.length}/{TOPIC_CHARACTER_LIMIT}
-                </p>
-
-                <div className="absolute bottom-2 right-2">
-                    {disabled ? (
-                        <button
-                            type="button"
-                            title="Stop Generation"
-                            onClick={() => onStopGenerate()}
-                            className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors"
-                        >
-                            <CirclePause size={20} />
-                        </button>
-                    ) : (
-                        <button
-                            type="button"
-                            title="Start Generation"
-                            onClick={() => onGenerate()}
-                            disabled={!topic.trim() || !format}
-                            className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:opacity-40"
-                        >
-                            <CircleArrowUp size={20} />
-                        </button>
-                    )}
-                </div>
             </div>
         </div>
     );
 }
+

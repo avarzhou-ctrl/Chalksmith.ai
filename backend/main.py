@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from sqlmodel import Session
-from backend.routers import lesson, users
+from backend.routers import lesson, users, sources
 from backend.database import create_db_and_tables, get_session
 from backend.services.fetch_docs import fetch_manim_reference
 
@@ -71,6 +71,7 @@ app.add_middleware(
 
 app.include_router(lesson.router, prefix="/content")
 app.include_router(users.router, prefix="/users")
+app.include_router(sources.router, prefix="/sources")
 
 class GenerationRequest(BaseModel):
     prompt: str
