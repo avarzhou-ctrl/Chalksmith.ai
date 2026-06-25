@@ -1,21 +1,3 @@
-const focusAreas = [
-    {
-        icon: 'fa-solid fa-chalkboard-user',
-        title: 'Teacher time',
-        text: 'Reducing the hours educators spend adapting materials so they can spend more time with students.',
-    },
-    {
-        icon: 'fa-solid fa-code',
-        title: 'Code-driven lessons',
-        text: 'Using generated source code to create reusable videos, interactives, and slides instead of static one-off files.',
-    },
-    {
-        icon: 'fa-solid fa-lightbulb',
-        title: 'Accessible STEM',
-        text: 'Helping visual explanations feel approachable for elementary and middle school learners.',
-    },
-];
-
 const socialContacts = [
     {
         icon: 'fa-solid fa-envelope',
