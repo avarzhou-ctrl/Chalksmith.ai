@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { SignUpButton, useUser } from '@clerk/nextjs';
 import { ArrowRight } from 'lucide-react';
 import CodeDrivenDemo from '@/components/home/CodeDrivenDemo';
+import ExamplesCarousel from '@/components/home/ExamplesCarousel';
 import Footer from '@/components/home/Footer';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700';
@@ -171,7 +172,10 @@ export default function Home() {
         
         <section id="examples" className="mx-auto w-full max-w-6xl px-4 py-16 text-center sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-primary-text sm:text-5xl">Examples</h2>
-          
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-secondary-text">
+            Flip through generated lesson formats: video, interactive display, and slides.
+          </p>
+          <ExamplesCarousel />
         </section>
 
         <section id="call_to_action" className="mx-auto w-full max-w-6xl px-4 pb-40 pt-8 sm:px-6 lg:px-8">
