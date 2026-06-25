@@ -139,9 +139,16 @@ export default function Home() {
                     Start from syllabus notes, readings, or lesson goals so every generated asset stays close to your curriculum.
                   </p>
                 </div>
-                <div className="mt-auto min-h-56 rounded-lg border border-border bg-secondary-bg p-4 text-primary-text">
-                  <div className="grid h-full place-items-center text-center text-sm font-semibold">
-                    <span>Coming soon!</span>
+                <div className="w-full mt-auto">
+                  <div className="w-full bg-primary-bg rounded-3xl overflow-hidden border border-border shadow-2xl">
+                    <video 
+                      src="/demo_4.mp4" 
+                      autoPlay 
+                      loop 
+                      muted 
+                      playsInline 
+                      className="w-full h-full" 
+                    />
                   </div>
                 </div>
               </article>
