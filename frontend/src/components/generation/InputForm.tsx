@@ -37,9 +37,30 @@ export default function InputForm({
 }: InputFormProps) {
     const [files, setFiles] = useState<File[]>([]);
 
-    const handleFileDrop = (newFiles: File[]) => {
+    const handleFileDrop = async (newFiles: File[]) => {
         setFiles(prevFiles => [...prevFiles, ...newFiles]);
-        console.log("Files dropped: ", newFiles);
+        
+        for (const file of newFiles) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/sources/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    console.error('Failed to upload file:', data.error);
+                } else {
+                    console.log('File uploaded successfully:', data);
+                }
+            } catch (error) {
+                console.error('Failed to upload file:', error);
+            }
+        }
     };
 
     const generationButton = (
