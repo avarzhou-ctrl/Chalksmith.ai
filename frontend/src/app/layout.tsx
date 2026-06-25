@@ -53,7 +53,7 @@ export default async function RootLayout({
                 Content
               </a>
               <a className="transition-colors hover:text-stone-50" href="/about">
-                About us
+                About Us
               </a>
             </nav>
 

@@ -10,25 +10,25 @@ const socialContacts = [
     {
         icon: 'fa-brands fa-github',
         label: 'GitHub',
-        detail: 'avarzhou-ctrl',
+        detail: '@avarzhou-ctrl',
         href: 'https://github.com/avarzhou-ctrl',
     },
     {
         icon: 'fa-brands fa-youtube',
         label: 'YouTube',
-        detail: 'SquishBJ',
+        detail: '@SquishBJ',
         href: 'https://www.youtube.com/@SquishBJ',
     },
     {
         icon: 'fa-brands fa-x-twitter',
         label: 'X (Twitter)',
-        detail: 'SquishBJ',
+        detail: '@SquishBJ',
         href: 'https://x.com/SquishBJ',
     },
     {
         icon: 'fa-solid fa-newspaper',
         label: 'Substack',
-        detail: 'SquishBJ',
+        detail: '@squishbj',
         href: 'https://substack.com/@squishbj',
     },
 ];
