@@ -29,6 +29,13 @@ export default async function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+          referrerPolicy="no-referrer"
+        />
+      </head>
       <body className={`${inter.variable} bg-primary-bg text-primary-text antialiased`}>
         <ClerkProvider>
           <header
@@ -45,7 +52,7 @@ export default async function RootLayout({
               <a className="transition-colors hover:text-stone-50" href="#content">
                 Content
               </a>
-              <a className="transition-colors hover:text-stone-50" href="#about">
+              <a className="transition-colors hover:text-stone-50" href="/about">
                 About us
               </a>
             </nav>

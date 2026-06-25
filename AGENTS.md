@@ -94,6 +94,11 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-06-25**: Adjusted the connect section alignment in `frontend/src/app/about/page.tsx` so the contact text sits higher while staying visually centered with the books image.
+- **2026-06-25**: Fixed the about page Substack contact icon in `frontend/src/app/about/page.tsx` by switching from an unloaded Bootstrap Icons class to a Font Awesome icon, and removed the invalid jsDelivr stylesheet link from `frontend/src/app/layout.tsx`.
+- **2026-06-25**: Reworked the about page contact section in `frontend/src/app/about/page.tsx` into a left-side social contact list with the book image on the right, and restored the landing page footer on the about page.
+- **2026-06-25**: Enlarged the about page portrait in `frontend/src/app/about/page.tsx` and made its desktop frame stretch to match the height of the adjacent founder text.
+- **2026-06-25**: Rebuilt the about page in `frontend/src/app/about/page.tsx` with valid JSX styling, a polished chalkboard-themed founder layout, and Font Awesome icon usage loaded from `frontend/src/app/layout.tsx`.
 - **2026-06-20**: Constrained `frontend/src/components/ui/Modal.tsx` to a viewport-safe maximum height with an internal scroll area, and tightened the generation error modal in `frontend/src/app/generation/page.tsx` so long error/source text scrolls without overflowing off-screen.
 - **2026-06-20**: Moved `/api/lesson-generate` authentication into `frontend/src/app/api/lesson-generate/route.ts` and removed it from the protected lesson API proxy matcher in `frontend/src/proxy.ts` so EventSource generation failures return SSE error payloads instead of Clerk middleware 404 HTML responses.
 - **2026-06-20**: Updated `deploy/daemontools/chalksmith-backend/run` so the VPS backend service binds to `0.0.0.0` for direct network exposure instead of loopback-only access.

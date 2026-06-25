@@ -55,8 +55,8 @@ export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-primary-bg text-primary-text">
       <div className="relative z-10">
-        <section id="landing" className="relative isolate grid min-h-[32rem] w-full overflow-hidden bg-primary-bg px-4 pb-6 pt-10 text-center sm:min-h-[36rem] sm:px-6 lg:px-8">
-          <div className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.72)_0%,rgba(0,0,0,0.52)_32%,rgba(0,0,0,0.14)_66%,rgba(0,0,0,0.84)_100%)]" />
+        <section id="landing" className="relative isolate grid min-h-128 w-full overflow-hidden bg-primary-bg px-4 pb-6 pt-10 text-center sm:min-h-144 sm:px-6 lg:px-8">
+          <div className="absolute inset-0 z-1 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.72)_0%,rgba(0,0,0,0.52)_32%,rgba(0,0,0,0.14)_66%,rgba(0,0,0,0.84)_100%)]" />
           <div className="relative z-10 mx-auto grid w-full max-w-5xl place-items-center">
             <div>
               <h1 className="mx-auto max-w-4xl text-4xl font-bold leading-tight text-primary-text sm:text-5xl lg:text-6xl">
