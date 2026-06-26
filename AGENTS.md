@@ -94,6 +94,7 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-06-26**: Added a homepage FAQ dropdown section in `frontend/src/components/home/FaqSection.tsx` and rendered it after the examples carousel in `frontend/src/app/page.tsx` to answer common teacher questions before the final CTA.
 - **2026-06-25**: Connected temporary PDF source uploads to lesson generation by replacing `backend/services/sources.py` with a LangChain/PyMuPDF extractor, adding multipart POST streaming generation in `backend/routers/lesson.py`, passing source context through `backend/services/llm.py`, fixing the source preview route in `backend/routers/sources.py`, and adding source-upload dependencies to `backend/requirements.txt`.
 - **2026-06-25**: Tightened the physics p5.js sidebar in `frontend/public/ex_interactive.html` by reducing control spacing, widening the sidebar, shortening the instruction text, and compacting the formula copy so bottom-left text stays inside the scaled 16:9 shell.
 - **2026-06-25**: Applied the same internal responsive scaling approach to the physics p5.js lab in `frontend/public/ex_interactive.html`, fitting the sidebar and canvas to a 16:9 shell and remapping pointer coordinates so dragging still works after scaling.

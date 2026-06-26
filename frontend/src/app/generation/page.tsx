@@ -582,14 +582,14 @@ export default function Page() {
           <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
             <TriangleAlert className="text-accent" size={24} />
           </div>
-          <p className="mb-4 text-center text-sm break-words">
+          <p className="mb-4 text-center text-sm wrap-break-words">
             Unfortunately Chalksmith generated an invalid lesson because of {error}. Click Auto-Fix to have Chalksmith attempt to correct the issue, or view the source code to debug further.
           </p>
           
           {result && (
             <div className="mb-6 min-h-0 w-full">
               <p className="text-xs font-semibold text-secondary-text mb-2 uppercase tracking-wider">Source Code:</p>
-              <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/5 bg-black/40 p-4 text-left font-mono text-[10px] text-amber-400">
+              <pre className="max-h-64 overflow-auto whitespace-pre-wrap wrap-break-words rounded-xl border border-white/5 bg-black/40 p-4 text-left font-mono text-[10px] text-amber-400">
                 {result.code}
               </pre>
             </div>

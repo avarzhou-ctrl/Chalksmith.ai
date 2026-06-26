@@ -81,7 +81,7 @@ export default async function RootLayout({
                   type="button"
                   className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700"
                 >
-                  Create Account
+                  Start Free
                   <LogIn className="size-4" aria-hidden="true" />
                 </button>
               </SignUpButton>

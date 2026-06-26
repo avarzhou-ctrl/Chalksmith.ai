@@ -5,6 +5,7 @@ import { SignUpButton, useUser } from '@clerk/nextjs';
 import { ArrowRight } from 'lucide-react';
 import CodeDrivenDemo from '@/components/home/CodeDrivenDemo';
 import ExamplesCarousel from '@/components/home/ExamplesCarousel';
+import FaqSection from '@/components/home/FaqSection';
 import Footer from '@/components/home/Footer';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700';
@@ -31,7 +32,7 @@ function BuildLessonCta() {
   if (isLoaded && isSignedIn) {
     return (
       <PrimaryCtaLink href="https://app.chalksmith.ai" size="lg">
-        Build a lesson now
+        Try Chalksmith Free
         <ArrowRight size={18} />
       </PrimaryCtaLink>
     );
@@ -46,7 +47,7 @@ function BuildLessonCta() {
       signInFallbackRedirectUrl="https://app.chalksmith.ai"
     >
       <button type="button" className={`${ctaBaseClasses} ${ctaSizeClasses.lg}`}>
-        Build a lesson now
+        Try Chalksmith Free
         <ArrowRight size={18} />
       </button>
     </SignUpButton>
@@ -62,11 +63,10 @@ export default function Home() {
           <div className="relative z-10 mx-auto grid w-full max-w-5xl place-items-center">
             <div>
               <h1 className="mx-auto max-w-4xl text-4xl font-bold leading-tight text-primary-text sm:text-5xl lg:text-6xl">
-                Forge stunning STEM animations in minutes.
+                Forge stunning code-driven STEM animations in minutes.
               </h1>
               <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-secondary-text">
-                Upload your syllabus or describe a lesson, select a teaching format, and let AI build visual
-                animations grounded in your curriculum.
+                Upload your syllabus or describe a lesson, select a teaching format, and generate editable, code-driven videos, interactives, and slides instead of one-off static files.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <BuildLessonCta />
@@ -121,7 +121,7 @@ export default function Home() {
               <div className="mb-8">
                 <h3 className="text-3xl font-semibold text-primary-text">Code-driven production.</h3>
                 <p className="mt-4 text-lg leading-7 text-secondary-text">
-                  Generate reusable videos, interactives, and slides from source code instead of one-off static files.
+                  Unlike black-box lesson generators, Chalksmith lets you inspect and reuse the source behind every lesson.
                 </p>
               </div>
               <div className="w-full">
@@ -184,6 +184,8 @@ export default function Home() {
           </p>
           <ExamplesCarousel />
         </section>
+
+        <FaqSection />
 
         <section id="call_to_action" className="mx-auto w-full max-w-6xl px-4 pb-40 pt-8 sm:px-6 lg:px-8">
           <div className="text-left rounded-lg border border-secondary-bg bg-secondary-bg p-5 md:grid-cols-[0.8fr_1.2fr]">
