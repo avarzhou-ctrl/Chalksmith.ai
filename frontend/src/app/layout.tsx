@@ -1,6 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next'
 import { ClerkProvider, Show, UserButton, SignUpButton } from '@clerk/nextjs'
+import { enUS } from '@clerk/localizations'
 import { LogIn } from 'lucide-react'
 import { Inter } from 'next/font/google'
 import './globals.css'
@@ -22,6 +23,15 @@ export const metadata: Metadata = {
   },
 }
 
+const localization = {
+  ...enUS,
+  signUp: {
+    start: {
+      subtitle: "By signing up, you confirm you are 13+ years old.",
+    },
+  },
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -37,7 +47,7 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${inter.variable} bg-primary-bg text-primary-text antialiased`}>
-        <ClerkProvider>
+        <ClerkProvider localization={localization}>
           <header
             data-site-header
             className="sticky top-0 z-50 mx-auto flex w-full max-w-7xl items-center justify-between border-b border-stone-800 bg-primary-bg/90 px-4 py-5 backdrop-blur sm:px-6 lg:px-8"
