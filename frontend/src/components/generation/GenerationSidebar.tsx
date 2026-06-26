@@ -3,13 +3,14 @@
 import { PanelRight, ChevronDown, Flame, Loader2 } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import InputForm from "./InputForm";
+import FormatOutput from "@/components/ui/FormatOutput";
 import { GenerationStatus } from "@/lib/api";
 
 interface GenerationSidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
   title: string;
-  messages: { role: 'user' | 'assistant'; content: string }[];
+  messages: { role: 'user' | 'assistant'; content: React.ReactNode }[];
   loading: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   model: string;
@@ -100,7 +101,11 @@ export default function GenerationSidebar({
                       ? 'bg-accent text-primary-text rounded-tr-none shadow-lg shadow-accent/10' 
                       : 'bg-surface/50 text-primary-text rounded-tl-none border border-border/50'
                   }`}>
-                    {msg.content}
+                    {msg.role === 'assistant' && typeof msg.content === 'string' ? (
+                      <FormatOutput rawContent={msg.content} />
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                 </div>
               ))}

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import LessonCard from "@/components/dashboard/LessonCard";
+import FormatOutput from "@/components/ui/FormatOutput";
 import { deleteLesson, fetchLessons } from "@/lib/api";
 import type { LessonListItem } from "@/lib/api";
 import { Group, Panel, Separator } from "react-resizable-panels";
@@ -125,7 +126,7 @@ export default function Dashboard() {
                         key={lesson.id}
                         id={lesson.id}
                         title={lesson.topic}
-                        description={lesson.summary}
+                        description=<FormatOutput rawContent={lesson.summary} />
                         format={lesson.format}
                         model={lesson.model}
                         createdAt={lesson.created_at}

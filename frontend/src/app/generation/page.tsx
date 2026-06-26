@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import EditableTitle from "@/components/generation/EditableTitle";
+import FormatOutput from "@/components/ui/FormatOutput";
 import Button from "@/components/ui/Button";
 import { LessonResponse, generateLessonStreaming, GenerationStatus, deleteLesson, fetchLessonById, renameLesson } from "@/lib/api";
 import { Panel, Group, Separator } from "react-resizable-panels";
@@ -28,7 +29,7 @@ export default function Page() {
   const [generationStatus, setGenerationStatus] = useState<GenerationStatus | null>(null);
 
   // State for chat-like interaction history and iterative editing
-  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: React.ReactNode }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [currentlessonID, setCurrentLessonID] = useState<string | null>(null);
   const [initialTopic, setInitialTopic] = useState<string>('');
@@ -211,7 +212,12 @@ export default function Page() {
               setInitialTopic(activePrompt);
               setMessages((prev) => [...prev, { 
                 role: 'assistant', 
-                content: `Success! Created your ${format === 'manim' ? 'video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${activePrompt}". ${completedLesson.summary}` 
+                content: (
+                  <>
+                  Success! Created your ${format === 'manim' ? 'video' : format === 'p5.js' ? 'interactive display' : 'presentation slides'} about "${activePrompt}".{' '}
+                  <FormatOutput rawContent={completedLesson.summary} />
+                  </>
+                )
               }]);
             }
             

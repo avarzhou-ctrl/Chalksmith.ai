@@ -12,7 +12,7 @@ import { useState, useRef, useEffect } from "react";
 interface LessonCardProps {
     id: string;
     title: string;
-    description: string;
+    description: React.ReactNode;
     format: string;
     model: string;
     createdAt: string;
@@ -155,7 +155,7 @@ export default function LessonCard({
                 </div>
             </div>
             {description && (
-                <p className="relative z-10 mt-3 line-clamp-2 text-sm leading-6 text-secondary-text">{description}</p>
+                <div className="relative z-10 mt-3 line-clamp-2 text-sm leading-6 text-secondary-text">{description}</div>
             )}
             <div className="relative z-10 mt-auto flex items-center justify-between gap-3 pt-4">
                 <p className="truncate text-xs text-secondary-text">{formattedDate}</p>
