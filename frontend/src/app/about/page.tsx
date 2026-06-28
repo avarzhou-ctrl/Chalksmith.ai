@@ -31,6 +31,12 @@ const socialContacts = [
         detail: '@squishbj',
         href: 'https://substack.com/@squishbj',
     },
+    {
+        icon: 'fa-brands fa-medium',
+        label: 'Medium',
+        detail: '@SquishBJ',
+        href: 'https://medium.com/@SquishBJ',
+    },
 ];
 
 export default function About() {
