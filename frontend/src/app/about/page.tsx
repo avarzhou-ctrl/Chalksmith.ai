@@ -37,6 +37,12 @@ const socialContacts = [
         detail: '@SquishBJ',
         href: 'https://medium.com/@SquishBJ',
     },
+    {
+        icon: 'fa-brands fa-instagram',
+        label: 'Instagram',
+        detail: '@squishbj',
+        href: 'https://www.instagram.com/squishbj',
+    }
 ];
 
 export default function About() {
