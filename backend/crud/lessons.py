@@ -40,6 +40,28 @@ def get_user_lessons(session: Session, user_id: Optional[str]):
     ).all()
 
 
+def search_user_lessons(
+    session: Session,
+    user_id: Optional[str],
+    query: Optional[str],
+    format: Optional[str] = None,
+):
+    statement = select(Lesson).where(Lesson.user_id == user_id)
+    stripped_query = query.strip() if query else ""
+
+    if stripped_query:
+        pattern = f"%{stripped_query}%"
+        statement = statement.where(
+            Lesson.topic.ilike(pattern)
+            | Lesson.summary.ilike(pattern)
+        )
+
+    if format:
+        statement = statement.where(Lesson.format == format)
+
+    return session.exec(statement.order_by(desc(Lesson.created_at))).all()
+
+
 def ensure_user_exists(session: Session, user_id: Optional[str]):
     if not user_id:
         return None

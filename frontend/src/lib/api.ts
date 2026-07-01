@@ -121,10 +121,20 @@ export async function fetchLessonById(lessonId: string): Promise<LessonListItem>
     return response.json();
 }
 
-export async function fetchLessons(): Promise<LessonListItem[]> {
-    const response = await fetch('/api/lesson-list', {
-        method: 'GET',
-    });
+export async function fetchLessons(params?: {
+    q?: string;
+    format?: string;
+}): Promise<LessonListItem[]> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.q) searchParams.set('q', params.q);
+    if (params?.format) searchParams.set('format', params.format);
+
+    const url = searchParams.toString()
+        ? `/api/lesson-list?${searchParams.toString()}`
+        : '/api/lesson-list';
+
+    const response = await fetch(url, { method: 'GET' });
 
     if (!response.ok) {
         const error = await response.json();

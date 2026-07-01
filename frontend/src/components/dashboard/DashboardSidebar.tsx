@@ -1,6 +1,6 @@
 'use client'
 
-import { Folder, Bookmark, Search, PanelLeft } from "lucide-react"
+import { Folder, Search, PanelLeft } from "lucide-react"
 import Link from "next/link";
 
 interface DashboardSidebarProps {
@@ -51,18 +51,9 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
                     <Folder size={20} className={`${!isCollapsed ? 'mr-3' : ''} group-hover:scale-110 transition-transform`} />
                     {!isCollapsed && <span className="text-sm font-medium">Lessons</span>}
                 </Link>
-                
-                <Link
-                    href="/favorites"
-                    className={`flex items-center rounded-xl text-secondary-text hover:bg-accent hover:text-primary-text transition-all duration-200 group w-full ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}
-                    title={isCollapsed ? "Favorites" : ""}
-                >
-                    <Bookmark size={20} className={`${!isCollapsed ? 'mr-3' : ''} group-hover:scale-110 transition-transform`} />
-                    {!isCollapsed && <span className="text-sm font-medium">Favorites</span>}
-                </Link>
 
                 <Link
-                    href="/search"
+                    href="/dashboard/search"
                     className={`flex items-center rounded-xl text-secondary-text hover:bg-accent hover:text-primary-text transition-all duration-200 group w-full ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}
                     title={isCollapsed ? "Search" : ""}
                 >

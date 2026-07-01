@@ -10,7 +10,7 @@ from backend.crud.lessons import (
     delete_lesson_record,
     get_lesson_by_details,
     get_lesson_for_user,
-    get_user_lessons,
+    search_user_lessons,
     update_lesson_title,
 )
 from backend.database import get_session
@@ -388,13 +388,12 @@ async def get_lesson(
 
 @router.get("/lessons", response_model=list[LessonListResponse])
 async def list_lessons(
-    req: Request,
     session: Session = Depends(get_session),
-    x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
+    q: Optional[str] = None,
+    format: Optional[str] = None,
 ):
-    # Lists all existing lessons, sorted by creation date (newest first) for the dashboard
-    db_lessons = get_user_lessons(session, x_user_id)
+    db_lessons = search_user_lessons(session, x_user_id, q, format)
 
     return [
         LessonListResponse(
