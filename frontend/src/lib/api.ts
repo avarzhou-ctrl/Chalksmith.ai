@@ -29,6 +29,7 @@ export interface GenerationStatus {
     message: string;
     progress: number;
     result?: LessonResponse;
+    upstreamStatus?: number;
 }
 
 export async function createLesson(request: LessonRequest): Promise<LessonResponse> {
@@ -50,7 +51,7 @@ export async function createLesson(request: LessonRequest): Promise<LessonRespon
 export function generateLessonStreaming(
     request: LessonRequest,
     onStatus: (status: GenerationStatus) => void,
-    onError: (error: string) => void
+    onError: (error: string, status?: GenerationStatus) => void
 ) {
     if (request.sourceFiles?.length) {
         return generateLessonStreamingWithSources(request, onStatus, onError);
@@ -73,7 +74,7 @@ export function generateLessonStreaming(
 
             if (data.status === 'error') {
                 eventSource.close();
-                onError(data.message || 'This lesson could not be generated.');
+                onError(data.message || 'This lesson could not be generated.', data);
                 return;
             }
 
@@ -103,7 +104,7 @@ export function generateLessonStreaming(
 function generateLessonStreamingWithSources(
     request: LessonRequest,
     onStatus: (status: GenerationStatus) => void,
-    onError: (error: string) => void
+    onError: (error: string, status?: GenerationStatus) => void
 ) {
     const controller = new AbortController();
 
@@ -167,7 +168,7 @@ function generateLessonStreamingWithSources(
 function processSseChunk(
     chunk: string,
     onStatus: (status: GenerationStatus) => void,
-    onError: (error: string) => void
+    onError: (error: string, status?: GenerationStatus) => void
 ) {
     const data = chunk
         .split('\n')
@@ -181,7 +182,7 @@ function processSseChunk(
         const status: GenerationStatus = JSON.parse(data);
 
         if (status.status === 'error') {
-            onError(status.message || 'This lesson could not be generated.');
+            onError(status.message || 'This lesson could not be generated.', status);
             return true;
         }
 

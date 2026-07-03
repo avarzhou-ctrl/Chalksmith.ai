@@ -94,6 +94,7 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-07-03**: Fixed generation auth error handling by preserving streamed upstream status in `frontend/src/lib/api.ts` and updating `frontend/src/app/generation/page.tsx` so Unauthorized/session failures show a session-required modal with no Auto-Fix path instead of being described as invalid generated lessons.
 - **2026-07-03**: Added a source upload validation message in `backend/routers/lesson.py` so PDFs that extract zero characters stream a user-facing `"FILE_NAME" has no encrypted text layer.` error instead of continuing generation silently.
 - **2026-07-03**: Added terminal debug output for uploaded source extraction in `backend/routers/lesson.py` so PDF filenames, extracted character counts, and extracted text print when source-backed generation runs.
 - **2026-07-03**: Wired PDF source uploads into lesson generation by passing selected files from `frontend/src/components/ui/TextArea.tsx` through `frontend/src/components/generation/InputForm.tsx`, `frontend/src/components/generation/GenerationSidebar.tsx`, and `frontend/src/app/generation/page.tsx`, adding multipart streaming support in `frontend/src/lib/api.ts` and `frontend/src/app/api/lesson-generate/route.ts`, supporting combined source contexts in `backend/routers/lesson.py`, and tightening source extraction/proxy handling in `backend/services/sources.py` and `frontend/src/app/api/sources/upload/route.ts`.

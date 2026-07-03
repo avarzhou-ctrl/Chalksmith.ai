@@ -14,6 +14,24 @@ import { Player } from '@remotion/player';
 import { RemotionVideo } from '@/components/generation/RemotionVideo';
 import GenerationSidebar from "@/components/generation/GenerationSidebar";
 
+function isAuthGenerationError(error: string | null, status: GenerationStatus | null) {
+  const message = error?.toLowerCase().trim();
+  return Boolean(
+    status?.upstreamStatus === 401 ||
+    status?.upstreamStatus === 403 ||
+    message === 'unauthorized' ||
+    message?.includes('session is not authorized')
+  );
+}
+
+function getGenerationErrorMessage(error: string, status?: GenerationStatus) {
+  if (isAuthGenerationError(error, status ?? null)) {
+    return 'Your session is not authorized. Refresh the page or sign in again, then retry generation.';
+  }
+
+  return error;
+}
+
 export default function Page() {
   // State for lesson configuration and rendering results
   const [topic, setTopic] = useState('');
@@ -232,11 +250,15 @@ export default function Page() {
             }
           }
         },
-        (errMsg) => {
+        (errMsg, status) => {
           // Handle connection-level errors (e.g. timeout or network drop)
-          setError(errMsg);
+          const errorMsg = getGenerationErrorMessage(errMsg, status);
+          if (status) {
+            setGenerationStatus(status);
+          }
+          setError(errorMsg);
           setIsErrorModalOpen(true); 
-          setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${errMsg}` }]);
+          setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${errorMsg}` }]);
           setLoading(false);
           generationCleanupRef.current = null;
         }
@@ -254,6 +276,8 @@ export default function Page() {
       generationCleanupRef.current = null;
     }
   }
+
+  const isAuthError = isAuthGenerationError(error, generationStatus);
 
   const prepareFixPrompt = () => {
     // Direct trigger for Auto-Fix without filling the textarea
@@ -590,17 +614,19 @@ export default function Page() {
       <Modal 
         isOpen={isErrorModalOpen} 
         onClose={() => setIsErrorModalOpen(false)} 
-        title="Blueprint Error"
+        title={isAuthError ? "Session Required" : "Blueprint Error"}
       >
         <div className="flex min-h-0 flex-col items-center">
           <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
             <TriangleAlert className="text-accent" size={24} />
           </div>
           <p className="mb-4 text-center text-sm wrap-break-words">
-            Unfortunately Chalksmith generated an invalid lesson because of {error}. Click Auto-Fix to have Chalksmith attempt to correct the issue, or view the source code to debug further.
+            {isAuthError
+              ? error
+              : <>Unfortunately Chalksmith generated an invalid lesson because of {error}. Click Auto-Fix to have Chalksmith attempt to correct the issue, or view the source code to debug further.</>}
           </p>
           
-          {result && (
+          {!isAuthError && result && (
             <div className="mb-6 min-h-0 w-full">
               <p className="text-xs font-semibold text-secondary-text mb-2 uppercase tracking-wider">Source Code:</p>
               <pre className="max-h-64 overflow-auto whitespace-pre-wrap wrap-break-words rounded-xl border border-white/5 bg-black/40 p-4 text-left font-mono text-[10px] text-amber-400">
@@ -617,16 +643,26 @@ export default function Page() {
             >
               Close
             </Button>
-            <Button 
-              variant="primary" 
-              className="w-full bg-accent hover:bg-amber-700 border-none gap-2" 
-              onClick={() => {
-                prepareFixPrompt(); 
-                setIsErrorModalOpen(false);
-              }}
-            >
-              Auto-fix
-            </Button>
+            {isAuthError ? (
+              <Button
+                variant="primary"
+                className="w-full bg-accent hover:bg-amber-700 border-none gap-2"
+                onClick={() => window.location.reload()}
+              >
+                Refresh
+              </Button>
+            ) : (
+              <Button 
+                variant="primary" 
+                className="w-full bg-accent hover:bg-amber-700 border-none gap-2" 
+                onClick={() => {
+                  prepareFixPrompt(); 
+                  setIsErrorModalOpen(false);
+                }}
+              >
+                Auto-fix
+              </Button>
+            )}
           </div>
         </div>
       </Modal>
