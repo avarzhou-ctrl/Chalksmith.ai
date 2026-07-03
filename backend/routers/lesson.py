@@ -202,6 +202,72 @@ def lesson_generation_events(
 
     return event_generator()
 
+
+@router.get("/lesson/generate")
+async def generate_lesson_stream(
+    topic: str,
+    model: str,
+    format: str,
+    lesson_id: Optional[str] = None,
+    prompt: Optional[str] = None,
+    req: Request = None,
+    session: Session = Depends(get_session),
+    x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
+    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
+):
+    return StreamingResponse(
+        lesson_generation_events(
+            topic=topic,
+            model=model,
+            format=format,
+            lesson_id=lesson_id,
+            prompt=prompt,
+            req=req,
+            session=session,
+            x_user_id=x_user_id,
+        ),
+        media_type="text/event-stream",
+    )
+
+
+@router.post("/lesson/generate")
+async def generate_lesson_stream_with_source(
+    req: Request,
+    topic: str = Form(...),
+    model: str = Form(...),
+    format: str = Form(...),
+    lesson_id: Optional[str] = Form(None),
+    prompt: Optional[str] = Form(None),
+    source: Optional[list[UploadFile]] = File(None),
+    session: Session = Depends(get_session),
+    x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
+    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
+):
+    source_context, empty_source_files = await extract_combined_source_context(source)
+    log_extracted_source_context(source, source_context)
+
+    if empty_source_files:
+        return StreamingResponse(
+            source_text_layer_error_events(source_text_layer_error_message(empty_source_files)),
+            media_type="text/event-stream",
+        )
+
+    return StreamingResponse(
+        lesson_generation_events(
+            topic=topic,
+            model=model,
+            format=format,
+            lesson_id=lesson_id,
+            prompt=prompt,
+            req=req,
+            session=session,
+            x_user_id=x_user_id,
+            source_context=source_context,
+        ),
+        media_type="text/event-stream",
+    )
+
+
 @router.delete("/lesson/{lesson_id}")
 async def delete_lesson(
     lesson_id: str,
@@ -258,70 +324,6 @@ async def edit_lesson_title(
         raise HTTPException(status_code=404, detail="Lesson not found")
 
     return {"status": "success", "message": "Lesson title updated successfully", "new_title": db_lesson.topic}
-
-@router.get("/lesson/generate")
-async def generate_lesson_stream(
-    topic: str, 
-    model: str, 
-    format: str, 
-    lesson_id: Optional[str] = None, 
-    prompt: Optional[str] = None,
-    req: Request = None, 
-    session: Session = Depends(get_session),
-    x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
-    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
-):
-    return StreamingResponse(
-        lesson_generation_events(
-            topic=topic,
-            model=model,
-            format=format,
-            lesson_id=lesson_id,
-            prompt=prompt,
-            req=req,
-            session=session,
-            x_user_id=x_user_id,
-        ),
-        media_type="text/event-stream",
-    )
-
-
-@router.post("/lesson/generate")
-async def generate_lesson_stream_with_source(
-    req: Request,
-    topic: str = Form(...),
-    model: str = Form(...),
-    format: str = Form(...),
-    lesson_id: Optional[str] = Form(None),
-    prompt: Optional[str] = Form(None),
-    source: Optional[list[UploadFile]] = File(None),
-    session: Session = Depends(get_session),
-    x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
-    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
-):
-    source_context, empty_source_files = await extract_combined_source_context(source)
-    log_extracted_source_context(source, source_context)
-
-    if empty_source_files:
-        return StreamingResponse(
-            source_text_layer_error_events(source_text_layer_error_message(empty_source_files)),
-            media_type="text/event-stream",
-        )
-
-    return StreamingResponse(
-        lesson_generation_events(
-            topic=topic,
-            model=model,
-            format=format,
-            lesson_id=lesson_id,
-            prompt=prompt,
-            req=req,
-            session=session,
-            x_user_id=x_user_id,
-            source_context=source_context,
-        ),
-        media_type="text/event-stream",
-    )
 
 @router.get("/lesson/{lesson_id}")
 async def get_lesson_by_id(

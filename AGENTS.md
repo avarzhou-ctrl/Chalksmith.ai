@@ -94,6 +94,7 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-07-03**: Fixed source-backed lesson generation receiving `405 Method Not Allowed` by moving the static `/lesson/generate` GET/POST routes above dynamic `/lesson/{lesson_id}` routes in `backend/routers/lesson.py` so `generate` is not interpreted as a lesson id.
 - **2026-07-03**: Fixed generation auth error handling by preserving streamed upstream status in `frontend/src/lib/api.ts` and updating `frontend/src/app/generation/page.tsx` so Unauthorized/session failures show a session-required modal with no Auto-Fix path instead of being described as invalid generated lessons.
 - **2026-07-03**: Added a source upload validation message in `backend/routers/lesson.py` so PDFs that extract zero characters stream a user-facing `"FILE_NAME" has no encrypted text layer.` error instead of continuing generation silently.
 - **2026-07-03**: Added terminal debug output for uploaded source extraction in `backend/routers/lesson.py` so PDF filenames, extracted character counts, and extracted text print when source-backed generation runs.
