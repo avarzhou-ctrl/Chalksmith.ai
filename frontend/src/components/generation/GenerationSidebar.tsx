@@ -21,6 +21,8 @@ interface GenerationSidebarProps {
   onTopicChange: (topic: string) => void;
   onGenerate: (override?: string) => void;
   onStopGenerate: () => void;
+  sourceFiles: File[];
+  onSourceFilesChange: (files: File[]) => void;
   currentLessonId: string | null;
   error: string | null;
   generationStatus: GenerationStatus | null;
@@ -41,6 +43,8 @@ export default function GenerationSidebar({
   onTopicChange,
   onGenerate,
   onStopGenerate,
+  sourceFiles,
+  onSourceFilesChange,
   currentLessonId,
   error,
   generationStatus
@@ -135,6 +139,8 @@ export default function GenerationSidebar({
                 onTopicChange={onTopicChange}
                 onGenerate={onGenerate}
                 onStopGenerate={onStopGenerate}
+                sourceFiles={sourceFiles}
+                onSourceFilesChange={onSourceFilesChange}
                 disabled={loading}
                 isEditMode={!!currentLessonId}
                 generationStatus={generationStatus}

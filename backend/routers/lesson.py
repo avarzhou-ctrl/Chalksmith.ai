@@ -23,6 +23,35 @@ from backend.services.sources import extract_source_context
 router = APIRouter()
 
 
+async def extract_combined_source_context(files: Optional[list[UploadFile]]) -> Optional[str]:
+    if not files:
+        return None
+
+    source_blocks = []
+    for file in files:
+        source_text = await extract_source_context(file)
+        if source_text:
+            source_blocks.append(f"Source file: {file.filename}\n{source_text}")
+
+    return "\n\n---\n\n".join(source_blocks) if source_blocks else None
+
+
+def log_extracted_source_context(files: Optional[list[UploadFile]], source_context: Optional[str]) -> None:
+    if not files:
+        return
+
+    file_names = ", ".join(file.filename or "unnamed file" for file in files)
+    extracted_text = source_context or "[No text extracted from uploaded source files.]"
+
+    print("\n========== CHALKSMITH SOURCE UPLOAD DEBUG ==========", flush=True)
+    print(f"Files: {file_names}", flush=True)
+    print(f"Extracted characters: {len(source_context or '')}", flush=True)
+    print("---------- Extracted source text begins ----------", flush=True)
+    print(extracted_text, flush=True)
+    print("---------- Extracted source text ends ------------", flush=True)
+    print("====================================================\n", flush=True)
+
+
 def lesson_generation_events(
     *,
     topic: str,
@@ -250,12 +279,13 @@ async def generate_lesson_stream_with_source(
     format: str = Form(...),
     lesson_id: Optional[str] = Form(None),
     prompt: Optional[str] = Form(None),
-    source: Optional[UploadFile] = File(None),
+    source: Optional[list[UploadFile]] = File(None),
     session: Session = Depends(get_session),
     x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
-    source_context = await extract_source_context(source)
+    source_context = await extract_combined_source_context(source)
+    log_extracted_source_context(source, source_context)
 
     return StreamingResponse(
         lesson_generation_events(

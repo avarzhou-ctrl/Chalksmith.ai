@@ -4,7 +4,6 @@ import { GenerationStatus } from '@/lib/api';
 import FormatSelector from './FormatSelector';
 import Textarea from '@/components/ui/TextArea';
 import { CircleArrowUp, CirclePause } from 'lucide-react';
-import { useState } from 'react';
 
 const TOPIC_CHARACTER_LIMIT = 100;
 
@@ -17,6 +16,8 @@ interface InputFormProps {
     onTopicChange: (value: string) => void;
     onGenerate: () => void;
     onStopGenerate: () => void;
+    sourceFiles: File[];
+    onSourceFilesChange: (files: File[]) => void;
     disabled?: boolean;
     isEditMode?: boolean;
     generationStatus: GenerationStatus | null;
@@ -31,38 +32,12 @@ export default function InputForm({
     onTopicChange, 
     onGenerate,
     onStopGenerate,
+    sourceFiles,
+    onSourceFilesChange,
     disabled,
     isEditMode,
     generationStatus
 }: InputFormProps) {
-    const [files, setFiles] = useState<File[]>([]);
-
-    const handleFileDrop = async (newFiles: File[]) => {
-        setFiles(prevFiles => [...prevFiles, ...newFiles]);
-        
-        for (const file of newFiles) {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                const response = await fetch('/api/sources/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    console.error('Failed to upload file:', data.error);
-                } else {
-                    console.log('File uploaded successfully:', data);
-                }
-            } catch (error) {
-                console.error('Failed to upload file:', error);
-            }
-        }
-    };
-
     const generationButton = (
         <div>
             {disabled ? (
@@ -103,6 +78,8 @@ export default function InputForm({
                     disabled={disabled}
                     value={topic}
                     maxLength={TOPIC_CHARACTER_LIMIT}
+                    files={sourceFiles}
+                    onFilesChange={onSourceFilesChange}
                     onChange={(e) => onTopicChange(e.target.value)}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey && topic.trim() && !disabled) {
@@ -110,7 +87,6 @@ export default function InputForm({
                             onGenerate();
                         }
                     }}
-                    onFileDrop={handleFileDrop}
                     className="flex-1 resize-none"
                     generationButton={generationButton}
                 />
@@ -118,4 +94,3 @@ export default function InputForm({
         </div>
     );
 }
-

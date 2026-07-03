@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const API_BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get('file') as File;
@@ -8,8 +10,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 });
   }
 
-  const backendUrl = `${process.env.API_BASE_URL}/sources/upload`;
-  console.log('Backend URL:', backendUrl);
+  const backendUrl = `${API_BASE_URL}/sources/upload`;
   
   const backendFormData = new FormData();
   backendFormData.append('file', file, file.name);
@@ -18,7 +19,6 @@ export async function POST(request: NextRequest) {
     const headers = {
       'X-Chalksmith-Secret': process.env.INTERNAL_BACKEND_SECRET || '',
     };
-    console.log('Request headers to backend:', headers);
 
     const response = await fetch(backendUrl, {
       method: 'POST',
@@ -26,7 +26,8 @@ export async function POST(request: NextRequest) {
       body: backendFormData,
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+    const data = safeJson(responseText) ?? { detail: responseText };
 
     if (!response.ok) {
       return NextResponse.json({ error: data }, { status: response.status });
@@ -35,5 +36,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, { status: 200 });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to upload file to backend' }, { status: 500 });
+  }
+}
+
+function safeJson(value: string) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
   }
 }

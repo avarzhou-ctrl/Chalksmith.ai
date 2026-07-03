@@ -6,22 +6,22 @@ import { Paperclip, X } from "lucide-react";
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   topic: string;
   format: string;
-  onFileDrop?: (files: File[]) => void;
+  files?: File[];
+  onFilesChange?: (files: File[]) => void;
   value: string;
   maxLength: number;
   generationButton: React.ReactNode;
 }
 
 const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className = "", topic, format, onFileDrop, value, maxLength, generationButton, ...props }, ref) => {
+  ({ className = "", topic, format, files = [], onFilesChange, value, maxLength, generationButton, ...props }, ref) => {
     const [isDragActive, setIsDragActive] = useState(false);
-    const [files, setFiles] = useState<File[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const handleFiles = (newFiles: File[]) => {
-      setFiles((prev) => [...prev, ...newFiles]);
-      if (onFileDrop) {
-        onFileDrop(newFiles);
+      const pdfFiles = newFiles.filter((file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"));
+      if (pdfFiles.length) {
+        onFilesChange?.([...files, ...pdfFiles]);
       }
     };
 
@@ -49,6 +49,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       e.preventDefault();
       if (e.target.files && e.target.files[0]) {
         handleFiles(Array.from(e.target.files));
+        e.target.value = "";
       }
     };
 
@@ -57,7 +58,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     };
 
     const removeFile = (index: number) => {
-      setFiles(files.filter((_, i) => i !== index));
+      onFilesChange?.(files.filter((_, i) => i !== index));
     };
 
     return (
@@ -89,7 +90,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
               {files.map((file, i) => (
                 <div key={i} className="flex items-center gap-2 bg-surface px-2 py-1 rounded-md text-xs">
                   <span>{file.name}</span>
-                  <button onClick={() => removeFile(i)} className="text-secondary-text hover:text-primary-text">
+                  <button type="button" onClick={() => removeFile(i)} className="text-secondary-text hover:text-primary-text">
                     <X size={14} />
                   </button>
                 </div>
@@ -101,6 +102,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
               ref={inputRef}
               type="file"
               multiple
+              accept="application/pdf,.pdf"
               className="hidden"
               onChange={handleChange}
             />

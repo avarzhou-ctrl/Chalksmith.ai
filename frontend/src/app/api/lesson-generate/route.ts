@@ -54,6 +54,53 @@ export async function GET(request: Request) {
   }
 }
 
+export async function POST(request: Request) {
+  try {
+    const proxyUserId = getProxyAuthUserId(request);
+    const { userId: clerkUserId } = await auth();
+    const userId = proxyUserId || clerkUserId;
+
+    if (!userId) {
+      return createSseErrorResponse('Unauthorized', 401);
+    }
+
+    const formData = await request.formData();
+    const upstreamUrl = new URL('/content/lesson/generate', API_BASE_URL);
+
+    const response = await fetch(upstreamUrl, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: {
+        Accept: 'text/event-stream',
+        'X-Chalksmith-Secret': process.env.INTERNAL_BACKEND_SECRET || '',
+        'X-User-Id': userId,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      const error = safeJson(errorText) ?? { detail: errorText || 'Generation stream failed' };
+      return createSseErrorResponse(getErrorMessage(error), response.status);
+    }
+
+    if (!response.body) {
+      return createSseErrorResponse('Generation stream unavailable', 502);
+    }
+
+    return new Response(response.body, {
+      status: response.status,
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-store',
+      },
+    });
+  } catch (err) {
+    console.error('Generation Stream Upload API Error:', err);
+    return createSseErrorResponse('Internal Server Error', 500);
+  }
+}
+
 function safeJson(value: string) {
   try {
     return JSON.parse(value);

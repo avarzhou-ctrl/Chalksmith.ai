@@ -24,6 +24,7 @@ export default function Page() {
   const [result, setResult] = useState<LessonResponse | null>(null);
   const [showCode, setShowCode] = useState(false);
   const [title, setTitle] = useState("Untitled");
+  const [sourceFiles, setSourceFiles] = useState<File[]>([]);
 
   // Status and progress for streaming generation
   const [generationStatus, setGenerationStatus] = useState<GenerationStatus | null>(null);
@@ -86,6 +87,7 @@ export default function Page() {
     setInitialTopic('');
     setMessages([]);
     setTitle("Untitled");
+    setSourceFiles([]);
     setError(null);
   }
 
@@ -190,7 +192,8 @@ export default function Page() {
           model, 
           format, 
           lesson_id: currentlessonID || undefined,
-          prompt: currentlessonID ? activePrompt : undefined
+          prompt: currentlessonID ? activePrompt : undefined,
+          sourceFiles
         },
         (status) => {
           // Update status state to drive the progress bar and stage indicators in the UI
@@ -223,7 +226,10 @@ export default function Page() {
             
             setLoading(false);
             generationCleanupRef.current = null;
-            if (!overridePrompt) setTopic('');
+            setSourceFiles([]);
+            if (!overridePrompt) {
+              setTopic('');
+            }
           }
         },
         (errMsg) => {
@@ -536,6 +542,8 @@ export default function Page() {
             onTopicChange={setTopic}
             onGenerate={generateLesson}
             onStopGenerate={stopGeneration}
+            sourceFiles={sourceFiles}
+            onSourceFilesChange={setSourceFiles}
             currentLessonId={currentlessonID}
             error={error}
             generationStatus={generationStatus}

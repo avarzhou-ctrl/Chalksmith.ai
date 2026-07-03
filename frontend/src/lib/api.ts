@@ -7,6 +7,7 @@ export interface LessonRequest {
   format: string;
   lesson_id?: string;
   prompt?: string;
+  sourceFiles?: File[];
 }
 
 export interface LessonResponse {
@@ -51,6 +52,10 @@ export function generateLessonStreaming(
     onStatus: (status: GenerationStatus) => void,
     onError: (error: string) => void
 ) {
+    if (request.sourceFiles?.length) {
+        return generateLessonStreamingWithSources(request, onStatus, onError);
+    }
+
     const params = new URLSearchParams();
     if (request.topic) params.append('topic', request.topic);
     if (request.model) params.append('model', request.model);
@@ -93,6 +98,100 @@ export function generateLessonStreaming(
 
     // Return a cleanup function for React's useEffect to handle unmounting
     return () => eventSource.close();
+}
+
+function generateLessonStreamingWithSources(
+    request: LessonRequest,
+    onStatus: (status: GenerationStatus) => void,
+    onError: (error: string) => void
+) {
+    const controller = new AbortController();
+
+    const formData = new FormData();
+    formData.append('topic', request.topic);
+    formData.append('model', request.model);
+    formData.append('format', request.format);
+    if (request.lesson_id) formData.append('lesson_id', request.lesson_id);
+    if (request.prompt) formData.append('prompt', request.prompt);
+    request.sourceFiles?.forEach((file) => {
+        formData.append('source', file, file.name);
+    });
+
+    void (async () => {
+        try {
+            const response = await fetch('/api/lesson-generate', {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal,
+            });
+
+            if (!response.ok || !response.body) {
+                onError('Connection Error: Failed to generate lesson.');
+                return;
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const chunks = buffer.split('\n\n');
+                buffer = chunks.pop() || '';
+
+                for (const chunk of chunks) {
+                    const isTerminal = processSseChunk(chunk, onStatus, onError);
+                    if (isTerminal) {
+                        controller.abort();
+                        return;
+                    }
+                }
+            }
+
+            if (buffer.trim()) {
+                processSseChunk(buffer, onStatus, onError);
+            }
+        } catch (err) {
+            if (controller.signal.aborted) return;
+            console.error('Fetch Stream Error:', err);
+            onError('Connection Error: Failed to generate lesson.');
+        }
+    })();
+
+    return () => controller.abort();
+}
+
+function processSseChunk(
+    chunk: string,
+    onStatus: (status: GenerationStatus) => void,
+    onError: (error: string) => void
+) {
+    const data = chunk
+        .split('\n')
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trimStart())
+        .join('\n');
+
+    if (!data) return false;
+
+    try {
+        const status: GenerationStatus = JSON.parse(data);
+
+        if (status.status === 'error') {
+            onError(status.message || 'This lesson could not be generated.');
+            return true;
+        }
+
+        onStatus(status);
+        return status.status === 'complete';
+    } catch (err) {
+        console.error('Failed to parse status update:', err);
+        onError('Internal Error: Failed to parse status update.');
+        return true;
+    }
 }
 
 export async function getLesson(topic: string, model: string, format: string): Promise<LessonResponse> {
