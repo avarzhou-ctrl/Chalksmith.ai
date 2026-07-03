@@ -23,17 +23,32 @@ from backend.services.sources import extract_source_context
 router = APIRouter()
 
 
-async def extract_combined_source_context(files: Optional[list[UploadFile]]) -> Optional[str]:
+async def extract_combined_source_context(files: Optional[list[UploadFile]]) -> tuple[Optional[str], list[str]]:
     if not files:
-        return None
+        return None, []
 
     source_blocks = []
+    empty_source_files = []
     for file in files:
         source_text = await extract_source_context(file)
-        if source_text:
+        if source_text and source_text.strip():
             source_blocks.append(f"Source file: {file.filename}\n{source_text}")
+        else:
+            empty_source_files.append(file.filename or "Uploaded file")
 
-    return "\n\n---\n\n".join(source_blocks) if source_blocks else None
+    source_context = "\n\n---\n\n".join(source_blocks) if source_blocks else None
+    return source_context, empty_source_files
+
+
+def source_text_layer_error_message(file_names: list[str]) -> str:
+    return " ".join(f'"{file_name}" has no encrypted text layer.' for file_name in file_names)
+
+
+def source_text_layer_error_events(message: str):
+    async def event_generator():
+        yield f"data: {json.dumps({'status': 'error', 'message': message, 'progress': 0})}\n\n"
+
+    return event_generator()
 
 
 def log_extracted_source_context(files: Optional[list[UploadFile]], source_context: Optional[str]) -> None:
@@ -284,8 +299,14 @@ async def generate_lesson_stream_with_source(
     x_chalksmith_secret: Optional[str] = Header(None, alias="X-Chalksmith-Secret"),
     x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
 ):
-    source_context = await extract_combined_source_context(source)
+    source_context, empty_source_files = await extract_combined_source_context(source)
     log_extracted_source_context(source, source_context)
+
+    if empty_source_files:
+        return StreamingResponse(
+            source_text_layer_error_events(source_text_layer_error_message(empty_source_files)),
+            media_type="text/event-stream",
+        )
 
     return StreamingResponse(
         lesson_generation_events(
