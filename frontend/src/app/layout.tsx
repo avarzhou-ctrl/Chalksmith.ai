@@ -1,17 +1,10 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next'
-import { ClerkProvider, Show, UserButton, SignUpButton } from '@clerk/nextjs'
-import { enUS } from '@clerk/localizations'
-import { LogIn } from 'lucide-react'
-import { Inter } from 'next/font/google'
 import './globals.css'
 
 import Link from 'next/link'
-
-const inter = Inter({
-  variable: '--font-inter',
-  subsets: ['latin'],
-})
+import { AuthButton } from '@/components/auth/AuthButton'
+import { AuthProvider } from '@/components/auth/AuthProvider'
 
 export const metadata: Metadata = {
   title: 'Chalksmith | Code-Driven STEM Animations',
@@ -23,31 +16,15 @@ export const metadata: Metadata = {
   },
 }
 
-const localization = {
-  ...enUS,
-  signUp: {
-    start: {
-      subtitle: "By signing up, you confirm you are 13+ years old.",
-    },
-  },
-}
-
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
     <html lang="en">
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-          referrerPolicy="no-referrer"
-        />
-      </head>
-      <body className={`${inter.variable} bg-primary-bg text-primary-text antialiased`}>
-        <ClerkProvider localization={localization}>
+      <body className="bg-primary-bg text-primary-text antialiased">
+        <AuthProvider>
           <header
             data-site-header
             className="sticky top-0 z-50 mx-auto flex w-full max-w-7xl items-center justify-between border-b border-stone-800 bg-primary-bg/90 px-4 py-5 backdrop-blur sm:px-6 lg:px-8"
@@ -67,38 +44,10 @@ export default async function RootLayout({
               </a>
             </nav>
 
-            { /* User Profile / Auth Button */ }
-            <Show when="signed-in">
-              <UserButton 
-                appearance={{
-                  elements: {
-                    userButtonAvatarBox: "h-12 w-12", 
-                    userButtonTrigger: "h-12 w-12"
-                  },
-                }} 
-              />
-            </Show>
-
-            <Show when="signed-out">
-              <SignUpButton
-                mode="modal"
-                forceRedirectUrl="https://app.chalksmith.ai"
-                fallbackRedirectUrl="https://app.chalksmith.ai"
-                signInForceRedirectUrl="https://app.chalksmith.ai"
-                signInFallbackRedirectUrl="https://app.chalksmith.ai"
-              >
-                <button
-                  type="button"
-                  className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700"
-                >
-                  Start Free
-                  <LogIn className="size-4" aria-hidden="true" />
-                </button>
-              </SignUpButton>
-            </Show>
+            <AuthButton />
           </header>
           {children}
-        </ClerkProvider>
+        </AuthProvider>
       </body>
     </html>
   )

@@ -1,9 +1,33 @@
 # Chalksmith v2 重构计划
 
-> 状态：提案
+> 状态：代码重构完成；GCP 资源开通、数据迁移与生产切流待执行
 > 目标版本：v2
 > 基准版本：`v1.0`
-> 最后更新：2026-08-10
+> 最后更新：2026-08-11
+
+## 0. 实施状态
+
+截至 2026-08-11：
+
+- [x] `v1.0` 已存在于远端，可作为重构回滚基线。
+- [x] 2026-08-10 曾在具备 `gcloud` CLI 与 Application Default Credentials 的环境中验证可以访问项目 `gemini-code-shark`；当前审计环境未安装 `gcloud`，本轮未重复验证。
+- [x] 已完成 `backend/app/` v2 后端、统一 POST SSE、课程 CRUD、租户隔离、PDF、GCS、Signed URL、Gemini/OpenAI Adapter 和隔离 Renderer 入口。
+- [x] 已完成 Identity Platform 前端登录、注册、重置反馈、退出、Google/Microsoft/邮箱密码凭据关联、冲突凭据安全续接和 Bearer Token 直连 API。
+- [x] 已删除 Clerk、Next lesson API 代理、Remotion、v1 后端、daemontools 和 `backend/static/` 持久化内容；历史由 `v1.0` 保留。
+- [x] 已完成 Cloud SQL/GCS 数据迁移脚本、三个容器镜像、Cloud Build 和最小权限 GCP 部署脚本。
+- [x] 已使用 uv/CPython 3.12 锁定依赖；22 项后端测试、前端严格 TypeScript 检查和 Next.js production build 通过。
+- [ ] 当前环境无法确认生产 GCP 权限与资源状态；仍需在具备 `gcloud` 的受信环境中完成权限预检、资源开通、真实 Provider smoke test、数据迁移和切流验收。
+
+本地后端安装、入口与测试命令（API 和 renderer 分别在独立终端运行）：
+
+```bash
+uv sync --project backend --extra video
+uv run --project backend uvicorn backend.app.main:app --reload
+uv run --project backend uvicorn backend.app.renderer_main:renderer_app --reload --port 8081
+uv run --project backend python -m unittest discover -s backend/tests
+```
+
+后端虚拟环境统一由 uv 管理：`backend/pyproject.toml` 是唯一依赖源，`backend/uv.lock` 锁定解析结果，`backend/.python-version` 固定 Python 3.12，环境位于被 Git 忽略的 `backend/.venv/`。Manim 放在 `video` extra 中，本地完整调试环境和 renderer 镜像会安装该 extra，生产 API 镜像不会安装；旧 `requirements.txt` 已删除。
 
 ## 1. 重构目标
 
@@ -28,8 +52,7 @@
 - 不引入 GKE、Terraform、多区域数据库、服务网格或事件驱动微服务。
 - 不在前端开放任意 Provider、模型或 API Key 配置；首版由部署环境统一选择后端 Provider。
 - 不实现自动故障切换、负载均衡或跨 Provider 重试，避免一次请求产生不可预测的行为和费用。
-- 不重做营销页面视觉设计。
-- 不在重构过程中修改课程生成效果，先保证行为等价，再迭代 Prompt。
+- 不重做营销页面视觉；生成 Prompt 仅补回课程结构、可读性、准确性和安全约束。
 
 ## 3. 核心技术决策
 
@@ -45,7 +68,7 @@
 | API | 浏览器直接调用 FastAPI `/v2/*` | 删除重复的 Next.js API 代理层 |
 | 生成流 | `fetch()` POST + SSE 响应流 | 同时支持 Bearer Token、JSON/文件上传和进度事件 |
 | 部署 | Cloud Run | 前后端分别容器化并自动缩容 |
-| 配置 | Pydantic Settings + Secret Manager 注入环境变量 | 只有一个配置入口，应用不自行读取多个 `.env` |
+| 配置 | Pydantic 验证模型 + Secret Manager 注入环境变量 | 复用现有依赖，只有一个配置入口，不自行读取多个 `.env` |
 | 日志 | stdout 结构化日志 + Cloud Logging | 不建设单独日志服务 |
 
 ### 3.1 后端继续使用 Python
@@ -140,7 +163,7 @@ from typing import Protocol
 
 
 @dataclass
-class LLMResponse:
+class LLMResult:
     text: str
     provider: str
     model: str
@@ -149,12 +172,12 @@ class LLMResponse:
 
 
 class LLMProvider(Protocol):
-    async def generate(self, prompt: str) -> LLMResponse: ...
+    async def generate(self, prompt: str) -> LLMResult: ...
 ```
 
 - `GeminiProvider` 使用 `google-genai` 和 `GEMINI_API_KEY`。
 - `OpenAIProvider` 使用官方 `openai` Python SDK、`OPENAI_API_KEY` 和 Responses API。OpenAI 当前模型文档将 Responses API 作为最新模型的调用入口之一：[OpenAI Models](https://developers.openai.com/api/docs/models)。
-- `create_llm_provider(settings)` 在应用启动时读取 `LLM_PROVIDER` 并创建唯一 Provider；不在每次请求中分支。
+- 生产配置在应用启动时验证所选 Provider；`create_llm_provider(settings)` 在首次请求时创建并缓存唯一 Provider，不在每次请求中重复分支或创建 SDK Client。
 - Prompt 模板、课程格式规则、自动修复流程和结果校验留在业务层；Adapter 只负责 SDK 参数转换、文本提取、Token 用量和错误标准化。
 - 模型 ID 只使用 `LLM_MODEL` 配置，不在业务代码硬编码 Gemini Preview 或 GPT 型号。
 - 未选中的 Provider 不要求配置对应 Key；选中的 Provider 缺少 Key 或模型时，应用启动应立即失败并给出清晰错误。
@@ -171,6 +194,7 @@ flowchart LR
     subgraph GCP["Google Cloud Project"]
         Web["Cloud Run: web<br/>Next.js"]
         API["Cloud Run: api<br/>FastAPI"]
+        Renderer["Cloud Run: renderer<br/>Manim / 无数据权限"]
         Identity["Identity Platform<br/>Google / Microsoft / 邮箱密码"]
         SQL["Cloud SQL<br/>PostgreSQL"]
         Storage["Cloud Storage<br/>PDF / HTML / MP4"]
@@ -192,18 +216,21 @@ flowchart LR
     Provider -->|LLM_PROVIDER=openai| OpenAI
     API -->|Unix Socket / psycopg| SQL
     API -->|Storage SDK| Storage
+    API -->|OIDC + 生成代码| Renderer
+    Renderer -->|MP4 响应| API
     Storage -->|短期 Signed URL| User
-    Secrets -.->|部署时注入| Web
     Secrets -.->|部署时注入| API
     Web -->|stdout| Logs
     API -->|stdout| Logs
+    Renderer -->|stdout/stderr| Logs
     Registry -.->|容器镜像| Web
     Registry -.->|容器镜像| API
+    Registry -.->|容器镜像| Renderer
 ```
 
 ### 4.1 为什么浏览器直接调用 FastAPI
 
-当前链路是“浏览器 → Next.js API Route → FastAPI”，课程相关请求在两层重复实现。v2 改为“浏览器 → FastAPI”：
+v1 链路是“浏览器 → Next.js API Route → FastAPI”，课程相关请求在两层重复实现。当前 v2 已改为“浏览器 → FastAPI”：
 
 - 前端从 Identity Platform 获取 ID Token。
 - `frontend/src/lib/api/client.ts` 自动加入 `Authorization: Bearer <token>`。
@@ -241,23 +268,29 @@ sequenceDiagram
     Web->>Auth: 获取或刷新 ID Token
     Web->>API: POST /v2/generations + Bearer Token
     API->>API: 验证身份、文件和参数
-    API-->>Web: SSE validating / generating
+    API->>DB: 创建 generating Lesson
+    API-->>Web: SSE started / generating
     API->>AI: 生成摘要与代码
     AI-->>API: 结构化生成结果
-    API-->>Web: SSE rendering
-    API->>Render: 生成 HTML 或 MP4
-    Render-->>API: 临时文件
+    API-->>Web: SSE validating / rendering
+    alt interactive / slides
+        API->>API: 校验 HTML、注入 CSP、写入临时文件
+    else video
+        API->>Render: OIDC + Manim 代码
+        Render->>Render: AST 校验并在受限进程中执行
+        Render-->>API: MP4 响应
+    end
     API->>GCS: 上传生成结果
-    API->>DB: 保存 Lesson 与 object_key
+    API->>DB: 更新 ready Lesson 与 object_key
     API-->>Web: SSE complete + lesson_id
-    Web->>API: GET /v2/lessons/{id}/access-url
+    Web->>API: POST /v2/lessons/{id}/access-url
     API-->>Web: 短期 Signed URL
     Web->>GCS: 预览或下载结果
 ```
 
-## 5. 目标代码结构
+## 5. 当前代码结构
 
-目录只按“页面 / API / 业务服务 / 外部集成”拆分。避免建立只有一个文件的过细抽象，也不使用泛型 Repository、事件总线或复杂领域框架。推荐的物理目录：
+目录只按“页面 / API / 业务服务 / 外部集成”拆分。避免建立只有一个文件的过细抽象，也不使用泛型 Repository、事件总线或复杂领域框架。当前物理目录：
 
 ```text
 .
@@ -265,33 +298,37 @@ sequenceDiagram
 │   ├── public/
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── (marketing)/
-│   │   │   ├── (app)/
-│   │   │   │   ├── generation/page.tsx
-│   │   │   │   └── dashboard/page.tsx
+│   │   │   ├── generation/page.tsx
+│   │   │   ├── dashboard/page.tsx
 │   │   │   ├── globals.css
 │   │   │   └── layout.tsx
 │   │   ├── components/
 │   │   │   ├── ui/
-│   │   │   ├── lessons/
+│   │   │   ├── auth/
+│   │   │   ├── dashboard/
+│   │   │   ├── generation/
 │   │   │   └── home/
 │   │   └── lib/
 │   │       ├── api/
 │   │       │   ├── client.ts
 │   │       │   └── generation-stream.ts
-│   │       ├── auth/
-│   │       │   └── identity.ts
+│   │       ├── firebase/client.ts
+│   │       ├── hooks/
+│   │       │   ├── useApi.ts
+│   │       │   └── useGeneration.ts
 │   │       └── types/
 │   │           └── api.ts
+│   ├── package-lock.json
 │   ├── package.json
 │   └── next.config.ts
 ├── backend/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── auth.py
-│   │   │   ├── generation.py
+│   │   │   ├── dependencies.py
+│   │   │   ├── generations.py
 │   │   │   ├── health.py
-│   │   │   └── lessons.py
+│   │   │   ├── lessons.py
+│   │   │   └── schemas.py
 │   │   ├── core/
 │   │   │   ├── config.py
 │   │   │   ├── errors.py
@@ -310,23 +347,32 @@ sequenceDiagram
 │   │   │       └── openai.py
 │   │   ├── renderers/
 │   │   │   ├── base.py
-│   │   │   ├── manim.py
-│   │   │   ├── p5js.py
-│   │   │   └── revealjs.py
+│   │   │   ├── html.py
+│   │   │   └── manim.py
 │   │   ├── services/
-│   │   │   ├── exports.py
 │   │   │   ├── generation.py
+│   │   │   ├── prompts.py
 │   │   │   └── sources.py
-│   │   └── main.py
+│   │   ├── main.py
+│   │   └── renderer_main.py
+│   ├── scripts/
+│   │   ├── init_db.py
+│   │   └── migrate_v1.py
 │   ├── tests/
-│   ├── requirements.txt
+│   ├── pyproject.toml
+│   ├── uv.lock
+│   ├── .python-version
 │   └── .env.example
 ├── infra/
 │   ├── docker/
 │   │   ├── api.Dockerfile
+│   │   ├── renderer.Dockerfile
 │   │   └── web.Dockerfile
 │   └── gcloud/
-│       └── deploy.sh
+│       ├── cloudbuild-backend.yaml
+│       ├── cloudbuild-web.yaml
+│       ├── deploy.sh
+│       └── README.md
 ├── AGENTS.md
 ├── README.md
 └── REFACTOR.md
@@ -340,7 +386,7 @@ flowchart TD
 
     Frontend --> Pages["app/ 页面与路由"]
     Frontend --> Components["components/ 可复用 UI"]
-    Frontend --> Client["lib/ API、Auth、Types"]
+    Frontend --> Client["lib/ API、Firebase、Hooks、Types"]
 
     Backend --> API["api/ HTTP + SSE"]
     Backend --> Services["services/ 业务编排"]
@@ -362,25 +408,27 @@ flowchart TD
 
 ### 6.1 `api/`
 
-只做 HTTP 层工作：
+负责 HTTP 边界和简单 CRUD 协调：
 
 - 参数解析和 Pydantic 校验。
 - Identity Platform Token 验证依赖。
-- 调用 service，不直接写 SQL、不直接调用 GCP SDK。
+- 在开始 SSE 前调用 source service 完成有界 PDF 读取和文本提取。
+- generation router 将完整生成流程交给 `GenerationService`。
+- lessons router 直接协调 `db/lessons.py` 与 Storage integration 完成查询、重命名、Signed URL 和可重试删除，但不承载 LLM、Prompt 或渲染规则。
 - 将业务异常映射为统一错误响应。
-- 生成 SSE 事件。
+- 将 service 产生的事件作为 SSE 响应返回。
 
 ### 6.2 `services/generation.py`
 
 唯一的课程生成编排器：
 
-1. 校验课程主题和格式。
-2. 提取可选资料文本。
-3. 加载旧课程代码用于编辑。
+1. 创建生成中的课程记录。
+2. 编辑请求先校验所属旧课程并加载原代码，避免无效编辑提前上传 source。
+3. 上传已验证的可选 source。
 4. 构建 Prompt 并调用配置的 `LLMProvider`。
 5. 解析摘要和代码。
-6. 选择 Renderer。
-7. 将结果上传 Cloud Storage。
+6. 选择 Renderer，并在视频首次失败时执行一次修复。
+7. 在同一个生成总 deadline 内完成 source、模型调用、渲染和 Cloud Storage 上传。
 8. 保存数据库记录。
 9. 逐阶段产生进度事件。
 
@@ -395,9 +443,9 @@ class Renderer(Protocol):
     async def render(self, code: str, workdir: Path) -> RenderedAsset: ...
 ```
 
-- `P5jsRenderer`：校验完整 HTML 后写入临时文件。
-- `RevealjsRenderer`：校验完整 HTML 后写入临时文件。
-- `ManimRenderer`：执行 Manim 子进程、限制超时、收集错误并生成 MP4。
+- `HTMLRenderer`：按 p5.js/Reveal.js 标记校验完整 HTML、注入 CSP 后写入临时文件。
+- `RemoteManimRenderer`：API 通过 HTTP 调用隔离 renderer；生产使用 Cloud Run OIDC，本地回环地址不要求 OIDC。
+- `LocalManimRenderer`：只由 renderer 服务执行 Manim 进程组，限制超时和输出大小，并将诊断日志限制为尾部内容。
 - Renderer 只返回文件，不访问数据库。
 - 自动修复属于 `generation.py`，Renderer 只报告结构化错误。
 
@@ -450,7 +498,7 @@ Lesson
 ├── owner_id: string, indexed
 ├── topic: string
 ├── format: interactive | slides | video
-├── status: generating | ready | failed
+├── status: generating | ready | failed | deleting
 ├── summary: text, nullable
 ├── source_code: text, nullable
 ├── object_key: string, nullable
@@ -470,7 +518,7 @@ Lesson
 
 ### 9.1 Cloud Run
 
-用途：运行 `web` 和 `api` 两个容器。
+用途：运行 `web`、`api` 和最小权限 `renderer` 三个容器。
 
 调用方法：
 
@@ -478,7 +526,7 @@ Lesson
 - `web` 允许公开访问。
 - `api` 允许公开网络访问，但所有 `/v2/*` 接口必须校验 Identity Platform Token。
 - 使用 Request-based billing、`min-instances=0`。
-- API 初期将并发设置较低，避免多个 Manim 同时耗尽内存。
+- API 初期将并发设置较低；renderer 并发固定为 1，避免多个 Manim 同时耗尽内存。
 - 生成超时设置为高于正常最长渲染时间，但每次生成仍要有应用级超时。
 
 ### 9.2 LLM Provider
@@ -563,9 +611,9 @@ blob.upload_from_filename(local_path, content_type=content_type)
 对象路径统一为：
 
 ```text
-lessons/{owner_id}/{lesson_id}/output.html
-lessons/{owner_id}/{lesson_id}/output.mp4
-sources/{owner_id}/{request_id}/{filename}.pdf
+lessons/{owner_id}/{lesson_id}/lesson.html
+lessons/{owner_id}/{lesson_id}/lesson.mp4
+sources/{owner_id}/{lesson_id}/{filename}.pdf
 ```
 
 - 预览和导出返回短期 V4 Signed URL。
@@ -601,7 +649,7 @@ user_id = decoded["uid"]
 
 ### 9.6 Secret Manager
 
-用途：保存数据库密码、签名配置和少量敏感设置。
+用途：保存数据库密码与当前所选 LLM Provider 的 API Key。
 
 调用方法：
 
@@ -611,11 +659,12 @@ user_id = decoded["uid"]
 
 ### 9.7 Artifact Registry 与 Cloud Build
 
-用途：构建和保存两个容器镜像。
+用途：构建和保存三个容器镜像。
 
 调用方法：
 
-- `api.Dockerfile` 构建 FastAPI + Manim 运行环境。
+- `api.Dockerfile` 构建不含 Manim 的 FastAPI API 运行环境。
+- `renderer.Dockerfile` 构建独立 Manim 渲染环境。
 - `web.Dockerfile` 构建 Next.js standalone 输出。
 - Cloud Build 构建后推送 Artifact Registry。
 - Cloud Run 从同一区域 Artifact Registry 部署，避免跨区域传输。
@@ -627,7 +676,7 @@ user_id = decoded["uid"]
 调用方法：
 
 - 应用输出单行 JSON 到 stdout/stderr。
-- 每条日志包含 `request_id`、`lesson_id`、`owner_id_hash`、`stage`、`duration_ms`。
+- 请求日志包含 `request_id`、HTTP 状态和完整流式响应时长；生成日志同时包含适用的 `lesson_id`、`owner_id_hash`、`stage` 和耗时。
 - 不记录 PDF 原文、生成代码全文、Token、email 或 API Key。
 
 ## 10. 配置与环境变量
@@ -636,8 +685,10 @@ user_id = decoded["uid"]
 
 ```text
 APP_ENV
+APP_ROLE                    # api | renderer
 FRONTEND_ORIGINS
-GCP_REGION
+GCP_PROJECT_ID
+IDENTITY_PLATFORM_PROJECT_ID
 LLM_PROVIDER                 # gemini | openai
 LLM_MODEL                    # Provider 对应的模型 ID
 LLM_TIMEOUT_SECONDS
@@ -645,13 +696,22 @@ LLM_MAX_OUTPUT_TOKENS
 GEMINI_API_KEY             # Secret Manager
 OPENAI_API_KEY             # Secret Manager
 CLOUD_SQL_INSTANCE
+DATABASE_URL                 # 本地 SQLite 或受信环境中的直接连接串
 DATABASE_NAME
 DATABASE_USER
 DATABASE_PASSWORD        # Secret Manager
 GCS_BUCKET
+GCS_SIGNER_SERVICE_ACCOUNT
 SIGNED_URL_TTL_SECONDS
 GENERATION_TIMEOUT_SECONDS
 MANIM_TIMEOUT_SECONDS
+MAX_RENDER_BYTES
+MANIM_RENDERER_URL
+MAX_SOURCE_FILES
+MAX_SOURCE_BYTES
+MAX_TOTAL_SOURCE_BYTES
+MAX_SOURCE_CHARACTERS
+AUTO_CREATE_TABLES
 ```
 
 `LLM_PROVIDER` 默认设为 `gemini`。部署只需注入被选中 Provider 的 Key；`config.py` 应使用条件校验，不能要求 Gemini 与 OpenAI 两个 Key 同时存在。
@@ -663,6 +723,7 @@ NEXT_PUBLIC_API_URL
 NEXT_PUBLIC_FIREBASE_API_KEY
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
 NEXT_PUBLIC_FIREBASE_PROJECT_ID
+NEXT_PUBLIC_FIREBASE_APP_ID
 ```
 
 不要在前端使用 `NEXT_PUBLIC_*` 保存后端地址以外的私密信息。Firebase Web 配置用于标识项目，不作为服务器秘密。
@@ -673,30 +734,31 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID
 
 - p5.js 和 Reveal.js HTML 必须在与主站不同的 GCS Origin 中运行。
 - iframe 使用 sandbox，不能同时启用不必要的 `allow-same-origin` 和 `allow-top-navigation`。
-- 上传时设置正确 `Content-Type`、`Content-Disposition` 和安全响应头。
+- 上传时设置正确的 `Content-Type`、内联/下载 `Content-Disposition` 与私有缓存策略；HTML 安全策略由文档内 CSP 和 iframe sandbox 共同实施。
 
 ### 11.2 生成的 Manim Python
 
 LLM 生成的 Python 属于不可信代码。长期生产环境中不得让它在拥有 Cloud SQL、LLM API Key 和用户数据权限的 API 容器内直接执行。
 
-为保持第一阶段代码简单，可以先保持一个后端代码库，但正式公开视频生成前必须完成下面的隔离之一：
+代码已经采用同一 backend 代码库、两个运行入口的隔离方案：
 
-1. 推荐：将同一 backend image 以 `renderer` 角色部署为独立 Cloud Run 服务或 Job，只授予最小 GCS 权限。
-2. 或者：将视频生成改为受约束的 JSON Scene Schema，由可信 Renderer 渲染，不执行任意 Python。
+1. 当前实现：从同一 backend 代码构建独立 renderer image，由 API 使用 OIDC 调用并接收 MP4；API 镜像不安装 Manim，也没有本地回退。
+2. 未来替代方案：将视频生成改为受约束的 JSON Scene Schema，由可信 Renderer 渲染，不执行任意 Python。
 
-该安全拆分不需要创建第二套代码库；`renderers/` 仍然共享，但 API 容器不执行生成脚本。
+该安全拆分不需要创建第二套代码库；`renderers/` 仍然共享，但 API 容器不执行生成脚本。正式公开视频生成前仍必须在真实 Cloud Run 环境验证 renderer 为私有服务、API 是唯一 invoker，且 renderer Service Account 无 Cloud SQL、GCS、Secret Manager 或 LLM 凭据权限。
 
 ```mermaid
 flowchart LR
-    API["FastAPI API<br/>DB + LLM Key"] -->|代码 + 一次性任务令牌| Runner["隔离 Renderer<br/>无 DB / 无 LLM Key"]
-    Runner -->|仅写指定结果| Bucket["Cloud Storage"]
+    API["FastAPI API<br/>DB + LLM Key"] -->|OIDC + 代码| Runner["隔离 Renderer<br/>无 DB / 无 LLM Key / 无 GCS 权限"]
+    Runner -->|MP4 响应| API
+    API -->|上传结果| Bucket["Cloud Storage"]
     Runner -.->|不得访问| SQL["Cloud SQL"]
     Runner -.->|不得访问| LLM["External LLM Provider"]
 ```
 
-## 12. 应删除或合并的当前代码
+## 12. 已删除或合并的旧代码
 
-计划完成后删除：
+重构已删除：
 
 - `frontend/src/app/api/lesson-generate/`
 - `frontend/src/app/api/lesson-record/`
@@ -714,20 +776,20 @@ flowchart LR
 - `backend/static/` 中的持久化职责
 - VPS daemontools 部署脚本
 
-需要合并：
+重构已合并：
 
 - 所有课程生成入口 → `/v2/generations`
 - `backend/models.py` → `backend/app/db/models.py`
 - `backend/database.py` → `backend/app/db/session.py`
 - `crud/lessons.py` → `backend/app/db/lessons.py`
-- 两个 `GenerationSidebar` → 一个 `components/lessons/GenerationPanel.tsx`
+- generation 页面状态与请求编排 → `lib/hooks/useGeneration.ts`；页面只保留布局，`GenerationSidebar` 只保留交互面板职责
 - 前端所有 API 函数 → `lib/api/client.ts` 和 `generation-stream.ts`
 
-删除必须安排在替代实现通过测试之后，不在第一阶段直接清空旧路径。
+这些旧路径均在替代实现通过测试后删除，历史实现继续由 `v1.0` 分支保留。
 
 ## 13. 重构实施阶段
 
-### Phase 0：建立基线
+### Phase 0：建立基线（分支已保留；恢复演练待执行）
 
 - 确认 `v1.0` 分支可以构建和运行。
 - 为当前关键流程记录手工回归步骤。
@@ -735,16 +797,16 @@ flowchart LR
 
 验收：能够从 `v1.0` 恢复当前生产版本。
 
-### Phase 1：建立 v2 骨架
+### Phase 1：建立 v2 骨架（完成）
 
 - 创建 `backend/app/` 新目录，不立即移动所有旧代码。
 - 增加集中配置、统一错误和 `/healthz`。
-- 创建前端 `lib/api/`、`lib/auth/` 和共享 API 类型。
+- 创建前端 `lib/api/`、`lib/firebase/`、`lib/hooks/`、`components/auth/` 和共享 API 类型。
 - 添加最小单元测试框架。
 
 验收：新 FastAPI 入口可以启动，健康检查通过。
 
-### Phase 2：迁移 GCP 数据与存储
+### Phase 2：迁移 GCP 数据与存储（代码完成；资源和迁移待执行）
 
 - 创建 Cloud SQL、Cloud Storage、Secret Manager 和 Service Account。
 - 将数据库 Engine 切换到 Cloud SQL。
@@ -754,7 +816,7 @@ flowchart LR
 
 验收：重启或扩容 Cloud Run 后，已有课程仍能预览和下载。
 
-### Phase 3：收敛生成流程
+### Phase 3：收敛生成流程（代码完成；真实 Provider smoke test 待执行）
 
 - 建立 `LLMProvider` 协议、Factory、Gemini Adapter 和 OpenAI Adapter。
 - 通过 `LLM_PROVIDER` 与 `LLM_MODEL` 选择实现，并从 Secret Manager 只注入所选 Provider 的 Key。
@@ -763,9 +825,9 @@ flowchart LR
 - 统一格式值和错误码。
 - 删除同步生成重复实现。
 
-验收：Gemini 与 OpenAI 均通过同一组契约测试；仅修改配置即可切换，三种格式均能生成、编辑、停止、保存和导出。
+当前验收：Fake Provider 已通过统一生成流程测试，Gemini/OpenAI 共用协议和配置入口。真实 Provider、三种格式及编辑/停止/保存/导出仍需在具备测试 Key 与云资源的环境完成 smoke/E2E 验证。
 
-### Phase 4：认证迁移
+### Phase 4：认证迁移（代码完成；控制台配置和用户迁移待执行）
 
 - 实现 `AuthUser` Adapter。
 - 接入 Identity Platform 的 Google、Microsoft 和 Email/Password Provider。
@@ -775,27 +837,27 @@ flowchart LR
 - 前端改为 Bearer Token 直连 API。
 - 删除 Next API 代理、Webhook 和内部共享密钥。
 
-验收：Google、Microsoft 和邮箱密码都能登录并取得统一 ID Token；密码重置、凭据关联可用；未登录请求返回 401；用户无法读取其他用户课程。
+当前验收：登录、注册、重置、退出、凭据关联、Token 注入、401 与租户隔离代码已实现并通过本地可替代部分的测试。Google、Microsoft 和邮箱密码的真实登录、账号迁移及正式授权域名仍需在 Identity Platform 环境验证。
 
-### Phase 5：整理前端
+### Phase 5：整理前端（代码完成；响应式手工回归待执行）
 
 - 将 generation 页面中的状态逻辑抽到 `useGeneration` 或一个 controller hook。
 - 合并重复 sidebar 和 API 类型。
 - 保留页面级组件编排，不建立全局状态库。
 - 删除 Remotion 和 Clerk 残余依赖。
 
-验收：前端 production build 通过，主要页面在移动端和桌面端可用。
+当前验收：前端严格 TypeScript 检查和 production build 通过；主要页面的移动端与桌面端手工回归仍应在切流前执行。
 
-### Phase 6：Manim 安全隔离
+### Phase 6：Manim 安全隔离（代码和部署资产完成；Cloud Run 验证待执行）
 
-- 将 Manim Renderer 部署到最小权限运行环境。
+- 已构建独立 Manim renderer image 与最小权限 Cloud Run 部署配置；真实部署尚待执行。
 - 限制 CPU、内存、执行时间、输出大小和可用环境变量。
 - API 容器不再执行生成 Python。
 - 添加恶意代码和超时测试。
 
-验收：Renderer 无权访问 Cloud SQL、LLM API Key 或 Secret Manager。
+当前验收：API 不执行生成 Python，AST/超时/取消/输出限制测试通过；Renderer 在真实 Cloud Run 中无权访问 Cloud SQL、GCS、LLM Key 或 Secret Manager 仍待 IAM smoke test。
 
-### Phase 7：切流与清理
+### Phase 7：切流与清理（待执行）
 
 - 在测试环境执行完整回归。
 - 灰度切换正式域名。
@@ -806,6 +868,10 @@ flowchart LR
 验收：连续运行一周无数据丢失或跨用户访问问题，具备回滚方案。
 
 ## 14. 测试计划
+
+截至 2026-08-11，当前自动化基线为 22 项后端测试、前端严格 TypeScript 检查和 Next.js production build。已覆盖生产配置约束、共享错误/CORS/Request ID、Manim AST 限制与进程组取消、总 deadline、有界 renderer 诊断、source 数量与总字节限制、SSE 阶段、Fake Provider 完整生成、租户隔离和删除顺序。
+
+下列内容是完整上线测试范围，并非全部已经自动化。仍待补充或在真实云环境执行的重点包括：Gemini/OpenAI Adapter 响应契约、有效/过期 Identity Token、三种真实登录方式、PDF 无文本层与损坏文件、迁移脚本、Cloud SQL/GCS/Signed URL 集成、前端交互自动化以及三种格式的端到端回归。
 
 ### 后端单元测试
 
@@ -855,9 +921,9 @@ flowchart LR
 - GCS 临时 source 设置短生命周期，课程结果按产品保留策略处理。
 - LLM Provider 和渲染必须设置单次请求上限，防止异常 Prompt 造成不可控费用。
 
-## 16. 完成标准
+## 16. v2 上线完成标准
 
-重构完成必须同时满足：
+以下是 v2 正式上线与切流的完成标准，不等同于“代码重构已完成”。涉及真实身份、云资源、迁移和连续运行观察的条目当前仍未验收：
 
 - 生产只运行 GCP 上的 web、api，以及必要的隔离 renderer。
 - 课程业务不再经过重复的 Next.js API 代理。
@@ -873,16 +939,20 @@ flowchart LR
 - 前后端 production build、测试和部署文档均通过验证。
 - 可以在一个工作日内从备份和 `v1.0` 分支恢复旧版本。
 
-## 17. 实施前需要确认的产品决策
+## 17. 已落实决策与上线阻断项
 
-以下决策应在开始删除旧代码前确认：
+代码实现采用以下明确决策：
 
-1. 现有 Clerk 用户采用批量迁移还是重新登录绑定，以及课程 `owner_id` 如何回填；不能仅按 email 自动合并。
-2. Gemini Developer API 或 OpenAI API 的当前条款、数据处理方式与未成年人目标受众是否兼容；不兼容时选择哪个合规服务。
-3. 正式环境默认使用 Gemini 还是 OpenAI，以及具体 `LLM_MODEL`；首版是否确认不向终端用户暴露模型选择。
-4. 是否确认删除 Remotion，只保留 p5.js、Reveal.js 和 Manim。
-5. 编辑课程是覆盖原课程，还是每次创建一个新版本。
-6. 生成文件与用户上传资料的保留期限。
-7. 是否允许 v2 发布初期暂时关闭视频功能，直到 Manim 隔离完成。
+1. 课程迁移要求提供 Clerk uid → Identity Platform uid 的显式 JSON 映射；若 Identity Platform 导入保留了原 uid，必须显式传入 `--preserve-owner-ids`。不会按 email 自动合并。
+2. 默认 Provider 为 Gemini，但生产通过 `LLM_PROVIDER`/`LLM_MODEL` 选择 Gemini 或 OpenAI，终端用户不选择模型，也不会自动跨 Provider 回退。
+3. Remotion 已删除，只保留 p5.js、Reveal.js 和 Manim。
+4. 编辑课程创建新课程版本，旧课程继续保留，避免覆盖后无法恢复。
+5. 上传 source 使用 `sources/` 前缀并设置七天 GCS 生命周期；用户删除课程时先将记录标为 `deleting`，再删除 source、输出对象和数据库记录。中途失败可安全重试，不会留下指向缺失输出的 `ready` 记录。
+6. 视频只通过受 Cloud Run IAM 保护的独立 renderer 运行；API 生产配置缺少 `MANIM_RENDERER_URL` 时拒绝启动。
+7. 部署脚本对课程 Bucket 强制启用 Uniform Bucket-Level Access 与 Public Access Prevention；应用只通过 API Service Account 和短期 Signed URL 访问私有对象。
 
-这些是产品边界，不应由重构代码隐式决定。
+以下工作不能由代码仓库替代，仍是上线阻断项：
+
+1. 确认所选 Gemini Developer API 或 OpenAI API 条款、数据处理方式和未成年人保护要求适用于实际产品场景。
+2. 在 Identity Platform 控制台开通 Google、Microsoft、Email/Password，配置 Microsoft OAuth 凭据和正式授权域名。
+3. 在安装 `gcloud` 且具备所需 GCP 权限的受信环境中重新执行权限预检，然后创建资源、运行真实 Provider/GCS/Cloud SQL smoke test、执行 dry run 与正式数据迁移，并完成域名灰度和一周观察。

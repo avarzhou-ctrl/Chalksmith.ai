@@ -1,0 +1,12 @@
+{
+  "rule": [
+    {
+      "action": { "type": "Delete" },
+      "condition": { "age": 7, "matchesPrefix": ["sources/"] }
+    },
+    {
+      "action": { "type": "AbortIncompleteMultipartUpload" },
+      "condition": { "age": 1 }
+    }
+  ]
+}

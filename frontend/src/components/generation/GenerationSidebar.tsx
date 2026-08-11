@@ -1,22 +1,20 @@
 'use client'
 
-import { PanelRight, ChevronDown, Flame, Loader2 } from "lucide-react";
+import { PanelRight, Flame, Loader2 } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import InputForm from "./InputForm";
 import FormatOutput from "@/components/ui/FormatOutput";
-import { GenerationStatus } from "@/lib/api";
+import type { GenerationMessage } from '@/lib/hooks/useGeneration';
 
 interface GenerationSidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
   title: string;
-  messages: { role: 'user' | 'assistant'; content: React.ReactNode }[];
+  messages: GenerationMessage[];
   loading: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
-  model: string;
   format: string;
   topic: string;
-  onModelChange: (model: string) => void;
   onFormatChange: (format: string) => void;
   onTopicChange: (topic: string) => void;
   onGenerate: (override?: string) => void;
@@ -25,7 +23,7 @@ interface GenerationSidebarProps {
   onSourceFilesChange: (files: File[]) => void;
   currentLessonId: string | null;
   error: string | null;
-  generationStatus: GenerationStatus | null;
+  generationStatus: string | null;
 }
 
 export default function GenerationSidebar({
@@ -35,10 +33,8 @@ export default function GenerationSidebar({
   messages,
   loading,
   messagesEndRef,
-  model,
   format,
   topic,
-  onModelChange,
   onFormatChange,
   onTopicChange,
   onGenerate,
@@ -60,9 +56,6 @@ export default function GenerationSidebar({
                 {title}
               </h2>
               <div className="flex items-center gap-2 shrink-0">
-                <button className="text-secondary-text hover:text-primary-text transition-colors">
-                  <ChevronDown size={20} />
-                </button>
                 <button 
                   className="p-2 hover:bg-surface/50 rounded-lg text-secondary-text transition-all duration-300" 
                   title="Collapse Sidebar"
@@ -131,10 +124,8 @@ export default function GenerationSidebar({
           <Panel minSize="20%" maxSize="50" defaultSize="30%">
             <div className="p-6 bg-primary-bg/50 border-t border-border flex flex-col gap-6 backdrop-blur-lg overflow-y-auto">
               <InputForm
-                model={model}
                 format={format}
                 topic={topic}
-                onModelChange={onModelChange}
                 onFormatChange={onFormatChange}
                 onTopicChange={onTopicChange}
                 onGenerate={onGenerate}
@@ -143,8 +134,10 @@ export default function GenerationSidebar({
                 onSourceFilesChange={onSourceFilesChange}
                 disabled={loading}
                 isEditMode={!!currentLessonId}
-                generationStatus={generationStatus}
               />
+              {generationStatus && (
+                <p className="text-center text-xs text-secondary-text">{generationStatus}</p>
+              )}
               
               {error && (
                 <p className="text-xs text-red-500 bg-red-500/10 p-2 rounded border border-red-500/20 text-center animate-in fade-in">

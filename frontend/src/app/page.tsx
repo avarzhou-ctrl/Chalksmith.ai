@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { SignUpButton, useUser } from '@clerk/nextjs';
 import { ArrowRight } from 'lucide-react';
 import CodeDrivenDemo from '@/components/home/CodeDrivenDemo';
 import ExamplesCarousel from '@/components/home/ExamplesCarousel';
 import FaqSection from '@/components/home/FaqSection';
 import Footer from '@/components/home/Footer';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700';
 const ctaSizeClasses = {
@@ -27,9 +27,9 @@ function PrimaryCtaLink({ href, children, size = 'md' }: { href: string; childre
 }
 
 function BuildLessonCta() {
-  const { isLoaded, isSignedIn } = useUser();
+  const { loading, user, openAuth } = useAuth();
 
-  if (isLoaded && isSignedIn) {
+  if (!loading && user) {
     return (
       <PrimaryCtaLink href="https://app.chalksmith.ai" size="lg">
         Try Chalksmith Free
@@ -39,18 +39,10 @@ function BuildLessonCta() {
   }
 
   return (
-    <SignUpButton
-      mode="modal"
-      forceRedirectUrl="https://app.chalksmith.ai"
-      fallbackRedirectUrl="https://app.chalksmith.ai"
-      signInForceRedirectUrl="https://app.chalksmith.ai"
-      signInFallbackRedirectUrl="https://app.chalksmith.ai"
-    >
-      <button type="button" className={`${ctaBaseClasses} ${ctaSizeClasses.lg}`}>
+      <button type="button" onClick={openAuth} disabled={loading} className={`${ctaBaseClasses} ${ctaSizeClasses.lg} disabled:opacity-50`}>
         Try Chalksmith Free
         <ArrowRight size={18} />
       </button>
-    </SignUpButton>
   );
 }
 
@@ -83,7 +75,7 @@ export default function Home() {
 
         <div className="mx-auto w-full max-w-4xl px-4 py-16 text-center text-sm leading-6 text-secondary-text sm:px-6 lg:px-8" id="content">
           <video 
-            src="/demo_1.mp4" 
+            src="/demo-1.mp4"
             autoPlay 
             loop 
             muted 
@@ -126,7 +118,7 @@ export default function Home() {
               </div>
               <div className="w-full">
                 <CodeDrivenDemo
-                  filePath="/demo_2.html"
+                  filePath="/demo-2.html"
                 />
               </div>
             </article>
@@ -142,7 +134,7 @@ export default function Home() {
                 <div className="w-full mt-auto">
                   <div className="w-full bg-primary-bg rounded-3xl overflow-hidden border border-border shadow-2xl">
                     <video 
-                      src="/demo_4.mp4" 
+                      src="/demo-4.mp4"
                       autoPlay 
                       loop 
                       muted 
@@ -163,7 +155,7 @@ export default function Home() {
                 <div className="w-full mt-auto">
                   <div className="w-full bg-primary-bg rounded-3xl overflow-hidden border border-border shadow-2xl">
                     <video 
-                      src="/demo_3.mp4" 
+                      src="/demo-3.mp4"
                       autoPlay 
                       loop 
                       muted 

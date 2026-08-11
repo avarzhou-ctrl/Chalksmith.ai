@@ -107,6 +107,7 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
             title="Unit Circle and Sine Wave"
             src={filePath}
             className="w-full h-full border-none bg-primary-bg"
+            sandbox="allow-scripts"
           />
         )}
       </div>

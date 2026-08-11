@@ -5,20 +5,18 @@ import { useEffect, useRef, useState } from 'react';
 interface SearchFilterProps {
     format: string;
     onFormatChange: (value: string) => void;
-    disabled?: boolean;
 }
 
 const formatOptions = [
     { label: "All formats", value: "" },
-    { label: "Interactive Display", value: "p5.js" },
-    { label: "Presentation", value: "reveal.js" },
-    { label: "Video", value: "manim" },
+    { label: "Interactive Display", value: "interactive" },
+    { label: "Presentation", value: "slides" },
+    { label: "Video", value: "video" },
 ];
 
 export default function SearchFilter({
     format,
     onFormatChange,
-    disabled = false,
 }: SearchFilterProps) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -26,9 +24,6 @@ export default function SearchFilter({
     const buttonStyles = format
         ? "bg-accent text-primary-text border-accent"
         : "bg-secondary-bg text-secondary-text border-border hover:border-stone-500";
-    const disabledStyles = disabled
-        ? "opacity-40 cursor-not-allowed"
-        : "cursor-pointer";
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -42,9 +37,7 @@ export default function SearchFilter({
     }, []);
 
     const handleToggle = () => {
-        if (!disabled) {
-            setIsOpen((current) => !current);
-        }
+        setIsOpen((current) => !current);
     };
 
     const handleSelect = (optionValue: string) => {
@@ -57,8 +50,7 @@ export default function SearchFilter({
             <button
                 type="button"
                 onClick={handleToggle}
-                disabled={disabled}
-                className={`flex h-12 w-full min-w-0 items-center justify-between rounded-lg border px-4 text-sm font-medium outline-none transition-all duration-300 focus:ring-2 focus:ring-accent/50 ${buttonStyles} ${disabledStyles}`}
+                className={`flex h-12 w-full min-w-0 cursor-pointer items-center justify-between rounded-lg border px-4 text-sm font-medium outline-none transition-all duration-300 focus:ring-2 focus:ring-accent/50 ${buttonStyles}`}
             >
                 <span className="mr-2 truncate">{selectedOption ? selectedOption.label : "All formats"}</span>
                 <svg

@@ -15,21 +15,21 @@ const examples: ExampleItem[] = [
   {
     title: 'Animated STEM video',
     description: 'A concept video that can be played, paused, and reviewed like a classroom clip.',
-    src: '/ex_video.mp4',
+    src: '/example-video.mp4',
     kind: 'video',
     icon: Video,
   },
   {
     title: 'Interactive display',
     description: 'A exploration where students can adjust variables to manipulate the display.',
-    src: '/ex_interactive.html',
+    src: '/example-interactive.html',
     kind: 'html',
     icon: MousePointerClick,
   },
   {
     title: 'Traditional slides',
     description: 'A presentation format for step-by-step explanations and classroom discussion.',
-    src: '/ex_slides.html',
+    src: '/example-slides.html',
     kind: 'html',
     icon: Presentation,
   },
@@ -119,7 +119,7 @@ export default function ExamplesCarousel() {
                 title={activeExample.title}
                 className="h-full w-full bg-stone-950"
                 loading="lazy"
-                sandbox="allow-scripts allow-same-origin"
+                sandbox="allow-scripts"
               />
             )}
           </div>

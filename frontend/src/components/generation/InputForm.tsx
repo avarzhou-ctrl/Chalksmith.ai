@@ -1,17 +1,14 @@
 'use client'
 
-import { GenerationStatus } from '@/lib/api';
 import FormatSelector from './FormatSelector';
-import Textarea from '@/components/ui/TextArea';
+import Textarea from '@/components/ui/Textarea';
 import { CircleArrowUp, CirclePause } from 'lucide-react';
 
 const TOPIC_CHARACTER_LIMIT = 100;
 
 interface InputFormProps {
-    model: string;
     format: string;
     topic: string;
-    onModelChange: (value: string) => void;
     onFormatChange: (value: string) => void;
     onTopicChange: (value: string) => void;
     onGenerate: () => void;
@@ -20,14 +17,11 @@ interface InputFormProps {
     onSourceFilesChange: (files: File[]) => void;
     disabled?: boolean;
     isEditMode?: boolean;
-    generationStatus: GenerationStatus | null;
 }
 
 export default function InputForm({ 
-    model, 
     format, 
     topic, 
-    onModelChange, 
     onFormatChange, 
     onTopicChange, 
     onGenerate,
@@ -35,8 +29,7 @@ export default function InputForm({
     sourceFiles,
     onSourceFilesChange,
     disabled,
-    isEditMode,
-    generationStatus
+    isEditMode
 }: InputFormProps) {
     const generationButton = (
         <div>

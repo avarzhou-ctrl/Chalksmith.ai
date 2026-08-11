@@ -1,44 +1,54 @@
 import Footer from "@/components/home/Footer";
+import {
+    BookOpen,
+    Camera,
+    Code2,
+    Mail,
+    MessageCircle,
+    Newspaper,
+    Play,
+    type LucideIcon,
+} from 'lucide-react';
 
-const socialContacts = [
+const socialContacts: { icon: LucideIcon; label: string; detail: string; href: string }[] = [
     {
-        icon: 'fa-solid fa-envelope',
+        icon: Mail,
         label: 'Email',
         detail: 'avarzhou@gmail.com',
         href: 'mailto:avarzhou@gmail.com',
     },
     {
-        icon: 'fa-brands fa-github',
+        icon: Code2,
         label: 'GitHub',
         detail: '@avarzhou-ctrl',
         href: 'https://github.com/avarzhou-ctrl',
     },
     {
-        icon: 'fa-brands fa-youtube',
+        icon: Play,
         label: 'YouTube',
         detail: '@SquishBJ',
         href: 'https://www.youtube.com/@SquishBJ',
     },
     {
-        icon: 'fa-brands fa-x-twitter',
+        icon: MessageCircle,
         label: 'X (Twitter)',
         detail: '@SquishBJ',
         href: 'https://x.com/SquishBJ',
     },
     {
-        icon: 'fa-solid fa-newspaper',
+        icon: Newspaper,
         label: 'Substack',
         detail: '@squishbj',
         href: 'https://substack.com/@squishbj',
     },
     {
-        icon: 'fa-brands fa-medium',
+        icon: BookOpen,
         label: 'Medium',
         detail: '@SquishBJ',
         href: 'https://medium.com/@SquishBJ',
     },
     {
-        icon: 'fa-brands fa-instagram',
+        icon: Camera,
         label: 'Instagram',
         detail: '@squishbj',
         href: 'https://www.instagram.com/squishbj',
@@ -53,7 +63,7 @@ export default function About() {
                 <aside className="lg:h-full">
                     <div className="h-full overflow-hidden rounded-lg border border-stone-800 bg-secondary-bg/80 shadow-2xl shadow-black/30">
                         <div className="h-full min-h-96 rounded-lg border border-stone-700 bg-primary-bg lg:min-h-0">
-                            <img src="/Headshot.png" alt="Portrait of Ava Zhou" className="h-full w-full object-cover object-center" />
+                            <img src="/headshot.png" alt="Portrait of Ava Zhou" className="h-full w-full object-cover object-center" />
                         </div>
                     </div>
                 </aside>
@@ -86,27 +96,28 @@ export default function About() {
                         Reach out about Chalksmith.ai, classroom use cases, or feedback on generated STEM materials.
                     </p>
                     <ul className="mt-8 space-y-3">
-                        {socialContacts.map((contact) => (
-                            <li key={contact.label}>
+                        {socialContacts.map((contact) => {
+                            const ContactIcon = contact.icon;
+                            return <li key={contact.label}>
                                 <a
                                     href={contact.href}
                                     className="group flex items-center gap-4 rounded-lg border border-stone-800 bg-secondary-bg/80 p-4 transition-colors hover:border-accent/60 hover:bg-stone-800"
                                 >
                                     <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-accent/10 text-lg text-accent transition-colors group-hover:bg-accent group-hover:text-primary-text">
-                                        <i className={contact.icon} aria-hidden="true" />
+                                        <ContactIcon className="size-5" aria-hidden />
                                     </span>
                                     <span>
                                         <span className="block text-sm font-semibold text-stone-50">{contact.label}</span>
                                         <span className="mt-1 block text-sm text-secondary-text">{contact.detail}</span>
                                     </span>
                                 </a>
-                            </li>
-                        ))}
+                            </li>;
+                        })}
                     </ul>
                 </div>
                 <div className="overflow-hidden rounded-lg p-4 shadow-2xl shadow-black/30">
                     <div className="rounded-lg bg-primary-bg p-4">
-                        <img src="/Books.png" alt="Stack of books" className="h-auto w-full object-contain" />
+                        <img src="/books.png" alt="Stack of books" className="h-auto w-full object-contain" />
                     </div>
                 </div>
             </section>

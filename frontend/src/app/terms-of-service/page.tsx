@@ -65,7 +65,7 @@ export default function TermsOfServicePage() {
           <p className="mt-4 leading-8 text-stone-50">To access our STEM workspace, you must register for an account.</p>
           <ul className="mt-4 list-disc space-y-2 pl-5 text-stone-50">
             <li>
-              Authentication Providers: We utilize Clerk to handle user registration, identity verification, and login
+              Authentication Providers: We utilize Google Cloud Identity Platform to handle user registration, identity verification, and login
               sessions securely.
             </li>
             <li>

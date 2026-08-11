@@ -6,7 +6,9 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { TriangleAlert } from "lucide-react";
 import EditableTitle from "@/components/generation/EditableTitle";
-import { renameLesson } from "@/lib/api";
+import { renameLesson } from "@/lib/api/lessons";
+import { useApi } from "@/lib/hooks/useApi";
+import type { LessonListItem } from '@/lib/types/api';
 import { useState, useRef, useEffect } from "react";
 
 interface LessonCardProps {
@@ -14,7 +16,7 @@ interface LessonCardProps {
     title: string;
     description: React.ReactNode;
     format: string;
-    model: string;
+    status: LessonListItem['status'];
     createdAt: string;
     onDelete: () => void;
 }
@@ -24,10 +26,11 @@ export default function LessonCard({
     title,
     description,
     format,
-    model,
+    status,
     createdAt,
     onDelete,
 }: LessonCardProps) {
+    const api = useApi();
     const [displayTitle, setDisplayTitle] = useState(title);
     const [renameError, setRenameError] = useState<string | null>(null);
     const [isRenaming, setIsRenaming] = useState(false);
@@ -35,10 +38,9 @@ export default function LessonCard({
     const [isActionsOpen, setIsActionsOpen] = useState(false);
     const actionsRef = useRef<HTMLDivElement>(null);
     const formatLabels: Record<string, string> = {
-        manim: 'Pro Video',
-        remotion: 'Instant Video',
-        'p5.js': 'Interactive Display',
-        'reveal.js': 'Presentation',
+        video: 'Video',
+        interactive: 'Interactive Display',
+        slides: 'Presentation',
     };
     
     const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
@@ -97,7 +99,7 @@ export default function LessonCard({
         try {
             setRenameError(null);
             setIsRenaming(true);
-            await renameLesson(id, trimmedTitle);
+            await renameLesson(api, id, trimmedTitle);
             setDisplayTitle(trimmedTitle);
         } catch (error) {
             setRenameError(error instanceof Error ? error.message : 'Failed to rename lesson');
@@ -108,11 +110,11 @@ export default function LessonCard({
 
     return (
         <article className="relative min-h-48 rounded-lg border border-border bg-surface p-4 flex flex-col">
-            <Link
+            {status !== 'deleting' && <Link
                 href={`/generation?lessonId=${id}`}
                 className="absolute inset-0 z-0 rounded-lg"
                 title="Open lesson"
-            />
+            />}
             <div className="relative z-30 flex items-start justify-between gap-3">
                 <h3 className="min-w-0 text-xl font-semibold text-primary-text leading-snug line-clamp-2">{displayTitle}</h3>
                 <div className="relative ml-auto shrink-0" ref={actionsRef}>
@@ -132,7 +134,7 @@ export default function LessonCard({
                             role="menu"
                             className="absolute right-0 top-8 z-30 w-44 overflow-hidden rounded-lg border border-border bg-secondary-bg p-1 shadow-lg shadow-stone-950 sm:w-48"
                         >
-                            <button
+                            {status !== 'deleting' && <button
                                 type="button"
                                 role="menuitem"
                                 onClick={openRenameModal}
@@ -140,7 +142,7 @@ export default function LessonCard({
                             >
                                 <PencilLine size={16} />
                                 <span className="truncate">Rename</span>
-                            </button>
+                            </button>}
                             <button
                                 type="button"
                                 role="menuitem"
@@ -148,7 +150,7 @@ export default function LessonCard({
                                 className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-primary-text transition-colors hover:bg-primary-text/10 focus:outline-none focus:ring-2"
                             >
                                 <Trash2 size={16} />
-                                <span className="truncate">Delete</span>
+                                <span className="truncate">{status === 'deleting' ? 'Retry delete' : 'Delete'}</span>
                             </button>
                         </div>
                     )}
@@ -157,9 +159,14 @@ export default function LessonCard({
             {description && (
                 <div className="relative z-10 mt-3 line-clamp-2 text-sm leading-6 text-secondary-text">{description}</div>
             )}
+            {status !== 'ready' && (
+                <p className="relative z-10 mt-3 text-xs font-medium text-amber-400">
+                    {status === 'deleting' ? 'Deletion pending—retry from the menu.' : `Status: ${status}`}
+                </p>
+            )}
             <div className="relative z-10 mt-auto flex items-center justify-between gap-3 pt-4">
                 <p className="truncate text-xs text-secondary-text">{formattedDate}</p>
-                <p className="truncate text-xs text-secondary-text">{formatLabel} | {model}</p>
+                <p className="truncate text-xs text-secondary-text">{formatLabel}</p>
             </div>
             
             {/* Delete Confirmation Modal */}

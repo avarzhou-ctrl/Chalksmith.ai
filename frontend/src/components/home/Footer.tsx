@@ -1,5 +1,3 @@
-'use client'
-
 export default function Footer() {
     return (
         <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-10 text-sm text-secondary-text sm:px-6 md:grid-cols-[1fr_auto] lg:px-8">

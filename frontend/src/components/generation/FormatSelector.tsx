@@ -6,14 +6,13 @@ interface FormatSelectorProps {
     value: string;
     onChange: (value: string) => void;
     disabled?: boolean;
-    isEditMode?: boolean;
 }
 
-export default function FormatSelector({ value, onChange, disabled, isEditMode }: FormatSelectorProps) {
+export default function FormatSelector({ value, onChange, disabled }: FormatSelectorProps) {
     const models = [
-        { label: 'Interactive Display', value: 'p5.js' },
-        { label: 'Presentation', value: 'reveal.js' },
-        { label: 'Video', value: 'manim' }
+        { label: 'Interactive Display', value: 'interactive' },
+        { label: 'Presentation', value: 'slides' },
+        { label: 'Video', value: 'video' }
     ];
     
     return (
@@ -24,7 +23,7 @@ export default function FormatSelector({ value, onChange, disabled, isEditMode }
                 value={value}
                 onChange={onChange}
                 placeholder="Select a format"
-                disabled={disabled || isEditMode}
+                disabled={disabled}
             />
         </div>
     );

@@ -1,7 +1,3 @@
-'use client'
-
-import { useState } from 'react';
-
 const faqs = [
   {
     question: 'Is Chalksmith free to try?',
@@ -36,8 +32,6 @@ const faqs = [
 ];
 
 export default function FaqSection() {
-  const [isOpen, setIsOpen] = useState(false);
-  
   return (
     <section id="faq" className="mx-auto w-full max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="text-center">
@@ -57,7 +51,7 @@ export default function FaqSection() {
               <span>{faq.question}</span>
               <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-accent transition-transform">
                 <svg 
-                    className={`w-4 h-4 transition-transform duration-300 shrink-0 group-open:rotate-180`} 
+                    className="size-4 shrink-0 transition-transform duration-300 group-open:rotate-180"
                     fill="none" 
                     stroke="currentColor" 
                     viewBox="0 0 24 24"

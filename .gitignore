@@ -1,41 +1,19 @@
-.venv/
-.env.local/
-commands.md
+.DS_Store
 
-# === Backend (FastAPI) ===
-backend/.env/
-backend/.env.local/
-backend/__pycache__/
-backend/*.py[cod]
+# Backend (uv, Python, local runtime)
+backend/.venv/
+backend/**/__pycache__/
 backend/.pytest_cache/
+backend/*.py[cod]
 backend/*.db
-backend/static/
+backend/.env*
 !backend/.env.example
 
-# === Frontend (Next.js) ===
-frtonend/.env.local/
+# Frontend (npm, Next.js)
 frontend/node_modules/
 frontend/.next/
-frontend/out/
-frontend/build/
-frontend/.vercel
-frontend/.pnp
-frontend/.pnp.*
-frontend/.yarn/*
-!frontend/.yarn/patches
-!frontend/.yarn/plugins
-!frontend/.yarn/releases
-!frontend/.yarn/versions
-
-# Frontend Debug/Testing
-frontend/coverage/
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
 frontend/*.tsbuildinfo
 frontend/next-env.d.ts
-node_modules
-.vercel
-.env*
-!.env.example
+frontend/npm-debug.log*
+frontend/.env*
 !frontend/.env.example

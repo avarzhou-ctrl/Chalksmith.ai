@@ -28,7 +28,7 @@
 - Routing: Next.js App Router (located in `src/app/`)
 
 ### Structure
-- Monorepo: Managed via NPM Workspaces (root `package.json`).
+- Repository with independent runtimes: npm is scoped to `frontend/`; uv is scoped to `backend/`.
 - Environment: Python virtual environment (.venv) for backend, Node.js for frontend.
 
 ### Design Style
@@ -39,10 +39,10 @@
 
 ## Commands
 ### Backend
-uvicorn backend.main:app --reload
+uv run --project backend uvicorn backend.app.main:app --reload
 
 ### Frontend
-npm run dev
+cd frontend && npm run dev
 
 ### GitHub Commits
 When told to reformat commits, follow the Conventional Commits (https://www.conventionalcommits.org/en/v1.0.0/) format.
@@ -94,6 +94,17 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-08-11**: Reconciled `REFACTOR.md` with the implemented v2 system by correcting the POST access-URL flow, HTML/video renderer split, API/CRUD responsibilities, configuration list, current directory structure, phase and test status, GCP verification wording, and launch criteria; enforced Uniform Bucket-Level Access plus Public Access Prevention in the GCS deployment path and aligned operational documentation and the `v1.0` branch reference (`REFACTOR.md`, `infra/gcloud/deploy.sh`, `infra/gcloud/README.md`, `README.md`).
+- **2026-08-11**: Rewrote `README.md` architecture, local debugging, and Google Cloud deployment documentation to match the implemented three-service system, direct authenticated browser-to-FastAPI flow, isolated Manim renderer, independent frontend/backend runtimes, local ADC/GCS requirements, deployment automation, migration safeguards, and production verification steps while preserving the project introduction, examples, motivation, contact, and author content (`README.md`).
+- **2026-08-11**: Standardized frontend filenames by aligning the `Textarea` component file with its export, normalizing public assets and legal Markdown documents to lowercase kebab-case, updating all runtime references, and aligning the `FormatOutput` function name with its file (`frontend/public/`, `frontend/src/app/`, `frontend/src/components/`).
+- **2026-08-10**: Completed the post-refactor audit outside the deferred Gemini audience-policy question: hardened isolated Manim validation and cancellation, end-to-end generation deadlines, source limits, request/error logging, storage/delete consistency, sandboxing, authentication credential linking, and prompts; extracted generation state to `frontend/src/lib/hooks/useGeneration.ts`; removed four unused frontend modules and redundant dependency/config entries; simplified `.gitignore`/`.dockerignore`; preserved `frontend/public/Privacy-Policy.md` and `frontend/public/Terms-of-Service.md`; expanded the backend suite to 22 passing tests and reverified strict frontend type-check and production build (`backend/app/`, `backend/scripts/`, `backend/tests/`, `frontend/src/`, dependency manifests, `infra/`, `.gitignore`, `.dockerignore`, `README.md`, `REFACTOR.md`).
+- **2026-08-10**: Removed the obsolete daemontools/VPS backend launcher; Docker and GCP deployment remain the supported service startup paths (`scripts/server/chalksmith-backend`).
+- **2026-08-10**: Removed obsolete Git ignore entries for retired Vercel/Yarn/PnP workflows, unused frontend output/test directories, and the v1 `backend/static/` artifact directory; retained only artifacts the current npm, Next.js, and FastAPI workflows can produce (`.gitignore`).
+- **2026-08-10**: Removed the redundant `frontend/.npmrc`, whose optional-dependency settings match npm defaults and caused a warning during checks; consolidated duplicate environment, cache, and dependency ignore rules without changing their coverage (`frontend/.npmrc`, `.gitignore`).
+- **2026-08-10**: Removed the single-workspace root npm layer and made `frontend/` an independent Node.js project by localizing its lockfile and dependency tree, updating Next.js standalone configuration, Docker build paths, development documentation, and the refactor structure (`package.json`, `package-lock.json`, `frontend/package.json`, `frontend/package-lock.json`, `frontend/next.config.ts`, `infra/docker/web.Dockerfile`, `README.md`, `REFACTOR.md`, `.gitignore`).
+- **2026-08-10**: Completed the Chalksmith v2 refactor across `backend/app/`, `backend/scripts/`, `backend/pyproject.toml`, `frontend/src/`, package manifests, `infra/`, `README.md`, and `REFACTOR.md`: replaced the v1 backend with tenant-isolated FastAPI/SQLModel APIs, private GCS storage, PDF extraction, configurable Gemini/OpenAI adapters, CSP-protected HTML and an isolated Manim renderer; replaced Clerk and Next.js API proxies with Identity Platform and direct Bearer-token API calls; removed Remotion, v1 services, daemontools, stale architecture art, and tracked local generated outputs; added dry-run data migration, Cloud Run/Cloud SQL deployment assets, production configuration validation, request logging, twelve backend tests, and successful frontend type-check/build verification.
+- **2026-08-10**: Configured uv-based Python environment management for the v2 backend with `backend/pyproject.toml`, `backend/.python-version`, `backend/uv.lock`, and a CPython 3.12 `backend/.venv`; updated `REFACTOR.md` commands, marked `backend/requirements.txt` as temporary v1 compatibility, and verified all four v2 backend tests plus the FastAPI application import.
+- **2026-08-10**: Started Phase 1 of the v2 refactor by adding the parallel `backend/app/` FastAPI entrypoint with centralized validated configuration, JSON logging, shared errors, CORS, and `/healthz`; added `backend/tests/test_v2_app.py`, new frontend API/auth/type boundaries under `frontend/src/lib/`, expanded `backend/.env.example`, and recorded verified GCP authentication and remaining deployment-permission requirements in `REFACTOR.md` while preserving all v1 runtime paths.
 - **2026-08-10**: Added and refined `REFACTOR.md` with a simplified v2 architecture plan covering the frontend/backend structure, Python FastAPI modules, a first-release Identity Platform authentication matrix for Google, Microsoft, and managed email/password accounts, direct authenticated API flow, a configurable LLM Provider contract with Gemini Developer API and OpenAI Responses API adapters, GCP services, Mermaid diagrams, migration phases, security boundaries, testing, and completion criteria.
 - **2026-07-03**: Fixed source-backed lesson generation receiving `405 Method Not Allowed` by moving the static `/lesson/generate` GET/POST routes above dynamic `/lesson/{lesson_id}` routes in `backend/routers/lesson.py` so `generate` is not interpreted as a lesson id.
 - **2026-07-03**: Fixed generation auth error handling by preserving streamed upstream status in `frontend/src/lib/api.ts` and updating `frontend/src/app/generation/page.tsx` so Unauthorized/session failures show a session-required modal with no Auto-Fix path instead of being described as invalid generated lessons.

@@ -2,17 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Group, Panel, Separator, type PanelImperativeHandle } from "react-resizable-panels";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import LessonCard from "@/components/dashboard/LessonCard";
 import SearchFilter from "@/components/dashboard/SearchFilter";
 import FormatOutput from "@/components/ui/FormatOutput";
-import { deleteLesson, fetchLessons } from "@/lib/api";
-import type { LessonListItem } from "@/lib/api";
+import { AuthButton } from "@/components/auth/AuthButton";
+import { RequireAuth } from "@/components/auth/RequireAuth";
+import { deleteLesson, listLessons } from "@/lib/api/lessons";
+import { useApi } from "@/lib/hooks/useApi";
+import type { LessonFormat, LessonListItem } from "@/lib/types/api";
 
 export default function SearchPage() {
-  const panelRef = useRef<any>(null);
+  const api = useApi();
+  const panelRef = useRef<PanelImperativeHandle | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [query, setQuery] = useState("");
   const [format, setFormat] = useState("");
@@ -26,9 +29,9 @@ export default function SearchPage() {
         setIsLoadingLessons(true);
         setLessonError(null);
         const trimmedQuery = query.trim();
-        const data = await fetchLessons({
+        const data = await listLessons(api, {
           q: trimmedQuery || undefined,
-          format: format || undefined,
+          format: (format || undefined) as LessonFormat | undefined,
         });
         setLessons(data);
       } catch (error) {
@@ -40,11 +43,11 @@ export default function SearchPage() {
     }, 300);
 
     return () => window.clearTimeout(timeoutId);
-  }, [query, format]);
+  }, [api, query, format]);
 
   const handleDeleteLesson = async (lessonId: string) => {
     try {
-      await deleteLesson(lessonId);
+      await deleteLesson(api, lessonId);
       setLessons((currentLessons) => currentLessons.filter((lesson) => lesson.id !== lessonId));
     } catch (error) {
       console.error('Error deleting lesson:', error);
@@ -66,6 +69,7 @@ export default function SearchPage() {
   };
 
   return (
+    <RequireAuth>
     <main className="app-route-without-site-header flex h-screen w-full flex-row overflow-hidden bg-primary-bg font-sans text-primary-text">
       <Group orientation="horizontal" id="search-layout">
         <Panel
@@ -83,15 +87,7 @@ export default function SearchPage() {
         >
           <DashboardSidebar isCollapsed={isCollapsed} onToggle={togglePanel} />
 
-          <UserButton
-            appearance={{
-              elements: {
-                userButtonBox: "m-4",
-                userButtonAvatarBox: "size-20",
-                userButtonAvatarImage: "p-[2x]",
-              },
-            }}
-          />
+          <section className="mt-auto p-4"><AuthButton /></section>
         </Panel>
 
         <Separator className="w-1 cursor-col-resize bg-border/20 shadow-[inset_0_0_1px_rgba(255,255,255,0.05)] transition-colors hover:bg-accent/40" />
@@ -158,9 +154,9 @@ export default function SearchPage() {
                     key={lesson.id}
                     id={lesson.id}
                     title={lesson.topic}
-                    description=<FormatOutput rawContent={lesson.summary} />
+                    description={lesson.summary ? <FormatOutput rawContent={lesson.summary} /> : null}
                     format={lesson.format}
-                    model={lesson.model}
+                    status={lesson.status}
                     createdAt={lesson.created_at}
                     onDelete={() => handleDeleteLesson(lesson.id)}
                   />
@@ -171,5 +167,6 @@ export default function SearchPage() {
         </Panel>
       </Group>
     </main>
+    </RequireAuth>
   );
 }
