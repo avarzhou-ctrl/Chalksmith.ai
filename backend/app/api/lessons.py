@@ -18,6 +18,7 @@ from backend.app.api.schemas import (
 from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
 from backend.app.db.lessons import (
+    count_lesson_versions,
     get_owned_lesson,
     get_lesson_root,
     list_lesson_versions,
@@ -45,11 +46,17 @@ def list_lessons(
     user: AuthUser = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    lessons = list_owned_lessons(session, user.uid, query=q, lesson_format=format)
+    version_counts = count_lesson_versions(
+        session,
+        user.uid,
+        [lesson.root_lesson_id for lesson in lessons],
+    )
     return [
         LessonListItem.model_validate(lesson).model_copy(
-            update={"version_count": len(list_lesson_versions(session, lesson))}
+            update={"version_count": version_counts.get(lesson.root_lesson_id, 0)}
         )
-        for lesson in list_owned_lessons(session, user.uid, query=q, lesson_format=format)
+        for lesson in lessons
     ]
 
 

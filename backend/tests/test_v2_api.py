@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
+from sqlalchemy import event
 from sqlmodel import Session
 from starlette.datastructures import Headers
 
@@ -164,6 +165,41 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual([version["version_number"] for version in history], [1, 2])
         self.assertEqual(history[1]["parent_lesson_id"], first_id)
         self.assertEqual(history[1]["edit_instruction"], "Add a worked example.")
+
+    def test_lesson_list_counts_versions_with_one_grouped_query(self) -> None:
+        with Session(self.app.state.engine) as session:
+            for index in range(3):
+                root = create_lesson(
+                    session,
+                    owner_id="teacher-a",
+                    topic=f"Lesson {index}",
+                    lesson_format="interactive",
+                )
+                create_lesson(
+                    session,
+                    owner_id="teacher-a",
+                    topic=f"Lesson {index}",
+                    lesson_format="interactive",
+                    root_lesson_id=root.id,
+                    parent_lesson_id=root.id,
+                    version_number=2,
+                )
+
+        select_statements: list[str] = []
+
+        def record_select(_connection, _cursor, statement, _parameters, _context, _executemany):
+            if statement.lstrip().upper().startswith("SELECT"):
+                select_statements.append(statement)
+
+        event.listen(self.app.state.engine, "before_cursor_execute", record_select)
+        try:
+            response = self.client.get("/v2/lessons")
+        finally:
+            event.remove(self.app.state.engine, "before_cursor_execute", record_select)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([row["version_count"] for row in response.json()], [2, 2, 2])
+        self.assertEqual(len(select_statements), 2)
 
     def test_lesson_queries_are_tenant_isolated(self) -> None:
         with Session(self.app.state.engine) as session:

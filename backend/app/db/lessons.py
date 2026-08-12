@@ -1,5 +1,6 @@
 from uuid import UUID, uuid4
 
+from sqlalchemy import func
 from sqlmodel import Session, col, select
 
 from backend.app.db.models import Lesson, utc_now
@@ -72,6 +73,24 @@ def list_lesson_versions(session: Session, lesson: Lesson) -> list[Lesson]:
     )
 
 
+def count_lesson_versions(
+    session: Session,
+    owner_id: str,
+    root_lesson_ids: list[UUID],
+) -> dict[UUID, int]:
+    if not root_lesson_ids:
+        return {}
+    rows = session.exec(
+        select(Lesson.root_lesson_id, func.count(Lesson.id))
+        .where(
+            Lesson.owner_id == owner_id,
+            col(Lesson.root_lesson_id).in_(root_lesson_ids),
+        )
+        .group_by(Lesson.root_lesson_id)
+    ).all()
+    return {root_lesson_id: count for root_lesson_id, count in rows}
+
+
 def next_version_number(session: Session, root_lesson_id: UUID, owner_id: str) -> int:
     versions = session.exec(
         select(Lesson.version_number).where(
@@ -88,8 +107,3 @@ def save_lesson(session: Session, lesson: Lesson) -> Lesson:
     session.commit()
     session.refresh(lesson)
     return lesson
-
-
-def delete_lesson(session: Session, lesson: Lesson) -> None:
-    session.delete(lesson)
-    session.commit()
