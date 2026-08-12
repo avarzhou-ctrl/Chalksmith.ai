@@ -1,12 +1,32 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlmodel import Session, col, select
 
 from backend.app.db.models import Lesson, utc_now
 
 
-def create_lesson(session: Session, *, owner_id: str, topic: str, lesson_format: str) -> Lesson:
-    lesson = Lesson(owner_id=owner_id, topic=topic, format=lesson_format)
+def create_lesson(
+    session: Session,
+    *,
+    owner_id: str,
+    topic: str,
+    lesson_format: str,
+    root_lesson_id: UUID | None = None,
+    parent_lesson_id: UUID | None = None,
+    version_number: int = 1,
+    edit_instruction: str | None = None,
+) -> Lesson:
+    lesson_id = uuid4()
+    lesson = Lesson(
+        id=lesson_id,
+        owner_id=owner_id,
+        root_lesson_id=root_lesson_id or lesson_id,
+        parent_lesson_id=parent_lesson_id,
+        version_number=version_number,
+        topic=topic,
+        format=lesson_format,
+        edit_instruction=edit_instruction,
+    )
     session.add(lesson)
     session.commit()
     session.refresh(lesson)
@@ -26,13 +46,40 @@ def list_owned_lessons(
     query: str | None = None,
     lesson_format: str | None = None,
 ) -> list[Lesson]:
-    statement = select(Lesson).where(Lesson.owner_id == owner_id)
+    statement = select(Lesson).where(
+        Lesson.owner_id == owner_id,
+        Lesson.id == Lesson.root_lesson_id,
+    )
     if query:
         statement = statement.where(col(Lesson.topic).ilike(f"%{query.strip()}%"))
     if lesson_format:
         statement = statement.where(Lesson.format == lesson_format)
     statement = statement.order_by(col(Lesson.updated_at).desc())
     return list(session.exec(statement).all())
+
+
+def get_lesson_root(session: Session, lesson: Lesson) -> Lesson | None:
+    return get_owned_lesson(session, lesson.root_lesson_id, lesson.owner_id)
+
+
+def list_lesson_versions(session: Session, lesson: Lesson) -> list[Lesson]:
+    return list(
+        session.exec(
+            select(Lesson)
+            .where(Lesson.owner_id == lesson.owner_id, Lesson.root_lesson_id == lesson.root_lesson_id)
+            .order_by(col(Lesson.version_number))
+        ).all()
+    )
+
+
+def next_version_number(session: Session, root_lesson_id: UUID, owner_id: str) -> int:
+    versions = session.exec(
+        select(Lesson.version_number).where(
+            Lesson.owner_id == owner_id,
+            Lesson.root_lesson_id == root_lesson_id,
+        )
+    ).all()
+    return max(versions, default=0) + 1
 
 
 def save_lesson(session: Session, lesson: Lesson) -> Lesson:

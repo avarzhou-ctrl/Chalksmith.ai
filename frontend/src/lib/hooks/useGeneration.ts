@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { streamGeneration } from '@/lib/api/generation-stream';
-import { getLesson, getLessonAccessUrl, renameLesson } from '@/lib/api/lessons';
+import { getLesson, getLessonAccessUrl, getLessonVersions, renameLesson } from '@/lib/api/lessons';
 import type { ApiClient } from '@/lib/api/client';
-import type { Lesson, LessonFormat } from '@/lib/types/api';
+import type { Lesson, LessonFormat, LessonVersion } from '@/lib/types/api';
 
 const PROGRESS: Record<string, number> = {
   generating: 35,
@@ -18,6 +18,28 @@ const PROGRESS: Record<string, number> = {
 export interface GenerationMessage {
   role: 'user' | 'assistant';
   content: string;
+  lessonId?: string;
+  versionNumber?: number;
+}
+
+function messagesForVersions(versions: LessonVersion[]): GenerationMessage[] {
+  return versions.flatMap((version) => [
+    {
+      role: 'user' as const,
+      lessonId: version.id,
+      versionNumber: version.version_number,
+      content: version.edit_instruction
+        || (version.version_number === 1
+          ? `Create a lesson about “${version.topic}”.`
+          : `Saved revision ${version.version_number}.`),
+    },
+    {
+      role: 'assistant' as const,
+      lessonId: version.id,
+      versionNumber: version.version_number,
+      content: version.summary || `Version ${version.version_number} is still being generated.`,
+    },
+  ]);
 }
 
 export function useGeneration(api: ApiClient) {
@@ -41,13 +63,17 @@ export function useGeneration(api: ApiClient) {
   const loadLesson = useCallback(async (lessonId: string) => {
     setLoading(true);
     setError(null);
+    setPreviewUrl('');
     try {
-      const saved = await getLesson(api, lessonId);
+      const [saved, versions] = await Promise.all([
+        getLesson(api, lessonId),
+        getLessonVersions(api, lessonId),
+      ]);
       setLesson(saved);
       setTitle(saved.topic);
       setOriginalTopic(saved.topic);
       setFormat(saved.format);
-      setMessages([{ role: 'assistant', content: saved.summary || `Loaded “${saved.topic}”.` }]);
+      setMessages(messagesForVersions(versions));
       if (saved.status === 'ready') {
         setPreviewUrl((await getLessonAccessUrl(api, saved.id)).url);
       }
@@ -57,6 +83,11 @@ export function useGeneration(api: ApiClient) {
       setLoading(false);
     }
   }, [api]);
+
+  const selectLessonVersion = useCallback(async (lessonId: string) => {
+    await loadLesson(lessonId);
+    window.history.replaceState({}, '', `?lessonId=${lessonId}`);
+  }, [loadLesson]);
 
   const stopGeneration = useCallback(() => {
     abortRef.current?.abort();
@@ -118,19 +149,10 @@ export function useGeneration(api: ApiClient) {
       if (streamError) throw new Error(streamError);
       if (!completedId) throw new Error('Generation ended without a completed lesson.');
 
-      const completed = await getLesson(api, completedId);
-      const access = await getLessonAccessUrl(api, completedId);
-      setLesson(completed);
-      setPreviewUrl(access.url);
-      setTitle(completed.topic);
-      setOriginalTopic(completed.topic);
+      await loadLesson(completedId);
       setTopic('');
       setSourceFiles([]);
       setProgress(100);
-      setMessages((current) => [...current, {
-        role: 'assistant',
-        content: completed.summary || 'Lesson created successfully.',
-      }]);
       window.history.replaceState({}, '', `?lessonId=${completedId}`);
     } catch (caught) {
       if (!controller.signal.aborted) {
@@ -143,7 +165,7 @@ export function useGeneration(api: ApiClient) {
       setStatus(null);
       abortRef.current = null;
     }
-  }, [api, format, lesson, loading, originalTopic, sourceFiles, topic]);
+  }, [api, format, lesson, loadLesson, loading, originalTopic, sourceFiles, topic]);
 
   const updateTitle = useCallback(async (nextTitle: string) => {
     const trimmed = nextTitle.trim();
@@ -186,6 +208,7 @@ export function useGeneration(api: ApiClient) {
     setSourceFiles,
     messages,
     loadLesson,
+    selectLessonVersion,
     stopGeneration,
     startNewLesson,
     generateLesson,

@@ -14,6 +14,10 @@ class Lesson(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     owner_id: str = Field(index=True, max_length=128)
+    # All revisions in a lesson share a root; parent preserves the edit lineage.
+    root_lesson_id: UUID = Field(index=True)
+    parent_lesson_id: UUID | None = Field(default=None, index=True)
+    version_number: int = Field(default=1, ge=1)
     topic: str = Field(max_length=500)
     format: str = Field(index=True, max_length=32)
     status: str = Field(default="generating", index=True, max_length=32)
@@ -21,6 +25,7 @@ class Lesson(SQLModel, table=True):
     source_code: str | None = Field(default=None, sa_column=Column(Text))
     object_key: str | None = Field(default=None, max_length=1024)
     error_message: str | None = Field(default=None, sa_column=Column(Text))
+    edit_instruction: str | None = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False),

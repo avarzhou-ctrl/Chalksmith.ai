@@ -1,5 +1,5 @@
 import type { ApiClient } from '@/lib/api/client';
-import type { AccessUrl, Lesson, LessonFormat, LessonListItem } from '@/lib/types/api';
+import type { AccessUrl, Lesson, LessonFormat, LessonListItem, LessonVersion } from '@/lib/types/api';
 
 export function listLessons(client: ApiClient, filters: { q?: string; format?: LessonFormat } = {}) {
   const query = new URLSearchParams();
@@ -11,6 +11,10 @@ export function listLessons(client: ApiClient, filters: { q?: string; format?: L
 
 export function getLesson(client: ApiClient, lessonId: string) {
   return client.request<Lesson>(`/v2/lessons/${lessonId}`);
+}
+
+export function getLessonVersions(client: ApiClient, lessonId: string) {
+  return client.request<LessonVersion[]>(`/v2/lessons/${lessonId}/versions`);
 }
 
 export function renameLesson(client: ApiClient, lessonId: string, topic: string) {

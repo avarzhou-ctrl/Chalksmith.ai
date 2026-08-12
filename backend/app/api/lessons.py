@@ -13,12 +13,14 @@ from backend.app.api.schemas import (
     LessonListItem,
     LessonResponse,
     LessonUpdate,
+    LessonVersionResponse,
 )
 from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
 from backend.app.db.lessons import (
-    delete_lesson,
     get_owned_lesson,
+    get_lesson_root,
+    list_lesson_versions,
     list_owned_lessons,
     save_lesson,
 )
@@ -43,7 +45,12 @@ def list_lessons(
     user: AuthUser = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    return list_owned_lessons(session, user.uid, query=q, lesson_format=format)
+    return [
+        LessonListItem.model_validate(lesson).model_copy(
+            update={"version_count": len(list_lesson_versions(session, lesson))}
+        )
+        for lesson in list_owned_lessons(session, user.uid, query=q, lesson_format=format)
+    ]
 
 
 @router.get("/{lesson_id}", response_model=LessonResponse)
@@ -53,6 +60,16 @@ def get_lesson(
     session: Session = Depends(get_session),
 ):
     return _owned_or_404(session, lesson_id, user.uid)
+
+
+@router.get("/{lesson_id}/versions", response_model=list[LessonVersionResponse])
+def get_lesson_versions(
+    lesson_id: UUID,
+    user: AuthUser = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    lesson = _owned_or_404(session, lesson_id, user.uid)
+    return list_lesson_versions(session, lesson)
 
 
 @router.patch("/{lesson_id}", response_model=LessonResponse)
@@ -72,8 +89,13 @@ def update_lesson(
     topic = update.topic.strip()
     if not topic:
         raise AppError(code="topic_required", message="A lesson topic is required.", status_code=422)
-    lesson.topic = topic
-    return save_lesson(session, lesson)
+    root = get_lesson_root(session, lesson)
+    if root is None:
+        raise AppError(code="lesson_not_found", message="Lesson not found.", status_code=404)
+    for version in list_lesson_versions(session, root):
+        version.topic = topic
+        save_lesson(session, version)
+    return _owned_or_404(session, lesson_id, user.uid)
 
 
 @router.delete("/{lesson_id}", status_code=204)
@@ -84,27 +106,35 @@ async def remove_lesson(
     storage: GCSStorage = Depends(get_storage),
 ) -> Response:
     lesson = _owned_or_404(session, lesson_id, user.uid)
+    root = get_lesson_root(session, lesson)
+    if root is None:
+        raise AppError(code="lesson_not_found", message="Lesson not found.", status_code=404)
+    versions = list_lesson_versions(session, root)
     # A retryable storage/DB failure must never leave a ready record pointing at a missing file.
-    lesson.status = "deleting"
-    save_lesson(session, lesson)
-    try:
-        await asyncio.to_thread(storage.delete_prefix, f"sources/{user.uid}/{lesson.id}/")
-    except Exception as error:
-        raise AppError(
-            code="storage_delete_failed",
-            message="The lesson source files could not be deleted.",
-            status_code=503,
-        ) from error
-    if lesson.object_key:
+    for version in versions:
+        version.status = "deleting"
+        save_lesson(session, version)
+    for version in versions:
         try:
-            await asyncio.to_thread(storage.delete, lesson.object_key)
+            await asyncio.to_thread(storage.delete_prefix, f"sources/{user.uid}/{version.id}/")
         except Exception as error:
             raise AppError(
                 code="storage_delete_failed",
-                message="The lesson file could not be deleted.",
+                message="The lesson source files could not be deleted.",
                 status_code=503,
             ) from error
-    delete_lesson(session, lesson)
+        if version.object_key:
+            try:
+                await asyncio.to_thread(storage.delete, version.object_key)
+            except Exception as error:
+                raise AppError(
+                    code="storage_delete_failed",
+                    message="The lesson file could not be deleted.",
+                    status_code=503,
+                ) from error
+    for version in versions:
+        session.delete(version)
+    session.commit()
     return Response(status_code=204)
 
 

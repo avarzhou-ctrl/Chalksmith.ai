@@ -65,6 +65,16 @@ class FakeStorage:
                 self.objects.pop(key)
 
 
+def _completed_lesson_id(stream: str) -> str:
+    completed_line = next(
+        line for block in stream.split("\n\n")
+        if "event: complete" in block
+        for line in block.splitlines()
+        if line.startswith("data: ")
+    )
+    return __import__("json").loads(completed_line[6:])["lesson_id"]
+
+
 class V2ApiTests(unittest.TestCase):
     def setUp(self) -> None:
         settings = Settings(
@@ -120,6 +130,39 @@ class V2ApiTests(unittest.TestCase):
         access_response = self.client.post(f"/v2/lessons/{lesson_id}/access-url")
         self.assertEqual(access_response.status_code, 200)
         self.assertEqual(access_response.json()["expires_in"], 300)
+
+    def test_edits_are_versions_of_one_dashboard_lesson(self) -> None:
+        first = self.client.post(
+            "/v2/generations",
+            data={"topic": "Pythagorean theorem", "format": "interactive"},
+        )
+        first_id = _completed_lesson_id(first.text)
+
+        edited = self.client.post(
+            "/v2/generations",
+            data={
+                "topic": "Pythagorean theorem",
+                "format": "interactive",
+                "base_lesson_id": first_id,
+                "edit_instruction": "Add a worked example.",
+            },
+        )
+        edited_id = _completed_lesson_id(edited.text)
+
+        dashboard = self.client.get("/v2/lessons")
+        self.assertEqual(dashboard.status_code, 200)
+        rows = dashboard.json()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["id"], first_id)
+        self.assertEqual(rows[0]["version_count"], 2)
+
+        versions = self.client.get(f"/v2/lessons/{edited_id}/versions")
+        self.assertEqual(versions.status_code, 200)
+        history = versions.json()
+        self.assertEqual([version["id"] for version in history], [first_id, edited_id])
+        self.assertEqual([version["version_number"] for version in history], [1, 2])
+        self.assertEqual(history[1]["parent_lesson_id"], first_id)
+        self.assertEqual(history[1]["edit_instruction"], "Add a worked example.")
 
     def test_lesson_queries_are_tenant_isolated(self) -> None:
         with Session(self.app.state.engine) as session:

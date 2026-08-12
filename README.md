@@ -42,7 +42,7 @@ Supported, exportable formats include:
 * Natural Selection
 
 ## Motivation
-Did you know **teachers** spend up to **12 hours** per week on lessons?—5 hours collecting resources, 7 hours building them from scratch. As a high schooler attending an international school with a highly diverse student body, I acutely perceived this issue, especially in STEM subjects where prior experience differed drastically.
+Did you know **teachers** spend up to **12 hours** per week on lessons? 5 hours collecting resources, 7 hours building them from scratch. As a high schooler attending an international school with a highly diverse student body, I acutely perceived this issue, especially in STEM subjects where prior experience differed drastically.
 
 From this issue emerged the incentive to create a solution. Over these past few months, I learned how to code, design, and deploy websites, and tested my website with over **50+ students and teachers** across K12 grades.
 
@@ -129,8 +129,6 @@ flowchart LR
     Renderer -->|"Structured stdout"| Logs
     GCS -->|"Short-lived signed URL"| Browser
 
-    classDef managedData fill:#14532d,stroke:#22c55e,color:#f0fdf4,stroke-width:2px;
-    class GCS managedData;
 ```
 
 A generation request follows one path:
@@ -144,11 +142,32 @@ A generation request follows one path:
 
 The renderer has no Cloud SQL, GCS, Secret Manager, or LLM permissions. The complete API contract, security rationale, migration plan, and implementation decisions are in [REFACTOR.md](REFACTOR.md).
 
-## Google Cloud Platform
+## Production Deployment
 
-All Google Cloud setup, local credentials, IAM, Vertex AI, GCS, Cloud SQL, Cloud Run deployment, and troubleshooting instructions are maintained in [GCP.md](GCP.md). Clerk application setup and session-token configuration are documented separately in [CLERK.md](CLERK.md).
+Complete the project prerequisites, production service-account configuration, and secret setup in [GCP.md](GCP.md) and the Clerk configuration in [CLERK.md](CLERK.md) before deploying.
 
----
+Authenticate as the deployment account, then export the required values:
+
+```bash
+gcloud auth login
+gcloud config set project your-project-id
+
+export PROJECT_ID=your-project-id
+export REGION=us-central1
+export LLM_PROVIDER=vertex
+export LLM_MODEL=gemini-3.6-flash
+export VERTEX_AI_LOCATION=global
+export DB_PASSWORD_SECRET_NAME=chalksmith-db-password
+export CLERK_PUBLISHABLE_KEY=pk_live_...
+export CLERK_SECRET_KEY_SECRET_NAME=chalksmith-clerk-secret-key
+export CLERK_ISSUER=https://<production-instance>.clerk.accounts.dev
+
+bash infra/gcloud/deploy.sh
+```
+
+The script enables APIs; provisions Artifact Registry, private GCS, and Cloud SQL; creates least-privilege runtime identities; builds the API, renderer, and web images; deploys the services; and adds the generated web hostname to the API CORS and Clerk authorized-party allowlists.
+
+After the first deployment, add the printed web hostname to the allowed URLs in the Clerk dashboard. Rebuild the web image when `NEXT_PUBLIC_API_URL` or `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` changes. For OpenAI, set `LLM_PROVIDER=openai` and export `LLM_SECRET_NAME` with the OpenAI-key secret name.
 
 ## Local Development and Debugging
 
@@ -159,6 +178,8 @@ Install the following tools:
 - Git, Node.js 24+, and npm.
 - [uv](https://docs.astral.sh/uv/); uv installs the pinned Python 3.12 runtime and manages `backend/.venv`.
 - Manim's operating-system dependencies for video generation. The renderer image installs Cairo, Pango, FFmpeg, build tools, and `pkg-config`; see the [Manim installation guide](https://docs.manim.community/en/stable/installation.html) for the equivalent host setup.
+
+Google Cloud prerequisites, local credentials, IAM, Vertex AI, GCS, Cloud SQL, and troubleshooting are maintained in [GCP.md](GCP.md). Clerk application setup and session-token configuration are documented separately in [CLERK.md](CLERK.md).
 
 Complete the Clerk and Google Cloud setup described above before testing authenticated generation. Marketing pages, frontend builds, health checks, and unit tests can run without live cloud services.
 

@@ -158,6 +158,7 @@ export default function SearchPage() {
                     format={lesson.format}
                     status={lesson.status}
                     createdAt={lesson.created_at}
+                    versionCount={lesson.version_count}
                     onDelete={() => handleDeleteLesson(lesson.id)}
                   />
                 ))}

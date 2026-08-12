@@ -3,6 +3,7 @@ from urllib.parse import quote_plus
 
 from sqlalchemy.pool import StaticPool
 from fastapi import Request
+from sqlalchemy import inspect, text
 from sqlmodel import Session, SQLModel, create_engine
 
 from backend.app.core.config import Settings, get_settings
@@ -57,7 +58,32 @@ def get_engine():
 
 
 def create_db_and_tables(engine=None) -> None:
-    SQLModel.metadata.create_all(engine or get_engine())
+    active_engine = engine or get_engine()
+    SQLModel.metadata.create_all(active_engine)
+    _migrate_lesson_versions(active_engine)
+
+
+def _migrate_lesson_versions(engine) -> None:
+    """Keep the lightweight local/legacy schema compatible without an ORM migration tool."""
+    columns = {column["name"] for column in inspect(engine).get_columns("lessons")}
+    dialect = engine.dialect.name
+    additions = {
+        "root_lesson_id": "UUID" if dialect == "postgresql" else "CHAR(32)",
+        "parent_lesson_id": "UUID" if dialect == "postgresql" else "CHAR(32)",
+        "version_number": "INTEGER NOT NULL DEFAULT 1",
+        "edit_instruction": "TEXT",
+    }
+    with engine.begin() as connection:
+        for name, definition in additions.items():
+            if name not in columns:
+                connection.execute(text(f"ALTER TABLE lessons ADD COLUMN {name} {definition}"))
+        connection.execute(text("UPDATE lessons SET root_lesson_id = id WHERE root_lesson_id IS NULL"))
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_lessons_owner_root "
+                "ON lessons (owner_id, root_lesson_id)"
+            )
+        )
 
 
 def get_session(request: Request):

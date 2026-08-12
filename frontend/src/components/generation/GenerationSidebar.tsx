@@ -11,6 +11,8 @@ interface GenerationSidebarProps {
   onToggle: () => void;
   title: string;
   messages: GenerationMessage[];
+  selectedLessonId: string | null;
+  onSelectVersion: (lessonId: string) => void;
   loading: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   format: string;
@@ -31,6 +33,8 @@ export default function GenerationSidebar({
   onToggle,
   title,
   messages,
+  selectedLessonId,
+  onSelectVersion,
   loading,
   messagesEndRef,
   format,
@@ -92,18 +96,23 @@ export default function GenerationSidebar({
                 </div>
               )}
               {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
-                  <div className={`max-w-[90%] p-4 rounded-2xl text-sm ${
+                <div key={`${msg.lessonId ?? 'draft'}-${msg.role}-${i}`} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
+                  <button
+                    type="button"
+                    disabled={!msg.lessonId || loading}
+                    onClick={() => msg.lessonId && onSelectVersion(msg.lessonId)}
+                    className={`max-w-[90%] p-4 rounded-2xl text-left text-sm transition-colors ${
                     msg.role === 'user' 
                       ? 'bg-accent text-primary-text rounded-tr-none shadow-lg shadow-accent/10' 
                       : 'bg-surface/50 text-primary-text rounded-tl-none border border-border/50'
-                  }`}>
+                  } ${msg.lessonId ? 'cursor-pointer hover:ring-1 hover:ring-accent/70 focus:outline-none focus:ring-2 focus:ring-accent' : 'cursor-default'} ${msg.lessonId === selectedLessonId ? 'ring-2 ring-accent' : ''}`}>
+                    {msg.versionNumber && <span className="mb-1 block text-xs font-medium text-secondary-text">Version {msg.versionNumber}</span>}
                     {msg.role === 'assistant' && typeof msg.content === 'string' ? (
                       <FormatOutput rawContent={msg.content} />
                     ) : (
                       msg.content
                     )}
-                  </div>
+                  </button>
                 </div>
               ))}
               {loading && (

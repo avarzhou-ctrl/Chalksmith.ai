@@ -12,6 +12,9 @@ class LessonResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    root_lesson_id: UUID
+    parent_lesson_id: UUID | None
+    version_number: int
     topic: str
     format: LessonFormat
     status: Literal["generating", "ready", "failed", "deleting"]
@@ -22,10 +25,16 @@ class LessonResponse(BaseModel):
     updated_at: datetime
 
 
+class LessonVersionResponse(LessonResponse):
+    edit_instruction: str | None
+
+
 class LessonListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    root_lesson_id: UUID
+    version_count: int = 1
     topic: str
     format: LessonFormat
     status: Literal["generating", "ready", "failed", "deleting"]

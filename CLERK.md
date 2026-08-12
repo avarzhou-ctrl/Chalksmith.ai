@@ -62,10 +62,10 @@ The publishable key is compiled into the web image. Store the secret key in Goog
 
 ```bash
 gcloud secrets create chalksmith-clerk-secret-key \
-  --project=gemini-code-shark \
+  --project=your-project-id \
   --replication-policy=automatic
 gcloud secrets versions add chalksmith-clerk-secret-key \
-  --project=gemini-code-shark \
+  --project=your-project-id \
   --data-file=-
 ```
 

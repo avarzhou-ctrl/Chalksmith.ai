@@ -70,6 +70,7 @@ export default function Dashboard() {
                     format={lesson.format}
                     status={lesson.status}
                     createdAt={lesson.created_at}
+                    versionCount={lesson.version_count}
                     onDelete={() => void remove(lesson.id)}
                   />
                 ))}

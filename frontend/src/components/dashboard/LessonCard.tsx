@@ -18,6 +18,7 @@ interface LessonCardProps {
     format: string;
     status: LessonListItem['status'];
     createdAt: string;
+    versionCount: number;
     onDelete: () => void;
 }
 
@@ -28,6 +29,7 @@ export default function LessonCard({
     format,
     status,
     createdAt,
+    versionCount,
     onDelete,
 }: LessonCardProps) {
     const api = useApi();
@@ -166,7 +168,7 @@ export default function LessonCard({
             )}
             <div className="relative z-10 mt-auto flex items-center justify-between gap-3 pt-4">
                 <p className="truncate text-xs text-secondary-text">{formattedDate}</p>
-                <p className="truncate text-xs text-secondary-text">{formatLabel}</p>
+                <p className="truncate text-xs text-secondary-text">{versionCount} {versionCount === 1 ? 'version' : 'versions'} · {formatLabel}</p>
             </div>
             
             {/* Delete Confirmation Modal */}

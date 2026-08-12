@@ -10,6 +10,9 @@ export interface ApiErrorBody {
 
 export interface Lesson {
   id: string;
+  root_lesson_id: string;
+  parent_lesson_id: string | null;
+  version_number: number;
   topic: string;
   format: LessonFormat;
   status: 'generating' | 'ready' | 'failed' | 'deleting';
@@ -20,10 +23,14 @@ export interface Lesson {
   updated_at: string;
 }
 
+export interface LessonVersion extends Lesson {
+  edit_instruction: string | null;
+}
+
 export type LessonListItem = Pick<
   Lesson,
-  'id' | 'topic' | 'format' | 'status' | 'summary' | 'created_at' | 'updated_at'
->;
+  'id' | 'root_lesson_id' | 'topic' | 'format' | 'status' | 'summary' | 'created_at' | 'updated_at'
+> & { version_count: number };
 
 export interface GenerationRequest {
   topic: string;

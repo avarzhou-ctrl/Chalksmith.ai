@@ -35,6 +35,7 @@ export default function GenerationPage() {
     setSourceFiles,
     messages,
     loadLesson,
+    selectLessonVersion,
     stopGeneration,
     startNewLesson,
     generateLesson,
@@ -99,6 +100,8 @@ export default function GenerationPage() {
               onToggle={togglePanel}
               title={title}
               messages={messages}
+              selectedLessonId={lesson?.id ?? null}
+              onSelectVersion={(lessonId) => void selectLessonVersion(lessonId)}
               loading={loading}
               messagesEndRef={messagesEndRef}
               format={format}

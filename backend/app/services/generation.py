@@ -11,7 +11,12 @@ from uuid import UUID
 
 from sqlmodel import Session
 
-from backend.app.db.lessons import create_lesson, get_owned_lesson, save_lesson
+from backend.app.db.lessons import (
+    create_lesson,
+    get_owned_lesson,
+    next_version_number,
+    save_lesson,
+)
 from backend.app.integrations.llm.base import LLMProvider, LLMProviderError
 from backend.app.integrations.storage import GCSStorage
 from backend.app.renderers.base import RenderError, Renderer
@@ -58,24 +63,35 @@ class GenerationService:
         base_lesson_id: UUID | None,
         edit_instruction: str | None,
     ) -> AsyncIterator[str]:
+        started = monotonic()
+        owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()[:16]
+        object_key: str | None = None
+        previous_code = None
+        root_lesson_id = None
+        parent_lesson_id = None
+        version_number = 1
+        if base_lesson_id:
+            base_lesson = get_owned_lesson(self.session, base_lesson_id, owner_id)
+            if not base_lesson:
+                raise ValueError("The lesson to edit was not found.")
+            previous_code = base_lesson.source_code
+            root_lesson_id = base_lesson.root_lesson_id
+            parent_lesson_id = base_lesson.id
+            version_number = next_version_number(self.session, root_lesson_id, owner_id)
+
         lesson = create_lesson(
             self.session,
             owner_id=owner_id,
             topic=topic,
             lesson_format=lesson_format,
+            root_lesson_id=root_lesson_id,
+            parent_lesson_id=parent_lesson_id,
+            version_number=version_number,
+            edit_instruction=edit_instruction,
         )
-        started = monotonic()
-        owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()[:16]
-        object_key: str | None = None
         yield _event("started", {"lesson_id": str(lesson.id)})
 
         try:
-            previous_code = None
-            if base_lesson_id:
-                base_lesson = get_owned_lesson(self.session, base_lesson_id, owner_id)
-                if not base_lesson:
-                    raise ValueError("The lesson to edit was not found.")
-                previous_code = base_lesson.source_code
 
             for source in sources:
                 source_key = f"sources/{owner_id}/{lesson.id}/{source.filename}"
