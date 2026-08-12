@@ -94,6 +94,7 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-08-12**: Fixed responsive p5.js pointer guidance so CSS-scaled canvases use p5's logical `mouseX`/`mouseY` coordinates without a second scale conversion, added regression coverage, and repaired the saved matrix-multiplication interactive and its private GCS preview without changing its lesson ID (`backend/app/services/prompts.py`, `backend/tests/test_v2_api.py`, `.env/chalksmith.local.db`, GCS lesson object).
 - **2026-08-12**: Switched the default Vertex AI model to the verified GA `gemini-3.6-flash` across local configuration, environment templates, and deployment documentation (`.env/.env.backend.local`, `backend/.env.example`, `GCP.md`, `README.md`).
 - **2026-08-12**: Moved the production deployment command from `GCP.md` to `README.md`, retaining GCP prerequisites, runtime identities, secrets, database initialization/v1 migration, and troubleshooting in the GCP guide (`README.md`, `GCP.md`).
 - **2026-08-12**: Aligned backend and frontend environment examples with the centralized local environment files and GCP local-development settings, including the local credential path, Vertex model, development GCS bucket, and signing service account (`backend/.env.example`, `frontend/.env.example`).

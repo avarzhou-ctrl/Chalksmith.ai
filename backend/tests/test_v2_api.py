@@ -22,6 +22,7 @@ from backend.app.renderers.html import (
     REVEAL_SCRIPT,
     REVEAL_THEME_STYLESHEET,
 )
+from backend.app.services.prompts import FORMAT_RULES
 from backend.app.services.sources import extract_sources
 
 
@@ -259,6 +260,13 @@ class V2ApiTests(unittest.TestCase):
         self.assertIn(REVEAL_CORE_STYLESHEET, rendered)
         self.assertIn(REVEAL_THEME_STYLESHEET, rendered)
         self.assertIn(REVEAL_SCRIPT, rendered)
+
+    def test_interactive_prompt_prevents_double_scaled_pointer_coordinates(self) -> None:
+        rules = FORMAT_RULES["interactive"]
+
+        self.assertIn("use `mouseX` and", rules)
+        self.assertIn("do not divide them", rules)
+        self.assertIn("p5.js `scale()`", rules)
 
 
 if __name__ == "__main__":
