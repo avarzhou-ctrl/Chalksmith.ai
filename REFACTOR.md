@@ -1,6 +1,6 @@
 # Chalksmith v2 Architecture and Refactor Record
 
-> Last reviewed: 2026-08-11
+> Last reviewed: 2026-08-12
 > Status: code architecture implemented; live-provider, cloud-resource, migration, and end-to-end production validation remain.
 
 ## 1. Goals
@@ -25,6 +25,7 @@ The v2 refactor keeps Chalksmith's product behavior while making security and ow
 | User data | Store only Clerk `sub` on lesson records | No local password store, session table, or duplicated user directory |
 | Database | SQLite locally; Cloud SQL PostgreSQL in production | Fast local setup with managed production persistence |
 | Artifacts | Private GCS objects referenced by `object_key` | Survives restarts and prevents public bucket access |
+| Lesson edits | Each edit inserts a new row sharing `root_lesson_id` | Keeps AI changes reversible instead of overwriting the previous output |
 | LLM | Deployment-selected Vertex AI or OpenAI adapter | One business flow, no provider logic in HTTP routes |
 | Video | Manim only, in a private isolated service | Generated Python must not run with database or LLM privileges |
 | Interactive/slides | p5.js and Reveal.js HTML | Code-driven, exportable browser formats |
@@ -80,7 +81,7 @@ Trust boundaries:
 - `ClerkProvider` owns browser session context.
 - Clerk modal components handle sign-up, sign-in, reset, provider callbacks, account linking, sign-out, and account settings.
 - `useApi()` calls Clerk `getToken()` and passes the returned session JWT to the shared API client.
-- The API client adds `Authorization: Bearer <token>` to JSON, upload, download, and SSE requests.
+- The API client adds `Authorization: Bearer <token>` to JSON, upload, and SSE requests.
 - A single forced token refresh is attempted after an API `401`.
 - `RequireAuth` is a presentation guard; FastAPI remains the security boundary.
 - `clerkMiddleware()` integrates Clerk with Next.js while retaining the existing marketing/app-subdomain routing behavior.
@@ -127,14 +128,18 @@ sequenceDiagram
         API->>API: Validate and secure HTML
     end
     API->>Store: Upload artifact and save lesson row
-    API-->>User: Completed lesson + signed preview URL
+    API-->>User: SSE complete with lesson_id
+    User->>API: POST /v2/lessons/{id}/access-url
+    API-->>User: Short-lived signed URL
 ```
+
+Signed URLs are never streamed; the client requests one after the stream completes.
 
 One `GenerationService` owns the full deadline and state transition:
 
-1. validate the owner and optional edit source;
-2. validate/extract PDFs and upload accepted sources;
-3. create a `generating` lesson row;
+1. validate the owner and optional edit source, deriving `root_lesson_id`, `parent_lesson_id`, and the next `version_number`;
+2. create a `generating` lesson row;
+3. upload the accepted PDF sources, which the route extracted and limit-checked before the stream opened;
 4. call the selected `LLMProvider`;
 5. parse and validate the generated source;
 6. render once, with one bounded repair attempt for video;
@@ -199,21 +204,26 @@ Authenticated application routes:
 
 ```text
 POST   /v2/generations
-GET    /v2/lessons
+GET    /v2/lessons                                  # one row per lesson root + version_count
 GET    /v2/lessons/{lesson_id}
-PATCH  /v2/lessons/{lesson_id}
-DELETE /v2/lessons/{lesson_id}
-GET    /v2/lessons/{lesson_id}/preview
-GET    /v2/lessons/{lesson_id}/download
+GET    /v2/lessons/{lesson_id}/versions             # edit lineage, oldest first
+PATCH  /v2/lessons/{lesson_id}                      # topic only, applied to every version
+DELETE /v2/lessons/{lesson_id}                      # deletes the whole lineage
+POST   /v2/lessons/{lesson_id}/access-url?download= # short-lived signed URL
 ```
 
-All lesson reads, updates, deletes, previews, and exports query by both lesson ID and authenticated owner ID. A valid user cannot discover or manipulate another user's lesson by guessing UUIDs.
+The private renderer exposes `POST /internal/render/manim`.
+
+There are no separate preview and download routes. One `access-url` endpoint returns `{"url", "expires_in"}` and only switches the signed response disposition between `inline` and `attachment`.
+
+All lesson reads, updates, deletes, and access-URL requests query by both lesson ID and authenticated owner ID. A valid user cannot discover or manipulate another user's lesson by guessing UUIDs.
 
 The frontend and backend share these canonical values:
 
 ```text
 format: interactive | slides | video
 status: generating | ready | failed | deleting
+stage:  validating | generating | rendering | repairing | saving | complete | error
 ```
 
 Errors use one envelope:
@@ -228,11 +238,13 @@ Errors use one envelope:
 }
 ```
 
-SSE emits `stage`, `progress`, `completed`, and `error` events with a single terminal event.
+SSE emits `started`, `progress`, `complete`, and `error` events, with `stage` as a field of `progress` rather than an event of its own. A stream opens with `started` and ends with exactly one `complete` or `error`; a cancelled stream emits no terminal event but still marks the lesson `failed`.
 
 ## 8. Data and storage
 
-`lessons` stores metadata, source code, status, stable `object_key`, and `owner_id`; it never stores expiring signed URLs. Object keys are namespaced:
+`lessons` stores metadata, source code, status, stable `object_key`, and `owner_id`; it never stores expiring signed URLs. Each row is one immutable version: `root_lesson_id` is shared by the lineage, `parent_lesson_id` and `edit_instruction` record where the edit came from, and `version_number` is 1-based. The first version is its own root (`id == root_lesson_id`), and the dashboard lists those root rows with a grouped `version_count`. Renames and deletes apply to the whole lineage.
+
+Object keys are namespaced:
 
 ```text
 lessons/{owner_id}/{lesson_id}/lesson.html
@@ -240,7 +252,7 @@ lessons/{owner_id}/{lesson_id}/lesson.mp4
 sources/{owner_id}/{lesson_id}/{filename}.pdf
 ```
 
-The bucket has Uniform Bucket-Level Access and Public Access Prevention. Preview/download endpoints return short-lived V4 signed URLs after owner-scoped database lookup. Uploaded source files follow lifecycle rules, and lesson deletion marks the row `deleting` before removing objects and the row so retries are safe.
+The bucket has Uniform Bucket-Level Access and Public Access Prevention. `access-url` returns a short-lived V4 signed URL after the owner-scoped database lookup, and requires `status == "ready"`. Uploaded source files follow lifecycle rules, and lesson deletion marks every version `deleting` before removing objects and rows so retries are safe.
 
 ## 9. Generated-code security
 
@@ -335,6 +347,8 @@ The migration is dry-run-first and requires:
 
 When reusing the v1 Clerk application, apply with `--preserve-owner-ids`. Otherwise provide an explicit `--owner-map`. Missing artifacts create failed lesson records rather than falsely marking the lesson ready. Remotion rows normalize to `video`; the original static file is migrated when present, but no Remotion runtime remains.
 
+Outstanding gap: the migration's `INSERT` predates version history and omits `root_lesson_id` and `version_number`, both now `NOT NULL` with no server-side default. It must seed each migrated lesson as its own version-1 root before `--apply` is run.
+
 ## 13. Removed architecture
 
 The following are intentionally absent from v2:
@@ -368,7 +382,7 @@ Still required in real environments:
 
 - Clerk sign-up/sign-in/sign-out and token renewal for every enabled provider;
 - valid, expired, wrong-issuer, wrong-`azp`, and unavailable-JWKS authentication cases;
-- v1 user/lesson ownership migration;
+- v1 user/lesson ownership migration, after the version-lineage insert gap in section 12 is fixed;
 - Vertex AI and optional OpenAI smoke tests;
 - Cloud SQL/GCS/signed-URL integration;
 - all three lesson formats through generate, edit, preview, reopen, export, and delete;
