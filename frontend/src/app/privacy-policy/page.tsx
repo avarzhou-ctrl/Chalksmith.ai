@@ -79,7 +79,7 @@ export default function PrivacyPolicyPage() {
               <ul className="mt-3 list-disc space-y-2 pl-5 text-stone-50">
                 <li>First and last name</li>
                 <li>Email</li>
-                <li>Authentication identifiers provided securely by Google Cloud Identity Platform</li>
+                <li>Authentication identifiers provided securely by Clerk</li>
                 <li>Shared with service providers</li>
               </ul>
             </section>
@@ -118,8 +118,8 @@ export default function PrivacyPolicyPage() {
           <ul className="mt-3 list-disc space-y-2 pl-5 text-stone-50">
             <li>
               Authentication Providers:{' '}
-              <a className={linkClassName} href="https://cloud.google.com/security/products/identity-platform" rel="noreferrer" target="_blank">
-                Google Cloud Identity Platform
+              <a className={linkClassName} href="https://clerk.com/" rel="noreferrer" target="_blank">
+                Clerk
               </a>{' '}
               securely manages user account creation and login sessions.
             </li>
@@ -162,7 +162,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-stone-50">
             <li>
-              Strictly Necessary Storage: Identity Platform stores essential session data in your browser so the
+              Strictly Necessary Storage: Clerk stores essential session data in your browser so the
               platform can remember your login state across pages.
             </li>
             <li>

@@ -47,11 +47,12 @@ class GCSStorage:
 
     def signed_url(self, object_key: str, *, download_name: str | None = None) -> str:
         credentials = self.client._credentials
-        if self.settings.gcs_signer_service_account:
+        signer_email = self.settings.gcs_signer_service_account
+        if signer_email and getattr(credentials, "signer_email", None) != signer_email:
             source_credentials, _ = google.auth.default()
             credentials = impersonated_credentials.Credentials(
                 source_credentials=source_credentials,
-                target_principal=self.settings.gcs_signer_service_account,
+                target_principal=signer_email,
                 target_scopes=["https://www.googleapis.com/auth/devstorage.read_only"],
                 lifetime=min(self.settings.signed_url_ttl_seconds, 3600),
             )

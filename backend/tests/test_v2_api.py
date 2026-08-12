@@ -10,7 +10,7 @@ from starlette.datastructures import Headers
 from backend.app.api.dependencies import get_renderers
 from backend.app.core.config import Settings
 from backend.app.db.lessons import create_lesson, save_lesson
-from backend.app.integrations.identity import AuthUser, get_current_user
+from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.llm.base import LLMResult
 from backend.app.integrations.llm.factory import get_llm_provider
 from backend.app.integrations.storage import get_storage

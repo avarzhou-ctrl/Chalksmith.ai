@@ -5,13 +5,18 @@ import tempfile
 import unittest
 from pathlib import Path
 from time import monotonic
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import FastAPI
+from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
+from jwt import InvalidTokenError
 
-from backend.app.core.config import Settings
+from backend.app.core.config import LOCAL_ENV_FILE, REPOSITORY_DIR, Settings
 from backend.app.core.errors import AppError
+from backend.app.integrations.auth import _decode_clerk_token, get_current_user
+from backend.app.integrations.llm.factory import create_llm_provider
+from backend.app.integrations.storage import GCSStorage
 from backend.app.main import create_app
 from backend.app.renderers.base import RenderError
 from backend.app.renderers.manim import LocalManimRenderer, is_local_renderer_url, validate_manim_code
@@ -28,15 +33,37 @@ class SettingsTests(unittest.TestCase):
             "LLM_TIMEOUT_SECONDS": "45",
         }
 
-        with patch.dict(os.environ, environment, clear=True):
+        with (
+            patch.dict(os.environ, environment, clear=True),
+            patch("backend.app.core.config.load_dotenv") as load_dotenv,
+        ):
             settings = Settings.from_env()
 
+        load_dotenv.assert_called_once_with(LOCAL_ENV_FILE)
         self.assertEqual(settings.app_env, "test")
         self.assertEqual(settings.llm_provider, "openai")
         self.assertEqual(settings.llm_timeout_seconds, 45)
         self.assertEqual(
             settings.frontend_origins,
             ("http://localhost:3000", "https://app.chalksmith.ai"),
+        )
+
+    def test_settings_resolve_centralized_service_account_path(self) -> None:
+        environment = {
+            "APP_ENV": "test",
+            "GOOGLE_APPLICATION_CREDENTIALS": ".env/service-account.json",
+        }
+
+        with (
+            patch.dict(os.environ, environment, clear=True),
+            patch("backend.app.core.config.load_dotenv"),
+        ):
+            Settings.from_env()
+            credentials_path = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+
+        self.assertEqual(
+            credentials_path,
+            str((REPOSITORY_DIR / ".env/service-account.json").resolve()),
         )
 
     def test_settings_reject_relative_frontend_origin(self) -> None:
@@ -46,7 +73,7 @@ class SettingsTests(unittest.TestCase):
     def test_production_requires_only_the_selected_llm_key(self) -> None:
         settings = Settings(
             app_env="production",
-            identity_platform_project_id="project",
+            clerk_issuer="https://clerk.example",
             llm_provider="openai",
             llm_model="gpt-test",
             openai_api_key="secret",
@@ -55,10 +82,47 @@ class SettingsTests(unittest.TestCase):
             gcs_signer_service_account="api@example.iam.gserviceaccount.com",
             manim_renderer_url="https://renderer.example",
             frontend_origins=("https://chalksmith.example",),
+            clerk_authorized_parties=("https://chalksmith.example",),
         )
 
         self.assertEqual(settings.llm_provider, "openai")
-        self.assertIsNone(settings.gemini_api_key)
+        self.assertEqual(settings.vertex_ai_location, "global")
+
+    def test_production_vertex_uses_project_identity_without_api_key(self) -> None:
+        settings = Settings(
+            app_env="production",
+            gcp_project_id="project",
+            clerk_issuer="https://clerk.example",
+            llm_provider="vertex",
+            llm_model="gemini-test",
+            vertex_ai_location="global",
+            database_url="postgresql+psycopg://user:pass@localhost/db",
+            gcs_bucket="bucket",
+            gcs_signer_service_account="api@example.iam.gserviceaccount.com",
+            manim_renderer_url="https://renderer.example",
+            frontend_origins=("https://chalksmith.example",),
+            clerk_authorized_parties=("https://chalksmith.example",),
+        )
+
+        self.assertEqual(settings.llm_provider, "vertex")
+        self.assertIsNone(settings.openai_api_key)
+
+    @patch("backend.app.integrations.llm.gemini.genai.Client")
+    def test_vertex_provider_uses_adc_project_and_location(self, client: MagicMock) -> None:
+        settings = Settings(
+            gcp_project_id="project",
+            llm_provider="vertex",
+            llm_model="gemini-test",
+            vertex_ai_location="global",
+        )
+
+        create_llm_provider(settings)
+
+        client.assert_called_once_with(vertexai=True, project="project", location="global")
+
+    def test_vertex_provider_requires_project(self) -> None:
+        with self.assertRaisesRegex(AppError, "GCP_PROJECT_ID"):
+            create_llm_provider(Settings(llm_provider="vertex", llm_model="gemini-test"))
 
     def test_production_api_rejects_incomplete_configuration(self) -> None:
         with self.assertRaises(ValueError):
@@ -68,29 +132,114 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "must use HTTPS"):
             Settings(
                 app_env="production",
-                identity_platform_project_id="project",
+                gcp_project_id="project",
+                clerk_issuer="https://clerk.example",
                 llm_model="model",
-                gemini_api_key="secret",
                 database_url="postgresql+psycopg://user:pass@localhost/db",
                 gcs_bucket="bucket",
                 gcs_signer_service_account="api@example.iam.gserviceaccount.com",
                 manim_renderer_url="http://renderer.example",
                 frontend_origins=("https://chalksmith.example",),
+                clerk_authorized_parties=("https://chalksmith.example",),
             )
 
     def test_production_rejects_insecure_frontend_origins(self) -> None:
         with self.assertRaisesRegex(ValueError, "must use HTTPS"):
             Settings(
                 app_env="production",
-                identity_platform_project_id="project",
+                gcp_project_id="project",
+                clerk_issuer="https://clerk.example",
                 llm_model="model",
-                gemini_api_key="secret",
                 database_url="postgresql+psycopg://user:pass@localhost/db",
                 gcs_bucket="bucket",
                 gcs_signer_service_account="api@example.iam.gserviceaccount.com",
                 manim_renderer_url="https://renderer.example",
                 frontend_origins=("http://chalksmith.example",),
+                clerk_authorized_parties=("https://chalksmith.example",),
             )
+
+
+class AuthenticationTests(unittest.IsolatedAsyncioTestCase):
+    def test_clerk_token_rejects_an_untrusted_authorized_party(self) -> None:
+        settings = Settings(
+            app_env="test",
+            clerk_issuer="https://clerk.example",
+            clerk_authorized_parties=("http://localhost:3000",),
+        )
+        jwks_client = MagicMock()
+        jwks_client.get_signing_key_from_jwt.return_value.key = "public-key"
+
+        with (
+            patch("backend.app.integrations.auth._jwks_client", return_value=jwks_client),
+            patch(
+                "backend.app.integrations.auth.jwt.decode",
+                return_value={"sub": "user_123", "azp": "https://attacker.example"},
+            ),
+            self.assertRaises(InvalidTokenError),
+        ):
+            _decode_clerk_token("session-token", settings)
+
+    async def test_clerk_subject_becomes_the_tenant_owner(self) -> None:
+        request = MagicMock()
+        request.app.state.settings = Settings(
+            app_env="test",
+            clerk_issuer="https://clerk.example",
+        )
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="session-token")
+
+        with patch(
+            "backend.app.integrations.auth._decode_clerk_token",
+            return_value={"sub": "user_123", "email": "teacher@example.com"},
+        ):
+            user = await get_current_user(request, credentials)
+
+        self.assertEqual(user.uid, "user_123")
+        self.assertEqual(user.email, "teacher@example.com")
+
+    async def test_invalid_clerk_token_returns_unauthorized(self) -> None:
+        request = MagicMock()
+        request.app.state.settings = Settings(
+            app_env="test",
+            clerk_issuer="https://clerk.example",
+        )
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="invalid-token")
+
+        with patch(
+            "backend.app.integrations.auth._decode_clerk_token",
+            side_effect=InvalidTokenError("invalid"),
+        ), self.assertRaises(AppError) as raised:
+            await get_current_user(request, credentials)
+
+        self.assertEqual(raised.exception.status_code, 401)
+        self.assertEqual(raised.exception.code, "invalid_session_token")
+
+
+class StorageTests(unittest.TestCase):
+    @patch("backend.app.integrations.storage.impersonated_credentials.Credentials")
+    @patch("backend.app.integrations.storage.storage.Client")
+    def test_signed_url_reuses_matching_impersonated_adc(
+        self,
+        storage_client: MagicMock,
+        impersonated_credentials: MagicMock,
+    ) -> None:
+        signer_email = "api@example.iam.gserviceaccount.com"
+        client = storage_client.return_value
+        client._credentials.signer_email = signer_email
+        blob = client.bucket.return_value.blob.return_value
+        blob.generate_signed_url.return_value = "https://signed.example"
+        storage_backend = GCSStorage(
+            Settings(
+                gcp_project_id="project",
+                gcs_bucket="bucket",
+                gcs_signer_service_account=signer_email,
+            )
+        )
+
+        url = storage_backend.signed_url("lessons/output.html")
+
+        self.assertEqual(url, "https://signed.example")
+        impersonated_credentials.assert_not_called()
+        self.assertIs(blob.generate_signed_url.call_args.kwargs["credentials"], client._credentials)
 
 
 class ApplicationTests(unittest.TestCase):

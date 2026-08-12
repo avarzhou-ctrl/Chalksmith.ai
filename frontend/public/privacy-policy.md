@@ -14,7 +14,7 @@ We only collect information about you if we have a reason to do so — for examp
 - *Examples of Personal Data We Collect*
     - First and last name
     - Email
-    - Authentication identifiers (provided securely by Google Cloud Identity Platform)
+    - Authentication identifiers (provided securely by Clerk)
 - *Categories of Third Parties With Whom We Share this Personal Data*
     - Service Providers
 
@@ -38,7 +38,7 @@ We use the Personal Data we collect for the following operational purposes:
 
 ### How We Share Your Personal Data
 We do not sell your Personal Data. We only share your data with trusted third-party subprocessors necessary to deliver our Services:
-- **Authentication Providers ([Google Cloud Identity Platform](https://cloud.google.com/security/products/identity-platform)):** To securely manage your user account creation and secure login sessions.
+- **Authentication Providers ([Clerk](https://clerk.com/)):** To securely manage your user account creation and secure login sessions.
 - **Database Infrastructure ([Google Cloud SQL](https://cloud.google.com/sql)):** To host and manage lesson metadata and ownership records.
 - **AI Engine Partners ([Google Gemini](https://gemini.google.com/)):** Your text prompt inputs are forwarded to upstream artificial intelligence models to synthesize your educational visualizations. *Note: We do not share your name, email, or profile data with these providers.*
 

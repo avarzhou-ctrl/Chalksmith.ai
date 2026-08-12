@@ -7,7 +7,7 @@ If you have any questions or feedback regarding these terms, please contact us a
 ## Account Creation and Authentication
 
 To access our STEM workspace, you must register for an account. 
-- **Authentication Providers:** We utilize **Google Cloud Identity Platform** to handle user registration, identity verification, and login sessions securely.
+- **Authentication Providers:** We utilize **Clerk** to handle user registration, identity verification, and login sessions securely.
 - **Account Responsibility:** You are entirely responsible for maintaining the confidentiality of your session keys and account data. You agree to notify us immediately of any unauthorized access or security breach.
 - **Accurate Information:** You must provide us with a valid email address and accurate profiling information so we can manage your service access correctly.
 

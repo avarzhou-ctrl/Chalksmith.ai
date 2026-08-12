@@ -3,18 +3,23 @@ from fastapi import Request
 from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
 from backend.app.integrations.llm.base import LLMProvider
-from backend.app.integrations.llm.gemini import GeminiProvider
+from backend.app.integrations.llm.gemini import VertexGeminiProvider
 from backend.app.integrations.llm.openai import OpenAIProvider
 
 
 def create_llm_provider(settings: Settings) -> LLMProvider:
     if not settings.llm_model:
         raise AppError(code="llm_not_configured", message="LLM_MODEL is not configured.", status_code=503)
-    if settings.llm_provider == "gemini":
-        if not settings.gemini_api_key:
-            raise AppError(code="llm_not_configured", message="GEMINI_API_KEY is not configured.", status_code=503)
-        return GeminiProvider(
-            api_key=settings.gemini_api_key.get_secret_value(),
+    if settings.llm_provider == "vertex":
+        if not settings.gcp_project_id:
+            raise AppError(
+                code="llm_not_configured",
+                message="GCP_PROJECT_ID is not configured for Vertex AI.",
+                status_code=503,
+            )
+        return VertexGeminiProvider(
+            project=settings.gcp_project_id,
+            location=settings.vertex_ai_location,
             model=settings.llm_model,
             timeout_seconds=settings.llm_timeout_seconds,
             max_output_tokens=settings.llm_max_output_tokens,

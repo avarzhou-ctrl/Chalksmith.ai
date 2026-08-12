@@ -6,9 +6,17 @@ from google.genai import types
 from backend.app.integrations.llm.base import LLMProviderError, LLMResult
 
 
-class GeminiProvider:
-    def __init__(self, *, api_key: str, model: str, timeout_seconds: int, max_output_tokens: int) -> None:
-        self.client = genai.Client(api_key=api_key)
+class VertexGeminiProvider:
+    def __init__(
+        self,
+        *,
+        project: str,
+        location: str,
+        model: str,
+        timeout_seconds: int,
+        max_output_tokens: int,
+    ) -> None:
+        self.client = genai.Client(vertexai=True, project=project, location=location)
         self.model = model
         self.timeout_seconds = timeout_seconds
         self.max_output_tokens = max_output_tokens
@@ -29,7 +37,7 @@ class GeminiProvider:
             usage = response.usage_metadata
             return LLMResult(
                 text=response.text or "",
-                provider="gemini",
+                provider="vertex",
                 model=self.model,
                 input_tokens=getattr(usage, "prompt_token_count", None),
                 output_tokens=getattr(usage, "candidates_token_count", None),

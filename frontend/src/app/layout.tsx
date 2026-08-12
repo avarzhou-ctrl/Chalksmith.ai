@@ -1,10 +1,10 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next'
+import { ClerkProvider } from '@clerk/nextjs'
 import './globals.css'
 
 import Link from 'next/link'
 import { AuthButton } from '@/components/auth/AuthButton'
-import { AuthProvider } from '@/components/auth/AuthProvider'
 
 export const metadata: Metadata = {
   title: 'Chalksmith | Code-Driven STEM Animations',
@@ -24,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-primary-bg text-primary-text antialiased">
-        <AuthProvider>
+        <ClerkProvider>
           <header
             data-site-header
             className="sticky top-0 z-50 mx-auto flex w-full max-w-7xl items-center justify-between border-b border-stone-800 bg-primary-bg/90 px-4 py-5 backdrop-blur sm:px-6 lg:px-8"
@@ -47,7 +47,7 @@ export default function RootLayout({
             <AuthButton />
           </header>
           {children}
-        </AuthProvider>
+        </ClerkProvider>
       </body>
     </html>
   )

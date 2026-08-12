@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { SignUpButton, useAuth } from '@clerk/nextjs';
 import { ArrowRight } from 'lucide-react';
 import CodeDrivenDemo from '@/components/home/CodeDrivenDemo';
 import ExamplesCarousel from '@/components/home/ExamplesCarousel';
 import FaqSection from '@/components/home/FaqSection';
 import Footer from '@/components/home/Footer';
-import { useAuth } from '@/components/auth/AuthProvider';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text transition-colors duration-300 hover:bg-amber-700';
 const ctaSizeClasses = {
@@ -27,11 +27,11 @@ function PrimaryCtaLink({ href, children, size = 'md' }: { href: string; childre
 }
 
 function BuildLessonCta() {
-  const { loading, user, openAuth } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
 
-  if (!loading && user) {
+  if (isLoaded && isSignedIn) {
     return (
-      <PrimaryCtaLink href="https://app.chalksmith.ai" size="lg">
+      <PrimaryCtaLink href="/generation" size="lg">
         Try Chalksmith Free
         <ArrowRight size={18} />
       </PrimaryCtaLink>
@@ -39,10 +39,12 @@ function BuildLessonCta() {
   }
 
   return (
-      <button type="button" onClick={openAuth} disabled={loading} className={`${ctaBaseClasses} ${ctaSizeClasses.lg} disabled:opacity-50`}>
+    <SignUpButton mode="modal" forceRedirectUrl="/generation" signInForceRedirectUrl="/generation">
+      <button type="button" disabled={!isLoaded} className={`${ctaBaseClasses} ${ctaSizeClasses.lg} disabled:opacity-50`}>
         Try Chalksmith Free
         <ArrowRight size={18} />
       </button>
+    </SignUpButton>
   );
 }
 

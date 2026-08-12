@@ -30,11 +30,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--apply", action="store_true", help="Write rows and upload files.")
     parser.add_argument("--static-root", type=Path, default=Path("backend/static"))
     parser.add_argument("--orphan-owner", help="Owner uid to use only for legacy rows with no user_id.")
-    parser.add_argument("--owner-map", type=Path, help="JSON object mapping Clerk uid to Identity Platform uid.")
+    parser.add_argument("--owner-map", type=Path, help="Optional JSON object remapping legacy Clerk user ids.")
     parser.add_argument(
         "--preserve-owner-ids",
         action="store_true",
-        help="Keep legacy owner ids only when Identity Platform was imported with identical uids.",
+        help="Keep the legacy Clerk owner ids used by the current authentication system.",
     )
     return parser.parse_args()
 

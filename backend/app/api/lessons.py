@@ -23,7 +23,7 @@ from backend.app.db.lessons import (
     save_lesson,
 )
 from backend.app.db.session import get_session
-from backend.app.integrations.identity import AuthUser, get_current_user
+from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.storage import GCSStorage, get_storage
 
 router = APIRouter(prefix="/v2/lessons", tags=["lessons"])

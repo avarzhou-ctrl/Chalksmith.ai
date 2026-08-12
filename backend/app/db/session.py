@@ -20,7 +20,7 @@ def build_database_url(settings: Settings) -> str:
     )
     if not all(required):
         if settings.app_env in {"local", "test"}:
-            return "sqlite:///./backend/chalksmith.local.db"
+            return "sqlite:///./.env/chalksmith.local.db"
         raise AppError(
             code="database_not_configured",
             message="Cloud SQL configuration is incomplete.",

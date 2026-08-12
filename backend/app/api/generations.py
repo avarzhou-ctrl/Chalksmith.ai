@@ -12,7 +12,7 @@ from backend.app.api.schemas import LessonFormat
 from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
 from backend.app.db.session import get_session
-from backend.app.integrations.identity import AuthUser, get_current_user
+from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.llm import get_llm_provider
 from backend.app.integrations.llm.base import LLMProvider
 from backend.app.integrations.storage import GCSStorage, get_storage
