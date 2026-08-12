@@ -80,9 +80,11 @@ export default function GenerationPage() {
                   {lesson ? (
                     showCode
                       ? <SyntaxHighlighter language={format === 'video' ? 'python' : 'html'} style={vscDarkPlus} customStyle={{ background: 'transparent', margin: 0, padding: '2rem', minHeight: '100%' }}>{lesson.source_code || ''}</SyntaxHighlighter>
-                      : format === 'video'
-                        ? <video className="h-full w-full bg-black object-contain" src={previewUrl} controls autoPlay />
-                        : <iframe key={previewUrl} src={previewUrl} className="h-full w-full border-none bg-white" title="Lesson preview" sandbox="allow-scripts" />
+                      : previewUrl
+                        ? format === 'video'
+                          ? <video className="h-full w-full bg-black object-contain" src={previewUrl} controls autoPlay />
+                          : <iframe key={previewUrl} src={previewUrl} className="h-full w-full border-none bg-white" title="Lesson preview" sandbox="allow-scripts" />
+                        : <section className="m-auto p-8 text-center text-secondary-text">Loading lesson preview…</section>
                   ) : <section className="m-auto max-w-md p-8 text-center"><h2 className="text-2xl font-bold">Lesson Preview</h2><p className="mt-4 text-lg text-secondary-text">Describe a topic and choose a format to create a lesson.</p></section>}
 
                   {loading && <section className="absolute inset-0 z-50 grid place-items-center bg-primary-bg/90 p-8 backdrop-blur-xl"><div className="w-full max-w-md text-center"><Flame className="mx-auto size-16 animate-pulse text-accent" /><h2 className="mt-6 text-3xl font-bold text-accent">Chalksmith.ai</h2><p className="mt-2 text-sm text-secondary-text">{status}</p><div className="mt-8 h-1.5 overflow-hidden rounded-full bg-surface"><div className="h-full bg-accent transition-all" style={{ width: `${progress}%` }} /></div></div></section>}

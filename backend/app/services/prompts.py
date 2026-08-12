@@ -18,7 +18,12 @@ Do not load other remote content and do not use eval, Function, document.write, 
 attributes, forms, or a build step.
 """,
     "slides": """
-Return one complete HTML document using Reveal.js from cdn.jsdelivr.net or cdnjs.cloudflare.com.
+Return one complete HTML document using exactly these verified Reveal.js assets:
+https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css
+https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/black.min.css
+https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js
+Do not use another Reveal.js version, theme, CDN path, or plugin. Set embedded: true in
+Reveal.initialize because the presentation runs inside a constrained preview iframe.
 Create a coherent short lesson that moves from a learning goal through definitions and a visual
 explanation to one worked example, a comprehension check, and a recap. Prefer diagrams and
 short staged ideas over dense paragraphs. Every slide must fit the viewport without scrolling,

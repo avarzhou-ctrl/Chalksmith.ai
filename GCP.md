@@ -9,7 +9,7 @@ Never commit service-account JSON files, database passwords, or provider secrets
 | Resource | Purpose | Local development | Production |
 | :--- | :--- | :--- | :--- |
 | Vertex AI | Gemini lesson generation | Service-account JSON through Application Default Credentials (ADC) | Cloud Run API service account |
-| Cloud Storage (GCS) | Private PDFs, HTML, and MP4 artifacts | `gemini-code-shark-chalksmith-dev` | `gemini-code-shark-chalksmith-private` by default |
+| Cloud Storage (GCS) | Private PDFs, HTML, and MP4 artifacts | <nobr>`gemini-code-shark-chalksmith-dev` | <nobr>`gemini-code-shark-chalksmith-prod` |
 | SQLite / Cloud SQL | Lesson metadata and source code | `.env/chalksmith.local.db` | PostgreSQL 16 in Cloud SQL |
 | Cloud Run | Next.js web, FastAPI API, isolated Manim renderer | Three local processes replace it | Required |
 | Secret Manager | Database password, Clerk server key, optional OpenAI key | Not used | Required |

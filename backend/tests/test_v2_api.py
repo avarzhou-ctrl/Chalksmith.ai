@@ -1,6 +1,7 @@
 import unittest
 from io import BytesIO
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
@@ -15,7 +16,12 @@ from backend.app.integrations.llm.base import LLMResult
 from backend.app.integrations.llm.factory import get_llm_provider
 from backend.app.integrations.storage import get_storage
 from backend.app.main import create_app
-from backend.app.renderers.html import HTMLRenderer
+from backend.app.renderers.html import (
+    HTMLRenderer,
+    REVEAL_CORE_STYLESHEET,
+    REVEAL_SCRIPT,
+    REVEAL_THEME_STYLESHEET,
+)
 from backend.app.services.sources import extract_sources
 
 
@@ -177,6 +183,39 @@ class V2ApiTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(Exception, "combined PDF uploads"):
             __import__("asyncio").run(extract_sources([upload], byte_settings))
+
+    def test_slide_renderer_pins_verified_reveal_assets(self) -> None:
+        generated = """<!doctype html><html><head>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/dracula.min.css">
+</head><body><div class="reveal"><div class="slides"><section>Test</section></div></div>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+<script>Reveal.initialize({embedded: true})</script></body></html>"""
+        with TemporaryDirectory() as directory:
+            asset = __import__("asyncio").run(
+                HTMLRenderer(required_marker="reveal").render(generated, Path(directory))
+            )
+            rendered = asset.path.read_text()
+
+        self.assertIn(REVEAL_CORE_STYLESHEET, rendered)
+        self.assertIn(REVEAL_THEME_STYLESHEET, rendered)
+        self.assertIn(REVEAL_SCRIPT, rendered)
+        self.assertNotIn("4.3.1", rendered)
+        self.assertNotIn("dracula.min.css", rendered)
+
+    def test_slide_renderer_injects_missing_reveal_assets(self) -> None:
+        generated = """<!doctype html><html><head></head><body>
+<div class="reveal"><div class="slides"><section>Test</section></div></div>
+<script>Reveal.initialize({embedded: true})</script></body></html>"""
+        with TemporaryDirectory() as directory:
+            asset = __import__("asyncio").run(
+                HTMLRenderer(required_marker="reveal").render(generated, Path(directory))
+            )
+            rendered = asset.path.read_text()
+
+        self.assertIn(REVEAL_CORE_STYLESHEET, rendered)
+        self.assertIn(REVEAL_THEME_STYLESHEET, rendered)
+        self.assertIn(REVEAL_SCRIPT, rendered)
 
 
 if __name__ == "__main__":
