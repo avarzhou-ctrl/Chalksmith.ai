@@ -33,49 +33,43 @@ The issuer normally resembles `https://<instance>.clerk.accounts.dev`. Copy the 
 
 `CLERK_JWKS_URL` is optional. When empty, FastAPI uses `<CLERK_ISSUER>/.well-known/jwks.json`. `CLERK_AUDIENCE` is also optional and should only be set when the Clerk session-token configuration emits a matching `aud` claim.
 
-## 3. Configure local development
+## 3. Configure local/staging development
 
 Local configuration lives in the ignored root `.env/` directory.
 
-`.env/.env.frontend.local`:
-
-```dotenv
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-`.env/.env.backend.local`:
+Every Clerk value belongs in one file, `.env/clerk.key.stg`, which both runtimes load:
 
 ```dotenv
 CLERK_ISSUER=https://<instance>.clerk.accounts.dev
 CLERK_JWKS_URL=
 CLERK_AUDIENCE=
 CLERK_AUTHORIZED_PARTIES=http://localhost:3000
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
 ```
 
-Restart both Next.js and FastAPI after changing these values. The frontend reads its file through `frontend/next.config.ts`; the backend reads its file through `backend/app/core/config.py`.
+The rest of the local configuration, including `NEXT_PUBLIC_API_URL`, lives in `.env/env.local`. Restart both Next.js and FastAPI after changing either file. The frontend loads them through `frontend/next.config.ts`; the backend through `backend/app/core/config.py`. `bin/setup.sh stg` reads `CLERK_SECRET_KEY` from this same file.
 
 ## 4. Configure production deployment
 
 The publishable key is compiled into the web image. Store the secret key in Google Secret Manager so the Next.js Cloud Run service receives it only at runtime:
 
 ```bash
-gcloud secrets create chalksmith-clerk-secret-key \
+gcloud secrets create chalksmith-clerk-key-prod \
   --project=your-project-id \
   --replication-policy=automatic
-gcloud secrets versions add chalksmith-clerk-secret-key \
+gcloud secrets versions add chalksmith-clerk-key-prod \
   --project=your-project-id \
   --data-file=-
 ```
 
 Enter the `sk_live_...` value on standard input, then press Control-D. Do not place it in a tracked shell script.
 
-Before running `infra/gcloud/deploy.sh`, export:
+Before running `bin/deploy.sh`, export:
 
 ```bash
 export CLERK_PUBLISHABLE_KEY=pk_live_...
-export CLERK_SECRET_KEY_SECRET_NAME=chalksmith-clerk-secret-key
+export CLERK_KEY_SECRET_NAME=chalksmith-clerk-key-prod
 export CLERK_ISSUER=https://<production-instance>.clerk.accounts.dev
 ```
 
@@ -90,7 +84,7 @@ The deploy script creates a dedicated `chalksmith-web` service account, grants o
 
 ## 6. Verification
 
-1. Start the web, API, and renderer processes described in [README.md](README.md).
+1. Start the web, API, and renderer processes described in [README.md](../README.md).
 2. Sign up or sign in at `http://localhost:3000`.
 3. Generate a lesson and confirm the API does not return `401`.
 4. Sign out and confirm generation and dashboard screens require sign-in.

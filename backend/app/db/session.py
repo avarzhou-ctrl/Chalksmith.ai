@@ -49,6 +49,10 @@ def create_database_engine(settings: Settings):
         options["connect_args"] = {"check_same_thread": False}
         if url in {"sqlite://", "sqlite:///:memory:"}:
             options["poolclass"] = StaticPool
+    else:
+        # db-f1-micro grants few connections; SQLAlchemy's default 5+10 per process
+        # would exhaust them across the deployed instances.
+        options |= {"pool_size": 2, "max_overflow": 0}
     return create_engine(url, **options)
 
 

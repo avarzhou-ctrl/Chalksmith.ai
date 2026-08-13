@@ -2,8 +2,8 @@
 
 Context for agents working inside `backend/`. The repository-wide rules (commit format,
 project log, boundaries) live in the root [AGENTS.md](../AGENTS.md); this file only covers
-the Python service. Deployment details are in [GCP.md](../GCP.md) and [README.md](../README.md);
-the API contract and refactor rationale are in [REFACTOR.md](../REFACTOR.md).
+the Python service. Deployment details are in [GCP.md](../doc/GCP.md) and [README.md](../README.md);
+the API contract and refactor rationale are in [REFACTOR.md](../doc/REFACTOR.md).
 
 All paths below are written from the repository root, because every command and every Python
 import (`backend.app.*`) resolves from there — never from inside `backend/`.
@@ -130,7 +130,7 @@ built by `Settings.from_env()`, cached by `get_settings()`, and attached to `app
 Read it inside a request via `Depends(get_request_settings)` — not by calling `get_settings()`
 again, which would ignore per-app overrides used by tests.
 
-- Locally, values come from `.env/.env.backend.local` at the repository root (gitignored, shared
+- Locally, values come from `.env/env.local` plus `.env/clerk.key.stg` at the repository root (gitignored, shared
   with other services). `backend/.env.example` is the template — update it whenever you add a key.
 - `validate_production_configuration()` fails startup when `APP_ENV=production` and a required key
   is missing, when origins/renderer URL are not HTTPS, or when Cloud SQL settings are incomplete.

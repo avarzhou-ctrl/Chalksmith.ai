@@ -12,7 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
 from jwt import InvalidTokenError
 
-from backend.app.core.config import LOCAL_ENV_FILE, REPOSITORY_DIR, Settings
+from backend.app.core.config import LOCAL_CLERK_FILE, LOCAL_ENV_FILE, REPOSITORY_DIR, Settings
 from backend.app.core.errors import AppError
 from backend.app.integrations.auth import _decode_clerk_token, get_current_user
 from backend.app.integrations.llm.factory import create_llm_provider
@@ -39,7 +39,11 @@ class SettingsTests(unittest.TestCase):
         ):
             settings = Settings.from_env()
 
-        load_dotenv.assert_called_once_with(LOCAL_ENV_FILE)
+        # env.local is read first, so it wins over the Clerk file.
+        self.assertEqual(
+            [call.args[0] for call in load_dotenv.call_args_list],
+            [LOCAL_ENV_FILE, LOCAL_CLERK_FILE],
+        )
         self.assertEqual(settings.app_env, "test")
         self.assertEqual(settings.llm_provider, "openai")
         self.assertEqual(settings.llm_timeout_seconds, 45)

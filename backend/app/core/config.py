@@ -8,7 +8,11 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, m
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 REPOSITORY_DIR = BACKEND_DIR.parent
-LOCAL_ENV_FILE = REPOSITORY_DIR / ".env" / ".env.backend.local"
+# The backend and the frontend read the same two files from the ignored .env
+# directory: env.local for service configuration and clerk.key.stg for the Clerk
+# instance. Real environment variables win over both, so deployments are unaffected.
+LOCAL_ENV_FILE = REPOSITORY_DIR / ".env" / "env.local"
+LOCAL_CLERK_FILE = REPOSITORY_DIR / ".env" / "clerk.key.stg"
 DEFAULT_FRONTEND_ORIGINS = (
     "http://localhost:3000",
     "https://chalksmith.ai",
@@ -122,6 +126,7 @@ class Settings(BaseModel):
     def from_env(cls) -> "Settings":
         # Local services share the ignored root .env directory; deployments inject variables.
         load_dotenv(LOCAL_ENV_FILE)
+        load_dotenv(LOCAL_CLERK_FILE)
         _resolve_google_credentials_path()
 
         origins = _csv_env("FRONTEND_ORIGINS") or DEFAULT_FRONTEND_ORIGINS

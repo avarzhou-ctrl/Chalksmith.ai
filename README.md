@@ -84,9 +84,9 @@ The repository contains two independent application runtimes. Node.js commands a
 │   ├── app/services/            # Generation, prompts, and PDF extraction
 │   ├── scripts/                 # Schema initialization and v1 migration
 │   └── tests/                   # Backend unit and API tests
-└── infra/
-    ├── docker/                  # Web, API, and renderer images
-    └── gcloud/                  # Cloud Build, lifecycle, and deployment automation
+├── infra/docker/                # Web, API, and renderer images
+├── bin/                         # Cloud Build configs and the four operations scripts
+└── doc/                         # Cloud, authentication, cost, and refactor guides
 ```
 
 The frontend owns presentation and browser session state. Clerk's Next.js SDK obtains a short-lived session JWT, and the clients in `frontend/src/lib/api/` send it directly to FastAPI as a Bearer token.
@@ -140,38 +140,9 @@ A generation request follows one path:
 5. The API uploads the final artifact to private Cloud Storage and stores lesson metadata and source code in Cloud SQL.
 6. Preview and download requests return short-lived signed URLs; the database stores stable object keys, never expiring URLs.
 
-The renderer has no Cloud SQL, GCS, Secret Manager, or LLM permissions. The complete API contract, security rationale, migration plan, and implementation decisions are in [REFACTOR.md](REFACTOR.md).
+The renderer has no Cloud SQL, GCS, Secret Manager, or LLM permissions. The complete API contract, security rationale, migration plan, and implementation decisions are in [REFACTOR.md](doc/REFACTOR.md).
 
-## Production Deployment
-
-Complete the project prerequisites, production service-account configuration, and secret setup in [GCP.md](GCP.md) and the Clerk configuration in [CLERK.md](CLERK.md) before deploying.
-
-Authenticate as the deployment account, then export the required values:
-
-```bash
-gcloud auth login
-gcloud config set project your-project-id
-
-export PROJECT_ID=your-project-id
-export REGION=us-central1
-export LLM_PROVIDER=vertex
-export LLM_MODEL=gemini-3.6-flash
-export VERTEX_AI_LOCATION=global
-export DB_PASSWORD_SECRET_NAME=chalksmith-db-password
-export CLERK_PUBLISHABLE_KEY=pk_live_...
-export CLERK_SECRET_KEY_SECRET_NAME=chalksmith-clerk-secret-key
-export CLERK_ISSUER=https://<production-instance>.clerk.accounts.dev
-
-bash infra/gcloud/deploy.sh
-```
-
-The script enables APIs; provisions Artifact Registry, private GCS, and Cloud SQL; creates least-privilege runtime identities; builds the API, renderer, and web images; deploys the services; and adds the generated web hostname to the API CORS and Clerk authorized-party allowlists.
-
-After the first deployment, add the printed web hostname to the allowed URLs in the Clerk dashboard. Rebuild the web image when `NEXT_PUBLIC_API_URL` or `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` changes. For OpenAI, set `LLM_PROVIDER=openai` and export `LLM_SECRET_NAME` with the OpenAI-key secret name.
-
-## Local Development and Debugging
-
-### Prerequisites
+## Prerequisites
 
 Install the following tools:
 
@@ -179,11 +150,7 @@ Install the following tools:
 - [uv](https://docs.astral.sh/uv/); uv installs the pinned Python 3.12 runtime and manages `backend/.venv`.
 - Manim's operating-system dependencies for video generation. The renderer image installs Cairo, Pango, FFmpeg, build tools, and `pkg-config`; see the [Manim installation guide](https://docs.manim.community/en/stable/installation.html) for the equivalent host setup.
 
-Google Cloud prerequisites, local credentials, IAM, Vertex AI, GCS, Cloud SQL, and troubleshooting are maintained in [GCP.md](GCP.md). Clerk application setup and session-token configuration are documented separately in [CLERK.md](CLERK.md).
-
-Complete the Clerk and Google Cloud setup described above before testing authenticated generation. Marketing pages, frontend builds, health checks, and unit tests can run without live cloud services.
-
-### 1. Clone and install
+Clone and install
 
 ```bash
 git clone https://github.com/avarzhou-ctrl/Chalksmith.ai.git
@@ -194,48 +161,6 @@ uv sync --project backend --extra video
 
 `--extra video` installs Manim for the renderer process. The API Docker image deliberately omits this extra in production.
 
-### 2. Start the three processes
-
-Run every command from the repository root in a separate terminal.
-
-Terminal 1 — private renderer equivalent on port 8081:
-
-```bash
-uv run --project backend uvicorn backend.app.renderer_main:renderer_app --reload --port 8081
-```
-
-Terminal 2 — public API on port 8000:
-
-```bash
-uv run --project backend uvicorn backend.app.main:app --reload --port 8000
-```
-
-Terminal 3 — Next.js on port 3000:
-
-```bash
-npm --prefix frontend run dev
-```
-
-The API never executes Manim locally. If the renderer process is not running, interactive and slide generation can still work, but video generation returns a renderer-unavailable error.
-
-### 3. Verify and debug
-
-| URL | Purpose |
-| :--- | :--- |
-| `http://localhost:3000` | Web application |
-| `http://localhost:8000/docs` | FastAPI OpenAPI explorer |
-| `http://localhost:8000/healthz` | API health check |
-| `http://localhost:8081/healthz` | Renderer health check |
-
-Quick health checks:
-
-```bash
-curl http://localhost:8000/healthz
-curl http://localhost:8081/healthz
-```
-
-The API and renderer write structured logs to their terminals. API responses also include `X-Request-ID`; use that value to match a browser failure with its request and generation-stage logs.
-
 Run all repository checks before opening a pull request:
 
 ```bash
@@ -243,9 +168,93 @@ uv lock --project backend --check
 uv run --project backend python -m unittest discover -s backend/tests
 npm --prefix frontend run typecheck
 npm --prefix frontend run build
-bash -n infra/gcloud/deploy.sh
+bash -n bin/prepare.sh bin/setup.sh bin/debug.sh bin/deploy.sh
 git diff --check
 ```
+
+## Debugging and Deployment
+
+You need to have access to Google Cloud Platform (GCP) and Clerk in order to debug and deploy Chalksmith. Google Cloud prerequisites, IAM, Vertex AI, GCS, Cloud SQL, and troubleshooting are maintained in [GCP.md](doc/GCP.md). Clerk application setup and session-token configuration are documented separately in [CLERK.md](doc/CLERK.md), and the sizing rationale behind the deployed configuration is in [COST.md](doc/COST.md).
+
+Every script below is safe to re-run: existing resources are kept, and no step rotates a secret out from under a running deployment.
+
+### 1. Install and authenticate the Google Cloud tools
+
+```bash
+# macOS
+brew install --cask google-cloud-sdk
+brew install cloud-sql-proxy
+
+# Other platforms
+#   gcloud          https://cloud.google.com/sdk/docs/install
+#   cloud-sql-proxy https://github.com/GoogleCloudPlatform/cloud-sql-proxy/releases
+
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project your-project-id
+```
+
+The two `auth` commands write different credentials and both are required: `login` authorizes the `gcloud` CLI itself, which is what the scripts below run as, while `application-default login` writes the Application Default Credentials the local backend reads for Vertex AI, GCS, and signed URLs. A local backend that reports no project is almost always missing the second one.
+
+`cloud-sql-proxy` is needed only by `bin/debug.sh`. Verify the toolchain before continuing:
+
+```bash
+gcloud version && cloud-sql-proxy --version
+gcloud auth list
+```
+
+### 2. Prepare the roles, APIs and service accounts
+
+Run once per project as the human deployment account, whose own roles are listed in [GCP.md](doc/GCP.md#11-assign-roles-to-human-account). It enables the required APIs, creates `chalksmith-deployer` plus the three runtime accounts, and grants every role that does not depend on the environment.
+
+```bash
+./bin/prepare.sh --project=your-project-id --human=teammate@example.com
+```
+
+| Flag | Optional | Meaning |
+| :--- | :---: | :--- |
+| `--project=ID` | No | Target project. Falls back to `PROJECT_ID` in the environment. |
+| <nobr>`--human=EMAIL` | Yes | Who receives Token Creator on `chalksmith-deployer`, and therefore who can deploy afterwards. Defaults to the active `gcloud` account. Bindings accumulate, so re-running with a second address lets a colleague deploy too. |
+
+### 3. Create an environment's resources
+
+Creates the two secrets, the private bucket, and the Cloud SQL instance for one environment, then leaves the instance running so the steps below can be repeated without paying its boot time again. `local` is an alias for the staging resources, which local debugging shares. `shutdown` stops the instance and keeps everything else.
+
+```bash
+export PROJECT_ID=your-project-id
+
+./bin/setup.sh local|stg|prod start|shutdown
+```
+
+The database password is generated on the spot and never printed. The Clerk server key is read from `.env/clerk.key.<env>` — either a bare key or a `CLERK_SECRET_KEY=` line — from `CLERK_KEY_FILE`, or from a prompt when neither exists.
+
+### 4. Debug locally
+
+Starts the Cloud SQL Auth Proxy against the staging instance and the three local processes; `shutdown` stops those four and leaves the instance running for the next session. Requires [`cloud-sql-proxy`](https://cloud.google.com/sql/docs/postgres/sql-proxy) and `.env/env.local` ([GCP.md](doc/GCP.md#312-configure-local-runtime)).
+
+```bash
+./bin/debug.sh start|shutdown
+```
+
+Logs and PIDs are written to the ignored `.env/run/` directory.
+
+### 5. Deploy an environment
+
+Builds the images and deploys the three Cloud Run services. The database must already be running, which is step 3's job; a stopped instance aborts the run rather than being started here. `shutdown` deletes those three services and leaves everything else, including the database, in place; against production it asks for confirmation unless `--yes` is passed.
+
+```bash
+export PROJECT_ID=your-project-id REGION=us-central1
+export LLM_PROVIDER=vertex LLM_MODEL=gemini-3.6-flash
+export CLERK_PUBLISHABLE_KEY=pk_... CLERK_ISSUER=https://<instance>.clerk.accounts.dev
+
+gcloud config set auth/impersonate_service_account \
+  chalksmith-deployer@your-project-id.iam.gserviceaccount.com
+./bin/deploy.sh --type=stg|prod start|shutdown
+gcloud config unset auth/impersonate_service_account
+```
+
+Afterwards, add the web URL the script prints to that Clerk instance's allowed URLs; sign-in fails until you do.
+
 
 ## Contact
 💬 **Contact us:** Feel free to reach out with any errors you encounter to our support email, [help@chalksmith.ai](mailto:help@chalksmith.ai)!

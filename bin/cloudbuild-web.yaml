@@ -13,6 +13,9 @@ steps:
       - .
 images:
   - ${_WEB_IMAGE}
+# A build that names its own service account must also say where its logs go.
+options:
+  logging: CLOUD_LOGGING_ONLY
 substitutions:
   _WEB_IMAGE: us-central1-docker.pkg.dev/example/chalksmith/web:latest
   _API_URL: http://localhost:8000

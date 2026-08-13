@@ -184,10 +184,12 @@ One `GenerationService` owns the full deadline and state transition:
 ├── infra/
 │   ├── docker/                     # Web, API, renderer images
 │   └── gcloud/                     # Cloud Build and deployment automation
-├── CLERK.md
-├── GCP.md
-├── README.md
-└── REFACTOR.md
+├── doc/
+│   ├── CLERK.md
+│   ├── COST.md
+│   ├── GCP.md
+│   └── REFACTOR.md
+└── README.md
 ```
 
 The repository has no root npm workspace. Use `npm --prefix frontend ...` and `uv ... --project backend` from the repository root.
@@ -372,7 +374,7 @@ uv lock --project backend --check
 uv run --project backend python -m unittest discover -s backend/tests
 npm --prefix frontend run typecheck
 npm --prefix frontend run build
-bash -n infra/gcloud/deploy.sh
+bash -n bin/deploy.sh
 git diff --check
 ```
 
