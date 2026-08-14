@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from time import monotonic
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -16,13 +17,15 @@ from jwt import InvalidTokenError
 from backend.app.core.config import LOCAL_CLERK_FILE, LOCAL_ENV_FILE, REPOSITORY_DIR, Settings
 from backend.app.core.errors import AppError
 from backend.app.integrations.auth import _decode_clerk_token, get_current_user
+from backend.app.integrations.llm.base import LLMResult
 from backend.app.integrations.llm.factory import create_llm_provider
+from backend.app.integrations.llm.gemini import VertexGeminiProvider
 from backend.app.integrations.storage import GCSStorage
 from backend.app.main import create_app
 from backend.app.renderers.base import RenderError
 from backend.app.renderers.manim import LocalManimRenderer, is_local_renderer_url, validate_manim_code
 from backend.app.renderer_main import renderer_app
-from backend.app.services.generation import GenerationService
+from backend.app.services.generation import GenerationService, LLMProgress
 
 
 class SettingsTests(unittest.TestCase):
@@ -374,6 +377,41 @@ class GenerationDeadlineTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TimeoutError):
             await service._await(asyncio.sleep(1))
 
+    async def test_non_streaming_provider_emits_heartbeats_while_waiting(self) -> None:
+        class SlowLLM:
+            async def generate(self, _prompt: str) -> LLMResult:
+                await asyncio.sleep(0.01)
+                return LLMResult(text="done", provider="fake", model="fake-model")
+
+        service = GenerationService(
+            session=None,  # type: ignore[arg-type]
+            llm=SlowLLM(),
+            storage=None,  # type: ignore[arg-type]
+            renderers={},
+            deadline=monotonic() + 1,
+            request_id="heartbeat-test",
+        )
+
+        with patch("backend.app.services.generation.LLM_HEARTBEAT_SECONDS", 0.001):
+            events = [
+                event
+                async for event in service._generate_with_progress(
+                    "prompt",
+                    lesson_id=uuid4(),
+                    owner_hash="owner-hash",
+                    stage="generating",
+                    message="Creating lesson code…",
+                )
+            ]
+
+        self.assertTrue(
+            any(
+                isinstance(event, LLMProgress) and "Waiting for the model" in event.message
+                for event in events
+            )
+        )
+        self.assertIsInstance(events[-1], LLMResult)
+
     async def test_failed_generation_cleanup_removes_output_and_uploaded_sources(self) -> None:
         storage = MagicMock()
         service = GenerationService(
@@ -396,6 +434,45 @@ class GenerationDeadlineTests(unittest.IsolatedAsyncioTestCase):
         storage.delete.assert_called_once_with(f"lessons/teacher/{lesson_id}/lesson.html")
         storage.delete_prefix.assert_called_once_with(f"sources/teacher/{lesson_id}/")
 
+
+class GeminiStreamingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_stream_yields_deltas_and_final_billed_usage(self) -> None:
+        async def responses():
+            yield SimpleNamespace(
+                text="first ",
+                usage_metadata=SimpleNamespace(
+                    prompt_token_count=20,
+                    candidates_token_count=None,
+                    thoughts_token_count=3,
+                ),
+            )
+            yield SimpleNamespace(
+                text="second",
+                usage_metadata=SimpleNamespace(
+                    prompt_token_count=20,
+                    candidates_token_count=5,
+                    thoughts_token_count=3,
+                ),
+            )
+
+        provider = VertexGeminiProvider(
+            project="test-project",
+            location="global",
+            model="test-model",
+            timeout_seconds=1,
+            max_output_tokens=100,
+        )
+        provider.client = MagicMock()
+        provider.client.aio.models.generate_content_stream = AsyncMock(return_value=responses())
+
+        chunks = [chunk async for chunk in provider.stream("prompt")]
+
+        self.assertEqual("".join(chunk.text for chunk in chunks), "first second")
+        self.assertEqual(chunks[-1].input_tokens, 20)
+        self.assertEqual(chunks[-1].output_tokens, 8)
+
+
+class RendererCancellationTests(unittest.IsolatedAsyncioTestCase):
     async def test_renderer_cancellation_kills_the_process_group(self) -> None:
         class FakeProcess:
             pid = 1234

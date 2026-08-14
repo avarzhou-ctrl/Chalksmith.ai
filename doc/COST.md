@@ -126,6 +126,8 @@ Infrastructure is flat at this scale. Three things are not:
 
 The deploy template also exposes `LLM_MAX_OUTPUT_TOKENS` and `MAX_SOURCE_CHARACTERS`. These are the direct worst-case output and source-input guardrails; reduce them only after measuring real generated lessons, because values that are too small trade lower token spend for truncated code or incomplete source context. The source default is 200,000 characters: roughly 50,000 tokens for typical English text (about $0.075 of Gemini 3.6 Flash input) and up to about 200,000 tokens or $0.30 for dense CJK text. Raising it further adds latency and makes the shared provider configuration more likely to exceed a 128K-token context window.
 
+Gemini response streaming does not change token prices: the API aggregates the same model output, logs usage once after completion, and never logs individual chunks. Streaming progress and ten-second fallback heartbeats add only negligible SSE bytes; retries remain explicit so an interrupted response is not silently regenerated and billed twice.
+
 ## Appendix A: Recomputing
 
 ```python

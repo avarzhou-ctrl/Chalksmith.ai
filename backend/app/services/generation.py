@@ -3,6 +3,8 @@ import hashlib
 import json
 import logging
 from collections.abc import AsyncIterator, Awaitable
+from contextlib import suppress
+from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from time import monotonic
@@ -18,7 +20,12 @@ from backend.app.db.lessons import (
     next_version_number,
     save_lesson,
 )
-from backend.app.integrations.llm.base import LLMProvider, LLMProviderError, LLMResult
+from backend.app.integrations.llm.base import (
+    LLMProvider,
+    LLMProviderError,
+    LLMResult,
+    StreamingLLMProvider,
+)
 from backend.app.integrations.storage import GCSStorage
 from backend.app.renderers.base import RenderError, Renderer
 from backend.app.services.prompts import (
@@ -30,6 +37,16 @@ from backend.app.services.sources import SourceDocument, source_context
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
+LLM_HEARTBEAT_SECONDS = 10.0
+LLM_PROGRESS_INTERVAL_SECONDS = 0.5
+LLM_PROGRESS_CHARACTER_STEP = 500
+
+
+@dataclass(frozen=True)
+class LLMProgress:
+    stage: str
+    message: str
+    generated_characters: int
 
 
 class GenerationService:
@@ -54,16 +71,120 @@ class GenerationService:
         remaining = self.deadline - monotonic()
         return await asyncio.wait_for(operation, timeout=max(0, remaining))
 
-    async def _generate_with_logging(
+    async def _generate_with_progress(
         self,
         prompt: str,
         *,
         lesson_id: UUID,
         owner_hash: str,
         stage: str,
-    ) -> LLMResult:
+        message: str,
+    ) -> AsyncIterator[LLMProgress | LLMResult]:
         started = monotonic()
-        result = await self._await(self.llm.generate(prompt))
+        if isinstance(self.llm, StreamingLLMProvider):
+            result: LLMResult | None = None
+            text_parts: list[str] = []
+            input_tokens = None
+            output_tokens = None
+            provider = "unknown"
+            model = "unknown"
+            generated_characters = 0
+            reported_characters = 0
+            last_progress_at = started
+            iterator = self.llm.stream(prompt).__aiter__()
+            pending_chunk: asyncio.Task | None = None
+            try:
+                while True:
+                    if pending_chunk is None:
+                        pending_chunk = asyncio.create_task(anext(iterator))
+                    remaining = self.deadline - monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError
+                    done, _ = await asyncio.wait(
+                        {pending_chunk},
+                        timeout=min(LLM_HEARTBEAT_SECONDS, remaining),
+                    )
+                    if not done:
+                        yield LLMProgress(
+                            stage=stage,
+                            message=_llm_progress_message(message, generated_characters),
+                            generated_characters=generated_characters,
+                        )
+                        reported_characters = generated_characters
+                        last_progress_at = monotonic()
+                        continue
+                    try:
+                        chunk = pending_chunk.result()
+                    except StopAsyncIteration:
+                        pending_chunk = None
+                        break
+                    pending_chunk = None
+                    text_parts.append(chunk.text)
+                    generated_characters += len(chunk.text)
+                    provider = chunk.provider
+                    model = chunk.model
+                    input_tokens = chunk.input_tokens or input_tokens
+                    output_tokens = chunk.output_tokens or output_tokens
+                    now = monotonic()
+                    if (
+                        generated_characters - reported_characters >= LLM_PROGRESS_CHARACTER_STEP
+                        or now - last_progress_at >= LLM_PROGRESS_INTERVAL_SECONDS
+                    ):
+                        yield LLMProgress(
+                            stage=stage,
+                            message=_llm_progress_message(message, generated_characters),
+                            generated_characters=generated_characters,
+                        )
+                        reported_characters = generated_characters
+                        last_progress_at = now
+            finally:
+                if pending_chunk is not None and not pending_chunk.done():
+                    pending_chunk.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await pending_chunk
+                close_iterator = getattr(iterator, "aclose", None)
+                if close_iterator is not None:
+                    with suppress(Exception):
+                        await close_iterator()
+            generated_text = "".join(text_parts)
+            if len(generated_text) != reported_characters:
+                yield LLMProgress(
+                    stage=stage,
+                    message=_llm_progress_message(message, len(generated_text)),
+                    generated_characters=len(generated_text),
+                )
+            result = LLMResult(
+                text=generated_text,
+                provider=provider,
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+        else:
+            generation_task = asyncio.create_task(self.llm.generate(prompt))
+            try:
+                while True:
+                    remaining = self.deadline - monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError
+                    done, _ = await asyncio.wait(
+                        {generation_task},
+                        timeout=min(LLM_HEARTBEAT_SECONDS, remaining),
+                    )
+                    if done:
+                        result = generation_task.result()
+                        break
+                    yield LLMProgress(
+                        stage=stage,
+                        message=_llm_progress_message(message, 0),
+                        generated_characters=0,
+                    )
+            finally:
+                if not generation_task.done():
+                    generation_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await generation_task
+
         logger.info(
             "lesson_llm_completed",
             extra={
@@ -78,7 +199,7 @@ class GenerationService:
                 "request_id": self.request_id,
             },
         )
-        return result
+        yield result
 
     async def _cleanup_failed_storage(
         self,
@@ -166,12 +287,20 @@ class GenerationService:
                 edit_instruction=edit_instruction,
             )
             yield _event("progress", {"stage": "generating", "message": "Creating lesson code…"})
-            result = await self._generate_with_logging(
+            result = None
+            async for llm_event in self._generate_with_progress(
                 prompt,
                 lesson_id=lesson.id,
                 owner_hash=owner_hash,
                 stage="generating",
-            )
+                message="Creating lesson code…",
+            ):
+                if isinstance(llm_event, LLMResult):
+                    result = llm_event
+                else:
+                    yield _event("progress", _progress_data(llm_event))
+            if result is None:
+                raise RuntimeError("The AI provider returned no final result.")
             yield _event("progress", {"stage": "validating", "message": "Checking the generated lesson…"})
             generated = parse_generated_lesson(result.text)
             renderer = self.renderers[lesson_format]
@@ -197,7 +326,8 @@ class GenerationService:
                         },
                     )
                     yield _event("progress", {"stage": "repairing", "message": "Repairing the video scene…"})
-                    repair = await self._generate_with_logging(
+                    repair = None
+                    async for llm_event in self._generate_with_progress(
                         build_repair_prompt(
                             original_prompt=prompt,
                             code=generated.code,
@@ -206,7 +336,14 @@ class GenerationService:
                         lesson_id=lesson.id,
                         owner_hash=owner_hash,
                         stage="repairing",
-                    )
+                        message="Repairing the video scene…",
+                    ):
+                        if isinstance(llm_event, LLMResult):
+                            repair = llm_event
+                        else:
+                            yield _event("progress", _progress_data(llm_event))
+                    if repair is None:
+                        raise RuntimeError("The AI provider returned no repair result.")
                     generated = parse_generated_lesson(repair.text)
                     render_started = monotonic()
                     render_stage = "repairing"
@@ -304,6 +441,20 @@ class GenerationService:
 
 def _event(event: str, data: dict[str, object]) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _llm_progress_message(message: str, generated_characters: int) -> str:
+    if generated_characters:
+        return f"{message} {generated_characters:,} characters generated"
+    return f"{message} Waiting for the model…"
+
+
+def _progress_data(progress: LLMProgress) -> dict[str, object]:
+    return {
+        "stage": progress.stage,
+        "message": progress.message,
+        "generated_characters": progress.generated_characters,
+    }
 
 
 def _public_error(error: Exception) -> str:

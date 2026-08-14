@@ -1,9 +1,10 @@
 import asyncio
+from collections.abc import AsyncIterator
 
 from google import genai
 from google.genai import types
 
-from backend.app.integrations.llm.base import LLMProviderError, LLMResult
+from backend.app.integrations.llm.base import LLMProviderError, LLMResult, LLMStreamChunk
 
 
 class VertexGeminiProvider:
@@ -40,7 +41,38 @@ class VertexGeminiProvider:
                 provider="vertex",
                 model=self.model,
                 input_tokens=getattr(usage, "prompt_token_count", None),
-                output_tokens=getattr(usage, "candidates_token_count", None),
+                output_tokens=_billed_output_tokens(usage),
             )
         except Exception as error:
             raise LLMProviderError(f"Gemini request failed: {error}") from error
+
+    async def stream(self, prompt: str) -> AsyncIterator[LLMStreamChunk]:
+        try:
+            async with asyncio.timeout(self.timeout_seconds):
+                responses = await self.client.aio.models.generate_content_stream(
+                    model=self.model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.2,
+                        max_output_tokens=self.max_output_tokens,
+                    ),
+                )
+                async for response in responses:
+                    usage = response.usage_metadata
+                    yield LLMStreamChunk(
+                        text=response.text or "",
+                        provider="vertex",
+                        model=self.model,
+                        input_tokens=getattr(usage, "prompt_token_count", None),
+                        output_tokens=_billed_output_tokens(usage),
+                    )
+        except Exception as error:
+            raise LLMProviderError(f"Gemini request failed: {error}") from error
+
+
+def _billed_output_tokens(usage: object) -> int | None:
+    candidates = getattr(usage, "candidates_token_count", None)
+    thoughts = getattr(usage, "thoughts_token_count", None)
+    if candidates is None and thoughts is None:
+        return None
+    return (candidates or 0) + (thoughts or 0)

@@ -15,7 +15,7 @@ from backend.app.core.config import Settings
 from backend.app.db.lessons import create_lesson, save_lesson
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
-from backend.app.integrations.llm.base import LLMResult
+from backend.app.integrations.llm.base import LLMResult, LLMStreamChunk
 from backend.app.integrations.llm.factory import get_llm_provider
 from backend.app.integrations.storage import get_storage
 from backend.app.main import create_app
@@ -42,6 +42,24 @@ class FakeLLM:
             ),
             provider="fake",
             model="fake-model",
+        )
+
+
+class StreamingFakeLLM(FakeLLM):
+    async def stream(self, prompt: str):
+        result = await self.generate(prompt)
+        midpoint = len(result.text) // 2
+        yield LLMStreamChunk(
+            text=result.text[:midpoint],
+            provider=result.provider,
+            model=result.model,
+            input_tokens=120,
+        )
+        yield LLMStreamChunk(
+            text=result.text[midpoint:],
+            provider=result.provider,
+            model=result.model,
+            output_tokens=80,
         )
 
 
@@ -109,6 +127,7 @@ class V2ApiTests(unittest.TestCase):
         self.client_context.__exit__(None, None, None)
 
     def test_generation_stream_and_lesson_access(self) -> None:
+        self.app.dependency_overrides[get_llm_provider] = lambda: StreamingFakeLLM()
         response = self.client.post(
             "/v2/generations",
             data={"topic": "Fractions", "format": "interactive"},
@@ -118,6 +137,7 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("event: started", response.text)
         self.assertIn('"stage": "validating"', response.text)
+        self.assertIn('"generated_characters":', response.text)
         self.assertIn('"stage": "saving"', response.text)
         self.assertIn("event: complete", response.text)
         completed_line = next(

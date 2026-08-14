@@ -62,9 +62,12 @@ backend/
    then yields Server-Sent Events:
    `started` → `progress` (`generating` → `validating` → `rendering` → [`repairing`] → `saving`)
    → `complete`, or `error`.
-3. Every `await` inside the service goes through `self._await(...)`, which re-derives the
-   remaining time from the shared deadline. Add new awaits the same way, or a slow stage can
-   outlive the request budget.
+   Vertex Gemini is consumed as a model stream; progress events expose only the accumulated
+   character count, while the service buffers the complete response before parsing or rendering.
+   Providers without model streaming send a progress heartbeat every 10 seconds instead.
+3. Every external await observes the shared deadline. One-shot stages use `self._await(...)`;
+   model streaming re-derives the remaining time before each chunk/heartbeat wait. Add new
+   awaits the same way, or a slow stage can outlive the request budget.
 4. `parse_generated_lesson()` splits the model output on `---CODE_START---`.
 5. The renderer for the format runs in a `TemporaryDirectory`. **`video` only:** a `RenderError`
    triggers one repair round-trip through `build_repair_prompt()`; other formats fail directly.

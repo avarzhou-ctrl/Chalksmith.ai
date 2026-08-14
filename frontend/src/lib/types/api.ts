@@ -67,7 +67,7 @@ export type GenerationStage =
 
 export type GenerationEvent =
   | { type: 'started'; lesson_id: string }
-  | { type: 'progress'; stage: GenerationStage; message: string }
+  | { type: 'progress'; stage: GenerationStage; message: string; generated_characters?: number }
   | { type: 'complete'; lesson_id: string }
   | { type: 'error'; code: string; message: string; lesson_id?: string };
 

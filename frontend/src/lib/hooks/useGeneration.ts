@@ -181,7 +181,17 @@ export function useGeneration(api: ApiClient) {
         onEvent: (event) => {
           if (event.type === 'progress') {
             setStatus(event.message);
-            setProgress(PROGRESS[event.stage] ?? 50);
+            const baseProgress = PROGRESS[event.stage] ?? 50;
+            if (
+              event.generated_characters
+              && (event.stage === 'generating' || event.stage === 'repairing')
+            ) {
+              const streamedProgress = Math.floor(event.generated_characters / 750);
+              const progressLimit = event.stage === 'generating' ? 54 : 90;
+              setProgress(Math.min(progressLimit, baseProgress + streamedProgress));
+            } else {
+              setProgress(baseProgress);
+            }
           }
           if (event.type === 'complete') completedId = event.lesson_id;
           if (event.type === 'error') streamError = event.message;
