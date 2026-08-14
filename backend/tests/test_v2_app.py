@@ -124,6 +124,24 @@ class SettingsTests(unittest.TestCase):
 
         client.assert_called_once_with(vertexai=True, project="project", location="global")
 
+    @patch("backend.app.integrations.llm.deepseek.AsyncOpenAI")
+    def test_deepseek_provider_targets_the_deepseek_base_url(self, client: MagicMock) -> None:
+        settings = Settings(
+            llm_provider="deepseek",
+            llm_model="deepseek-v4-flash",
+            deepseek_api_key="secret",
+        )
+
+        create_llm_provider(settings)
+
+        client.assert_called_once_with(
+            api_key="secret", base_url="https://api.deepseek.com", timeout=settings.llm_timeout_seconds
+        )
+
+    def test_deepseek_provider_requires_key(self) -> None:
+        with self.assertRaisesRegex(AppError, "DEEPSEEK_API_KEY"):
+            create_llm_provider(Settings(llm_provider="deepseek", llm_model="deepseek-v4-flash"))
+
     def test_vertex_provider_requires_project(self) -> None:
         with self.assertRaisesRegex(AppError, "GCP_PROJECT_ID"):
             create_llm_provider(Settings(llm_provider="vertex", llm_model="gemini-test"))

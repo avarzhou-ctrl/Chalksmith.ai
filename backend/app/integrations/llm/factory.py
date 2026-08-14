@@ -3,6 +3,7 @@ from fastapi import Request
 from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
 from backend.app.integrations.llm.base import LLMProvider
+from backend.app.integrations.llm.deepseek import DeepSeekProvider
 from backend.app.integrations.llm.gemini import VertexGeminiProvider
 from backend.app.integrations.llm.openai import OpenAIProvider
 
@@ -21,6 +22,16 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
             project=settings.gcp_project_id,
             location=settings.vertex_ai_location,
             model=settings.llm_model,
+            timeout_seconds=settings.llm_timeout_seconds,
+            max_output_tokens=settings.llm_max_output_tokens,
+        )
+    if settings.llm_provider == "deepseek":
+        if not settings.deepseek_api_key:
+            raise AppError(code="llm_not_configured", message="DEEPSEEK_API_KEY is not configured.", status_code=503)
+        return DeepSeekProvider(
+            api_key=settings.deepseek_api_key.get_secret_value(),
+            model=settings.llm_model,
+            base_url=settings.deepseek_base_url,
             timeout_seconds=settings.llm_timeout_seconds,
             max_output_tokens=settings.llm_max_output_tokens,
         )

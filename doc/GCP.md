@@ -125,7 +125,7 @@ Every other resource is suffixed: `-stg` for staging, `-prod` for production. Lo
 
 ### 2.1 Setup environment secrets
 
-Each environment needs its own database password and Clerk server key, and its own keys for other services such as OpenAI (when `LLM_PROVIDER=openai`). Staging uses the Clerk development instance; production uses the production instance. See [CLERK.md](CLERK.md).
+Each environment needs its own database password and Clerk server key, and its own keys for other services such as OpenAI or DeepSeek (when `LLM_PROVIDER` is not `vertex`). Staging uses the Clerk development instance; production uses the production instance. See [CLERK.md](CLERK.md).
 
 ```bash
 for secret in chalksmith-db-password-stg chalksmith-clerk-key-stg; do
@@ -300,7 +300,7 @@ alternative, staging GCS resources, and all optional backend tuning values.
 - Clerk instance settings (`CLERK_ISSUER`, optional `CLERK_JWKS_URL` and `CLERK_AUDIENCE`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`) belong in `.env/clerk.key.stg`, created from `bin/clerk.key.template`. Do not duplicate `CLERK_AUTHORIZED_PARTIES` there: locally it inherits `FRONTEND_ORIGINS`, while `deploy.sh` derives and injects it for deployed environments.
 - The renderer process reads the same file but must override the role: `APP_ROLE=renderer uv run ...`.
 - `CLOUD_SQL_INSTANCE`, `DATABASE_NAME`, `DATABASE_USER`, and `DATABASE_PASSWORD` are the deployed alternative to `DATABASE_URL` and are unused locally.
-- `LLM_PROVIDER=openai` replaces the Vertex provider/model settings with an OpenAI model and `OPENAI_API_KEY`; the mutually exclusive examples are in `bin/env.local.template`.
+- `LLM_PROVIDER=openai` replaces the Vertex provider/model settings with an OpenAI model and `OPENAI_API_KEY`; `LLM_PROVIDER=deepseek` replaces them with a DeepSeek model and `DEEPSEEK_API_KEY`, plus an optional `DEEPSEEK_BASE_URL` that defaults to `https://api.deepseek.com`. The mutually exclusive examples are in `bin/env.local.template`.
 - `APP_ENV=local` skips the strict startup validation, so an omitted variable silently takes its default rather than failing. Defaults that matter: `SIGNED_URL_TTL_SECONDS=900`, `GENERATION_TIMEOUT_SECONDS=900`, `MANIM_TIMEOUT_SECONDS=600`, `LLM_TIMEOUT_SECONDS=120`, `LLM_MAX_OUTPUT_TOKENS=16384`, `MAX_SOURCE_FILES=5`, `MAX_SOURCE_BYTES=10000000`, `AUTO_CREATE_TABLES=true`.
 
 #### 3.1.3 Start three local debugging processes
@@ -365,7 +365,7 @@ Two dependencies fix the order: the API needs the renderer URL, and the web imag
 | 2 | Confirm the Cloud SQL instance is running and abort if it is not; `bin/setup.sh` starts it. Bucket and secret bindings were granted there too, alongside the resources themselves, so only the optional OpenAI secret is bound here. |
 | 3 | Build the api and renderer images with Cloud Build. The build names `chalksmith-deployer` as its service account because the organization policy in [Section 1.2](#12-enable-required-apis-for-the-project) leaves no default build account. |
 | 4 | Deploy the renderer with `--no-allow-unauthenticated`, then grant `chalksmith-api` `roles/run.invoker` on it. |
-| 5 | Deploy the API with `--allow-unauthenticated`, `--add-cloudsql-instances`, the renderer URL from step 4, and Secret Manager mounts for `DATABASE_PASSWORD` (plus `OPENAI_API_KEY` when `LLM_PROVIDER=openai`). |
+| 5 | Deploy the API with `--allow-unauthenticated`, `--add-cloudsql-instances`, the renderer URL from step 4, and Secret Manager mounts for `DATABASE_PASSWORD` (plus `LLM_SECRET_NAME`, mounted as `OPENAI_API_KEY` or `DEEPSEEK_API_KEY`, when `LLM_PROVIDER` is not `vertex`). |
 | 6 | Build the web image with the API URL and the Clerk publishable key compiled in, then deploy it. |
 | 7 | Rewrite the API's `FRONTEND_ORIGINS` and `CLERK_AUTHORIZED_PARTIES` with the real web URL. |
 

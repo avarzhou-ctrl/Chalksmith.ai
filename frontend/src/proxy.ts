@@ -19,25 +19,20 @@ export default clerkMiddleware((_auth, request: NextRequest) => {
   const pathname = url.pathname;
 
   if (host && MARKETING_HOSTS.has(host) && pathname === '/generation') {
-    return NextResponse.redirect(appUrl('/', url.search));
+    return NextResponse.redirect(appUrl('/generation', url.search));
   }
   if (host && MARKETING_HOSTS.has(host) && pathname === '/dashboard') {
     return NextResponse.redirect(appUrl('/home', url.search));
   }
   if (host === APP_HOST) {
-    if (pathname === '/') {
-      url.pathname = '/generation';
-      return NextResponse.rewrite(url);
+    // /home is the app's landing page and its canonical URL; /generation keeps
+    // its own so the app root is not two different pages.
+    if (pathname === '/' || pathname === '/dashboard') {
+      return NextResponse.redirect(appUrl('/home', url.search));
     }
     if (pathname === '/home') {
       url.pathname = '/dashboard';
       return NextResponse.rewrite(url);
-    }
-    if (pathname === '/generation') {
-      return NextResponse.redirect(appUrl('/', url.search));
-    }
-    if (pathname === '/dashboard') {
-      return NextResponse.redirect(appUrl('/home', url.search));
     }
   }
   return NextResponse.next();

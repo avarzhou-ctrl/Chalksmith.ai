@@ -13,6 +13,7 @@ REPOSITORY_DIR = BACKEND_DIR.parent
 # instance. Real environment variables win over both, so deployments are unaffected.
 LOCAL_ENV_FILE = REPOSITORY_DIR / ".env" / "env.local"
 LOCAL_CLERK_FILE = REPOSITORY_DIR / ".env" / "clerk.key.stg"
+DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 DEFAULT_FRONTEND_ORIGINS = (
     "http://localhost:3000",
     "https://chalksmith.ai",
@@ -35,12 +36,14 @@ class Settings(BaseModel):
     clerk_audience: str | None = None
     clerk_authorized_parties: tuple[str, ...] = DEFAULT_FRONTEND_ORIGINS
 
-    llm_provider: Literal["vertex", "openai"] = "vertex"
+    llm_provider: Literal["vertex", "openai", "deepseek"] = "vertex"
     llm_model: str | None = None
     llm_timeout_seconds: int = Field(default=120, gt=0)
     llm_max_output_tokens: int = Field(default=16_384, gt=0)
     vertex_ai_location: str = "global"
     openai_api_key: SecretStr | None = None
+    deepseek_api_key: SecretStr | None = None
+    deepseek_base_url: str = DEFAULT_DEEPSEEK_BASE_URL
 
     cloud_sql_instance: str | None = None
     database_url: str | None = None
@@ -100,6 +103,8 @@ class Settings(BaseModel):
         if self.llm_provider == "vertex":
             required["GCP_PROJECT_ID"] = self.gcp_project_id
             required["VERTEX_AI_LOCATION"] = self.vertex_ai_location
+        elif self.llm_provider == "deepseek":
+            required["DEEPSEEK_API_KEY"] = self.deepseek_api_key
         else:
             required["OPENAI_API_KEY"] = self.openai_api_key
         if not self.database_url:
@@ -146,6 +151,8 @@ class Settings(BaseModel):
             llm_max_output_tokens=os.getenv("LLM_MAX_OUTPUT_TOKENS", "16384"),
             vertex_ai_location=os.getenv("VERTEX_AI_LOCATION", "global"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
+            deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
+            deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", DEFAULT_DEEPSEEK_BASE_URL),
             cloud_sql_instance=os.getenv("CLOUD_SQL_INSTANCE"),
             database_url=os.getenv("DATABASE_URL"),
             database_name=os.getenv("DATABASE_NAME"),

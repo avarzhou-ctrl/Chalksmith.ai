@@ -124,12 +124,19 @@ for name in "${required[@]}"; do
     exit 1
   fi
 done
-if [[ "${LLM_PROVIDER}" != "vertex" && "${LLM_PROVIDER}" != "openai" ]]; then
-  echo "LLM_PROVIDER must be 'vertex' or 'openai'." >&2
-  exit 1
-fi
-if [[ "${LLM_PROVIDER}" == "openai" && -z "${LLM_SECRET_NAME:-}" ]]; then
-  echo "Missing required environment variable for OpenAI: LLM_SECRET_NAME" >&2
+# Vertex authenticates through the API service account; the key-based providers
+# each mount LLM_SECRET_NAME under the variable name their client library reads.
+case "${LLM_PROVIDER}" in
+  vertex) llm_secret_variable="" ;;
+  openai) llm_secret_variable="OPENAI_API_KEY" ;;
+  deepseek) llm_secret_variable="DEEPSEEK_API_KEY" ;;
+  *)
+    echo "LLM_PROVIDER must be 'vertex', 'openai', or 'deepseek'." >&2
+    exit 1
+    ;;
+esac
+if [[ -n "${llm_secret_variable}" && -z "${LLM_SECRET_NAME:-}" ]]; then
+  echo "Missing required environment variable for ${LLM_PROVIDER}: LLM_SECRET_NAME" >&2
   exit 1
 fi
 # A development key deploys cleanly and then fails sign-in in the browser.
@@ -203,7 +210,7 @@ if [[ "${sql_state}" != "RUNNABLE" ]]; then
   exit 1
 fi
 
-if [[ "${LLM_PROVIDER}" == "openai" ]]; then
+if [[ -n "${llm_secret_variable}" ]]; then
   gcloud secrets add-iam-policy-binding "${LLM_SECRET_NAME}" \
     --member "serviceAccount:${api_account}" --role roles/secretmanager.secretAccessor >/dev/null
 fi
@@ -223,8 +230,8 @@ gcloud run services add-iam-policy-binding "${renderer_service}" --region "${REG
   --member "serviceAccount:${api_account}" --role roles/run.invoker >/dev/null
 
 secret_bindings="DATABASE_PASSWORD=${db_password_secret}:latest"
-if [[ "${LLM_PROVIDER}" == "openai" ]]; then
-  secret_bindings+=",OPENAI_API_KEY=${LLM_SECRET_NAME}:latest"
+if [[ -n "${llm_secret_variable}" ]]; then
+  secret_bindings+=",${llm_secret_variable}=${LLM_SECRET_NAME}:latest"
 fi
 connection_name="${PROJECT_ID}:${REGION}:${sql_instance}"
 gcloud run deploy "${api_service}" --image "${api_image}" --region "${REGION}" \
