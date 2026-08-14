@@ -1,4 +1,3 @@
-import asyncio
 import re
 from pathlib import Path
 from uuid import UUID
@@ -44,7 +43,7 @@ def list_lessons(
     q: str | None = Query(default=None, max_length=200),
     format: LessonFormat | None = None,
     user: AuthUser = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session, scope="function"),
 ):
     lessons = list_owned_lessons(session, user.uid, query=q, lesson_format=format)
     version_counts = count_lesson_versions(
@@ -64,7 +63,7 @@ def list_lessons(
 def get_lesson(
     lesson_id: UUID,
     user: AuthUser = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session, scope="function"),
 ):
     return _owned_or_404(session, lesson_id, user.uid)
 
@@ -73,7 +72,7 @@ def get_lesson(
 def get_lesson_versions(
     lesson_id: UUID,
     user: AuthUser = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session, scope="function"),
 ):
     lesson = _owned_or_404(session, lesson_id, user.uid)
     return list_lesson_versions(session, lesson)
@@ -84,7 +83,7 @@ def update_lesson(
     lesson_id: UUID,
     update: LessonUpdate,
     user: AuthUser = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session, scope="function"),
 ):
     lesson = _owned_or_404(session, lesson_id, user.uid)
     if lesson.status == "deleting":
@@ -106,10 +105,10 @@ def update_lesson(
 
 
 @router.delete("/{lesson_id}", status_code=204)
-async def remove_lesson(
+def remove_lesson(
     lesson_id: UUID,
     user: AuthUser = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session, scope="function"),
     storage: GCSStorage = Depends(get_storage),
 ) -> Response:
     lesson = _owned_or_404(session, lesson_id, user.uid)
@@ -123,7 +122,7 @@ async def remove_lesson(
         save_lesson(session, version)
     for version in versions:
         try:
-            await asyncio.to_thread(storage.delete_prefix, f"sources/{user.uid}/{version.id}/")
+            storage.delete_prefix(f"sources/{user.uid}/{version.id}/")
         except Exception as error:
             raise AppError(
                 code="storage_delete_failed",
@@ -132,7 +131,7 @@ async def remove_lesson(
             ) from error
         if version.object_key:
             try:
-                await asyncio.to_thread(storage.delete, version.object_key)
+                storage.delete(version.object_key)
             except Exception as error:
                 raise AppError(
                     code="storage_delete_failed",
@@ -146,11 +145,11 @@ async def remove_lesson(
 
 
 @router.post("/{lesson_id}/access-url", response_model=AccessURLResponse)
-async def create_access_url(
+def create_access_url(
     lesson_id: UUID,
     download: bool = False,
     user: AuthUser = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_session, scope="function"),
     storage: GCSStorage = Depends(get_storage),
     settings: Settings = Depends(get_request_settings),
 ) -> AccessURLResponse:
@@ -160,12 +159,12 @@ async def create_access_url(
     extension = Path(lesson.object_key).suffix
     safe_topic = re.sub(r"[^\w .()-]", "_", lesson.topic, flags=re.UNICODE).strip()[:80]
     download_name = f"{safe_topic or 'chalksmith-lesson'}{extension}" if download else None
+    object_key = lesson.object_key
+    # Signing can call IAM over the network; do not reserve a scarce DB
+    # connection while that independent operation is in flight.
+    session.close()
     try:
-        url = await asyncio.to_thread(
-            storage.signed_url,
-            lesson.object_key,
-            download_name=download_name,
-        )
+        url = storage.signed_url(object_key, download_name=download_name)
     except Exception as error:
         raise AppError(
             code="signed_url_failed",

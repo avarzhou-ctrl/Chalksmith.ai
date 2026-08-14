@@ -121,7 +121,11 @@ the fields in its allow-list tuple — **a new `extra={...}` key is silently dro
 it there**. Owner identity is logged as `owner_id_hash` (`sha256(owner_id)[:16]`), never raw.
 
 **Blocking work moves off the loop.** GCS calls, PyMuPDF extraction, and JWT/JWKS verification all
-run under `asyncio.to_thread`. The Google Cloud and PyJWT clients are synchronous; keep the wrap.
+run under `asyncio.to_thread`, or inside a synchronous FastAPI route that FastAPI runs in its
+threadpool. The Google Cloud, database, and PyJWT clients are synchronous. Non-streaming database
+dependencies use `scope="function"`; generation alone keeps request scope because its SSE iterator
+uses the session after the endpoint returns. Never hold a checked-out database connection across
+an external-service await.
 
 ## Configuration
 

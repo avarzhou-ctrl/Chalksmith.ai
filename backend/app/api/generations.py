@@ -32,7 +32,8 @@ async def generate_lesson(
     edit_instruction: Annotated[str | None, Form(max_length=500)] = None,
     sources: Annotated[list[UploadFile] | None, File()] = None,
     user: AuthUser = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    # The service uses this session after the endpoint returns, inside the SSE stream.
+    session: Session = Depends(get_session, scope="request"),
     settings: Settings = Depends(get_request_settings),
     llm: LLMProvider = Depends(get_llm_provider),
     storage: GCSStorage = Depends(get_storage),

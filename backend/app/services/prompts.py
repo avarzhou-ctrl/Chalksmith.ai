@@ -28,6 +28,8 @@ https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/black.min.css
 https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js
 Do not use another Reveal.js version, theme, CDN path, or plugin. Set embedded: true in
 Reveal.initialize because the presentation runs inside a constrained preview iframe.
+Set an explicit dark background on html and body so lesson text remains visible while external
+Reveal.js assets are loading or unavailable.
 Create a coherent short lesson that moves from a learning goal through definitions and a visual
 explanation to one worked example, a comprehension check, and a recap. Prefer diagrams and
 short staged ideas over dense paragraphs. Every slide must fit the viewport without scrolling,

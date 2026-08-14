@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react';
 import { PanelRight, Flame, Loader2 } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import InputForm from "./InputForm";
@@ -14,7 +15,6 @@ interface GenerationSidebarProps {
   selectedLessonId: string | null;
   onSelectVersion: (lessonId: string) => void;
   loading: boolean;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
   format: string;
   topic: string;
   onFormatChange: (format: string) => void;
@@ -36,7 +36,6 @@ export default function GenerationSidebar({
   selectedLessonId,
   onSelectVersion,
   loading,
-  messagesEndRef,
   format,
   topic,
   onFormatChange,
@@ -49,6 +48,35 @@ export default function GenerationSidebar({
   error,
   generationStatus
 }: GenerationSidebarProps) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const versionStartRefs = useRef(new Map<string, HTMLDivElement>());
+  const isGenerating = loading && generationStatus !== 'Loading lesson…';
+
+  useEffect(() => {
+    if (!selectedLessonId) return;
+    const frame = window.requestAnimationFrame(() => {
+      versionStartRefs.current.get(selectedLessonId)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedLessonId]);
+
+  useEffect(() => {
+    if (isGenerating) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [generationStatus, isGenerating, messages.length]);
+
+  function selectVersion(lessonId: string) {
+    versionStartRefs.current.get(lessonId)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+    onSelectVersion(lessonId);
+  }
+
   return (
     <div className="flex flex-col h-full bg-secondary-bg border-l border-border overflow-hidden">
       {/* Standardized Header Area: Matches Dashboard height and padding */}
@@ -95,18 +123,27 @@ export default function GenerationSidebar({
                   </ul>
                 </div>
               )}
-              {messages.map((msg, i) => (
-                <div key={`${msg.lessonId ?? 'draft'}-${msg.role}-${i}`} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
+              {messages.map((msg, i) => {
+                const isVersionStart = Boolean(msg.lessonId && messages[i - 1]?.lessonId !== msg.lessonId);
+                return (
+                <div
+                  key={`${msg.lessonId ?? 'draft'}-${msg.role}-${i}`}
+                  ref={isVersionStart && msg.lessonId ? (node) => {
+                    if (node) versionStartRefs.current.set(msg.lessonId!, node);
+                    else versionStartRefs.current.delete(msg.lessonId!);
+                  } : undefined}
+                  className={`flex scroll-mt-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}
+                >
                   <button
                     type="button"
                     disabled={!msg.lessonId || loading}
-                    onClick={() => msg.lessonId && onSelectVersion(msg.lessonId)}
+                    onClick={() => msg.lessonId && selectVersion(msg.lessonId)}
                     className={`max-w-[90%] p-4 rounded-2xl text-left text-sm transition-colors ${
                     msg.role === 'user' 
                       ? 'bg-accent text-primary-text rounded-tr-none shadow-lg shadow-accent/10' 
                       : 'bg-surface/50 text-primary-text rounded-tl-none border border-border/50'
                   } ${msg.lessonId ? 'cursor-pointer hover:ring-1 hover:ring-accent/70 focus:outline-none focus:ring-2 focus:ring-accent' : 'cursor-default'} ${msg.lessonId === selectedLessonId ? 'ring-2 ring-accent' : ''}`}>
-                    {msg.versionNumber && <span className="mb-1 block text-xs font-medium text-secondary-text">Version {msg.versionNumber}</span>}
+                    {msg.versionNumber && <span className={`mb-1 block text-xs font-medium ${msg.role === 'user' ? 'text-primary-text' : 'text-secondary-text'}`}>Version {msg.versionNumber}</span>}
                     {msg.role === 'assistant' && typeof msg.content === 'string' ? (
                       <FormatOutput rawContent={msg.content} />
                     ) : (
@@ -114,8 +151,9 @@ export default function GenerationSidebar({
                     )}
                   </button>
                 </div>
-              ))}
-              {loading && (
+                );
+              })}
+              {isGenerating && (
                 <div className="flex justify-start">
                   <div className="bg-surface/50 p-4 rounded-2xl rounded-tl-none text-secondary-text text-sm animate-pulse border border-border/50 flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin" />

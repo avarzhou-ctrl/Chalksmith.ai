@@ -47,14 +47,28 @@ sql_drain() {
   if [[ -n "${ops}" ]]; then
     echo "waiting for in-flight operations on $1"
     # shellcheck disable=SC2086
-    gc sql operations wait ${ops} --timeout=900 >/dev/null
+    gc sql operations wait ${ops} --timeout=unlimited >/dev/null
   fi
+}
+
+# Submit patches asynchronously so gcloud's shorter synchronous wait cannot
+# report failure while Cloud SQL is still completing a valid operation.
+sql_set_activation_policy() {
+  local operation
+  operation="$(gc sql instances patch "$1" --activation-policy="$2" --async \
+    --quiet --format='value(name)')"
+  if [[ -z "${operation}" ]]; then
+    echo "Cloud SQL returned no operation for $1 activation policy $2." >&2
+    return 1
+  fi
+  echo "waiting for $1 activation policy to become $2"
+  gc sql operations wait "${operation}" --timeout=unlimited >/dev/null
 }
 
 sql_start() {
   sql_drain "$1"
   if [[ "$(sql_state "$1")" != "RUNNABLE" ]]; then
-    gc sql instances patch "$1" --activation-policy=ALWAYS --quiet >/dev/null
+    sql_set_activation_policy "$1" ALWAYS
     until [[ "$(sql_state "$1")" == "RUNNABLE" ]]; do
       echo "waiting for $1 to become RUNNABLE"
       sleep 10
@@ -65,7 +79,7 @@ sql_start() {
 
 sql_stop() {
   sql_drain "$1"
-  gc sql instances patch "$1" --activation-policy=NEVER --quiet >/dev/null
+  sql_set_activation_policy "$1" NEVER
   echo "stopped: $1"
 }
 

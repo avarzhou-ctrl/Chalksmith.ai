@@ -9,8 +9,8 @@ export default function Dashboard() {
 
   return (
     <DashboardShell layoutId="dashboard-layout">
-      <section className="flex h-full flex-col overflow-y-auto bg-primary-bg p-8">
-        <header className="mb-2">
+      <section className="flex h-full flex-col overflow-y-auto bg-primary-bg px-8 pb-8 pt-5">
+        <header className="mb-5">
           <h2 className="text-3xl font-bold tracking-tight">Lessons</h2>
         </header>
         {error && (

@@ -117,9 +117,9 @@ export default function LessonCard({
                 className="absolute inset-0 z-0 rounded-lg"
                 title="Open lesson"
             />}
-            <div className="relative z-30 flex items-start justify-between gap-3">
+            <div className="pointer-events-none relative z-30 flex items-start justify-between gap-3">
                 <h3 className="min-w-0 text-xl font-semibold text-primary-text leading-snug line-clamp-2">{displayTitle}</h3>
-                <div className="relative ml-auto shrink-0" ref={actionsRef}>
+                <div className="pointer-events-auto relative ml-auto shrink-0" ref={actionsRef}>
                     <button 
                         type="button"
                         onClick={() => setIsActionsOpen((current) => !current)}
@@ -159,14 +159,14 @@ export default function LessonCard({
                 </div>
             </div>
             {description && (
-                <div className="relative z-10 mt-3 line-clamp-2 text-sm leading-6 text-secondary-text">{description}</div>
+                <div className="pointer-events-none relative z-10 mt-3 line-clamp-2 text-sm leading-6 text-secondary-text">{description}</div>
             )}
             {status !== 'ready' && (
-                <p className="relative z-10 mt-3 text-xs font-medium text-amber-400">
+                <p className="pointer-events-none relative z-10 mt-3 text-xs font-medium text-amber-400">
                     {status === 'deleting' ? 'Deletion pending—retry from the menu.' : `Status: ${status}`}
                 </p>
             )}
-            <div className="relative z-10 mt-auto flex items-center justify-between gap-3 pt-4">
+            <div className="pointer-events-none relative z-10 mt-auto flex items-center justify-between gap-3 pt-4">
                 <p className="truncate text-xs text-secondary-text">{formattedDate}</p>
                 <p className="truncate text-xs text-secondary-text">{versionCount} {versionCount === 1 ? 'version' : 'versions'} · {formatLabel}</p>
             </div>

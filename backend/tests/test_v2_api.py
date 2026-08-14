@@ -4,6 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from fastapi import UploadFile
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy import event
 from sqlmodel import Session
@@ -12,6 +13,7 @@ from starlette.datastructures import Headers
 from backend.app.api.dependencies import get_renderers
 from backend.app.core.config import Settings
 from backend.app.db.lessons import create_lesson, save_lesson
+from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.llm.base import LLMResult
 from backend.app.integrations.llm.factory import get_llm_provider
@@ -20,6 +22,8 @@ from backend.app.main import create_app
 from backend.app.renderers.html import (
     HTMLRenderer,
     REVEAL_CORE_STYLESHEET,
+    REVEAL_FALLBACK_SCRIPT,
+    REVEAL_FALLBACK_STYLE,
     REVEAL_SCRIPT,
     REVEAL_THEME_STYLESHEET,
 )
@@ -132,6 +136,137 @@ class V2ApiTests(unittest.TestCase):
         access_response = self.client.post(f"/v2/lessons/{lesson_id}/access-url")
         self.assertEqual(access_response.status_code, 200)
         self.assertEqual(access_response.json()["expires_in"], 300)
+
+    def test_database_sessions_match_response_lifetimes(self) -> None:
+        routes = [route for route in self.app.routes if isinstance(route, APIRoute)]
+        lesson_routes = [route for route in routes if route.path.startswith("/v2/lessons")]
+        for route in lesson_routes:
+            session_dependencies = [
+                dependency
+                for dependency in route.dependant.dependencies
+                if dependency.call is get_session
+            ]
+            self.assertEqual(len(session_dependencies), 1, route.path)
+            self.assertEqual(session_dependencies[0].scope, "function", route.path)
+
+        generation_route = next(route for route in routes if route.path == "/v2/generations")
+        generation_session = next(
+            dependency
+            for dependency in generation_route.dependant.dependencies
+            if dependency.call is get_session
+        )
+        self.assertEqual(generation_session.scope, "request")
+
+    def test_generation_does_not_hold_a_connection_while_waiting_for_llm(self) -> None:
+        active_connections = 0
+        observed_connections: list[tuple[str, int]] = []
+
+        def checkout(*_args) -> None:
+            nonlocal active_connections
+            active_connections += 1
+
+        def checkin(*_args) -> None:
+            nonlocal active_connections
+            active_connections -= 1
+
+        class InspectingLLM(FakeLLM):
+            async def generate(self, prompt: str) -> LLMResult:
+                observed_connections.append(("llm", active_connections))
+                return await super().generate(prompt)
+
+        original_upload_file = self.storage.upload_file
+
+        def upload_file(source: Path, object_key: str, content_type: str) -> None:
+            observed_connections.append(("storage", active_connections))
+            original_upload_file(source, object_key, content_type)
+
+        event.listen(self.app.state.engine, "checkout", checkout)
+        event.listen(self.app.state.engine, "checkin", checkin)
+        self.app.dependency_overrides[get_llm_provider] = lambda: InspectingLLM()
+        self.storage.upload_file = upload_file
+        try:
+            response = self.client.post(
+                "/v2/generations",
+                data={"topic": "Connection lifecycle", "format": "interactive"},
+            )
+        finally:
+            self.storage.upload_file = original_upload_file
+            event.remove(self.app.state.engine, "checkout", checkout)
+            event.remove(self.app.state.engine, "checkin", checkin)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(observed_connections, [("llm", 0), ("storage", 0)])
+
+    def test_access_url_releases_its_connection_before_signing(self) -> None:
+        generated = self.client.post(
+            "/v2/generations",
+            data={"topic": "Signed URL lifecycle", "format": "interactive"},
+        )
+        lesson_id = _completed_lesson_id(generated.text)
+        active_connections = 0
+        observed_connections: list[int] = []
+
+        def checkout(*_args) -> None:
+            nonlocal active_connections
+            active_connections += 1
+
+        def checkin(*_args) -> None:
+            nonlocal active_connections
+            active_connections -= 1
+
+        def signed_url(object_key: str, *, download_name: str | None = None) -> str:
+            observed_connections.append(active_connections)
+            return f"https://storage.test/{object_key}"
+
+        event.listen(self.app.state.engine, "checkout", checkout)
+        event.listen(self.app.state.engine, "checkin", checkin)
+        original_signed_url = self.storage.signed_url
+        self.storage.signed_url = signed_url
+        try:
+            response = self.client.post(f"/v2/lessons/{lesson_id}/access-url")
+        finally:
+            self.storage.signed_url = original_signed_url
+            event.remove(self.app.state.engine, "checkout", checkout)
+            event.remove(self.app.state.engine, "checkin", checkin)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(observed_connections, [0])
+
+    def test_delete_releases_its_connection_before_storage_calls(self) -> None:
+        generated = self.client.post(
+            "/v2/generations",
+            data={"topic": "Delete lifecycle", "format": "interactive"},
+        )
+        lesson_id = _completed_lesson_id(generated.text)
+        active_connections = 0
+        observed_connections: list[int] = []
+
+        def checkout(*_args) -> None:
+            nonlocal active_connections
+            active_connections += 1
+
+        def checkin(*_args) -> None:
+            nonlocal active_connections
+            active_connections -= 1
+
+        original_delete_prefix = self.storage.delete_prefix
+
+        def delete_prefix(prefix: str) -> None:
+            observed_connections.append(active_connections)
+            original_delete_prefix(prefix)
+
+        event.listen(self.app.state.engine, "checkout", checkout)
+        event.listen(self.app.state.engine, "checkin", checkin)
+        self.storage.delete_prefix = delete_prefix
+        try:
+            response = self.client.delete(f"/v2/lessons/{lesson_id}")
+        finally:
+            self.storage.delete_prefix = original_delete_prefix
+            event.remove(self.app.state.engine, "checkout", checkout)
+            event.remove(self.app.state.engine, "checkin", checkin)
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(observed_connections, [0])
 
     def test_edits_are_versions_of_one_dashboard_lesson(self) -> None:
         first = self.client.post(
@@ -280,6 +415,8 @@ class V2ApiTests(unittest.TestCase):
         self.assertIn(REVEAL_CORE_STYLESHEET, rendered)
         self.assertIn(REVEAL_THEME_STYLESHEET, rendered)
         self.assertIn(REVEAL_SCRIPT, rendered)
+        self.assertIn(REVEAL_FALLBACK_STYLE, rendered)
+        self.assertIn(REVEAL_FALLBACK_SCRIPT, rendered)
         self.assertNotIn("4.3.1", rendered)
         self.assertNotIn("dracula.min.css", rendered)
 
@@ -296,6 +433,24 @@ class V2ApiTests(unittest.TestCase):
         self.assertIn(REVEAL_CORE_STYLESHEET, rendered)
         self.assertIn(REVEAL_THEME_STYLESHEET, rendered)
         self.assertIn(REVEAL_SCRIPT, rendered)
+        self.assertIn(REVEAL_FALLBACK_STYLE, rendered)
+        self.assertIn(REVEAL_FALLBACK_SCRIPT, rendered)
+
+    def test_slide_renderer_fallback_keeps_the_first_slide_visible(self) -> None:
+        generated = """<!doctype html><html><head></head><body>
+<div class="reveal"><div class="slides"><section>Visible lesson</section></div></div>
+<script>Reveal.initialize({embedded: true})</script></body></html>"""
+        with TemporaryDirectory() as directory:
+            asset = __import__("asyncio").run(
+                HTMLRenderer(required_marker="reveal").render(generated, Path(directory))
+            )
+            rendered = asset.path.read_text()
+
+        self.assertIn("background: #191919", rendered)
+        self.assertIn(".slides > section:first-child", rendered)
+        self.assertIn('deck.classList.add("chalksmith-reveal-fallback")', rendered)
+        self.assertLess(rendered.index(REVEAL_FALLBACK_STYLE), rendered.index("</head>"))
+        self.assertLess(rendered.index(REVEAL_FALLBACK_SCRIPT), rendered.index("</body>"))
 
     def test_interactive_prompt_prevents_double_scaled_pointer_coordinates(self) -> None:
         rules = FORMAT_RULES["interactive"]

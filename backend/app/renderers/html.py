@@ -19,6 +19,54 @@ REVEAL_THEME_STYLESHEET = (
     "https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/black.min.css"
 )
 REVEAL_SCRIPT = "https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js"
+REVEAL_FALLBACK_STYLE = """<style data-chalksmith-reveal-fallback>
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: #191919;
+}
+.reveal {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  color: #fff;
+}
+.reveal.chalksmith-reveal-fallback .slides {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 4%;
+  overflow: auto;
+}
+.reveal.chalksmith-reveal-fallback .slides > section {
+  display: none !important;
+}
+.reveal.chalksmith-reveal-fallback .slides > section:first-child {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  transform: none !important;
+  visibility: visible !important;
+}
+</style>"""
+REVEAL_FALLBACK_SCRIPT = """<script data-chalksmith-reveal-fallback>
+window.addEventListener("load", () => {
+  window.setTimeout(() => {
+    const deck = document.querySelector(".reveal");
+    const firstSlide = deck?.querySelector(".slides > section");
+    if (!deck || !firstSlide) return;
+    const style = window.getComputedStyle(firstSlide);
+    const bounds = firstSlide.getBoundingClientRect();
+    if (!deck.classList.contains("ready") || style.display === "none" ||
+        style.visibility === "hidden" || bounds.width === 0 || bounds.height === 0) {
+      deck.classList.add("chalksmith-reveal-fallback");
+    }
+  }, 1000);
+}, { once: true });
+</script>"""
 
 _LINK_TAG = re.compile(r"<link\b[^>]*>", re.IGNORECASE)
 _SCRIPT_TAG = re.compile(
@@ -58,7 +106,7 @@ def secure_html_document(code: str) -> str:
 
 
 def normalize_reveal_assets(code: str) -> str:
-    """Pin generated slides to CDN assets verified by the renderer."""
+    """Pin Reveal assets and keep slides visible if the CDN runtime fails."""
     found = {"core": False, "theme": False, "script": False}
 
     def replace_link(match: re.Match[str]) -> str:
@@ -93,17 +141,32 @@ def normalize_reveal_assets(code: str) -> str:
         missing_head_assets.append(f'<link rel="stylesheet" href="{REVEAL_THEME_STYLESHEET}">')
     if not found["script"]:
         missing_head_assets.append(f'<script src="{REVEAL_SCRIPT}"></script>')
-    if not missing_head_assets:
-        return normalized
+    normalized = _inject_into_head(normalized, "".join(missing_head_assets))
+    normalized = _inject_into_head(normalized, REVEAL_FALLBACK_STYLE, before_close=True)
+    return _inject_before_body_close(normalized, REVEAL_FALLBACK_SCRIPT)
 
-    assets = "".join(missing_head_assets)
-    head_start = re.search(r"<head\b[^>]*>", normalized, re.IGNORECASE)
+
+def _inject_into_head(code: str, content: str, *, before_close: bool = False) -> str:
+    if not content:
+        return code
+    if before_close:
+        head_end = re.search(r"</head\s*>", code, re.IGNORECASE)
+        if head_end:
+            return f"{code[:head_end.start()]}{content}{code[head_end.start():]}"
+    head_start = re.search(r"<head\b[^>]*>", code, re.IGNORECASE)
     if head_start:
-        return f"{normalized[:head_start.end()]}{assets}{normalized[head_start.end():]}"
-    html_start = re.search(r"<html\b[^>]*>", normalized, re.IGNORECASE)
+        return f"{code[:head_start.end()]}{content}{code[head_start.end():]}"
+    html_start = re.search(r"<html\b[^>]*>", code, re.IGNORECASE)
     if html_start:
-        return f"{normalized[:html_start.end()]}<head>{assets}</head>{normalized[html_start.end():]}"
-    return f"<head>{assets}</head>{normalized}"
+        return f"{code[:html_start.end()]}<head>{content}</head>{code[html_start.end():]}"
+    return f"<head>{content}</head>{code}"
+
+
+def _inject_before_body_close(code: str, content: str) -> str:
+    body_end = re.search(r"</body\s*>", code, re.IGNORECASE)
+    if body_end:
+        return f"{code[:body_end.start()]}{content}{code[body_end.start():]}"
+    return f"{code}{content}"
 
 
 def _reveal_stylesheet_kind(url: str) -> str | None:

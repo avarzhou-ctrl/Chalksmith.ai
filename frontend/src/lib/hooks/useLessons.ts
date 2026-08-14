@@ -20,15 +20,16 @@ export function useLessons(filters: LessonFilters = {}, debounceMs = 0) {
 
   useEffect(() => {
     let isActive = true;
+    const controller = new AbortController();
 
     const load = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await listLessons(api, { q, format });
+        const data = await listLessons(api, { q, format }, controller.signal);
         if (isActive) setLessons(data);
       } catch (caught) {
-        if (isActive) {
+        if (isActive && !controller.signal.aborted) {
           setError(caught instanceof Error ? caught.message : 'Failed to load lessons.');
         }
       } finally {
@@ -39,6 +40,7 @@ export function useLessons(filters: LessonFilters = {}, debounceMs = 0) {
     const timeoutId = window.setTimeout(() => void load(), debounceMs);
     return () => {
       isActive = false;
+      controller.abort();
       window.clearTimeout(timeoutId);
     };
   }, [api, debounceMs, format, q]);

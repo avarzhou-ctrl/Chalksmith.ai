@@ -30,7 +30,9 @@ def create_lesson(
     )
     session.add(lesson)
     session.commit()
-    session.refresh(lesson)
+    if session.expire_on_commit:
+        # Direct maintenance/test sessions keep the historical detached-object contract.
+        session.refresh(lesson)
     return lesson
 
 
@@ -105,5 +107,6 @@ def save_lesson(session: Session, lesson: Lesson) -> Lesson:
     lesson.updated_at = utc_now()
     session.add(lesson)
     session.commit()
-    session.refresh(lesson)
+    if session.expire_on_commit:
+        session.refresh(lesson)
     return lesson

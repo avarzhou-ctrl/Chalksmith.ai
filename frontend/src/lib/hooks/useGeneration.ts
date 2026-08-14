@@ -57,36 +57,63 @@ export function useGeneration(api: ApiClient) {
   const [sourceFiles, setSourceFiles] = useState<File[]>([]);
   const [messages, setMessages] = useState<GenerationMessage[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const loadAbortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    loadAbortRef.current?.abort();
+  }, []);
 
   const loadLesson = useCallback(async (lessonId: string) => {
+    loadAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
     setLoading(true);
+    setProgress(0);
+    setStatus('Loading lesson…');
     setError(null);
     setPreviewUrl('');
     try {
       const [saved, versions] = await Promise.all([
-        getLesson(api, lessonId),
-        getLessonVersions(api, lessonId),
+        getLesson(api, lessonId, controller.signal),
+        getLessonVersions(api, lessonId, controller.signal),
       ]);
+      if (controller.signal.aborted) return false;
       setLesson(saved);
       setTitle(saved.topic);
       setOriginalTopic(saved.topic);
       setFormat(saved.format);
       setMessages(messagesForVersions(versions));
       if (saved.status === 'ready') {
-        setPreviewUrl((await getLessonAccessUrl(api, saved.id)).url);
+        const access = await getLessonAccessUrl(api, saved.id, false, controller.signal);
+        if (controller.signal.aborted) return false;
+        setPreviewUrl(access.url);
+      } else if (saved.status === 'failed') {
+        setError(saved.error_message || 'Lesson generation failed.');
+      } else if (saved.status === 'deleting') {
+        setError('This lesson is pending deletion.');
+      } else {
+        setError('This lesson is still being generated.');
       }
+      return true;
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Failed to load lesson.');
+      if (!controller.signal.aborted) {
+        setError(caught instanceof Error ? caught.message : 'Failed to load lesson.');
+      }
+      return false;
     } finally {
-      setLoading(false);
+      if (loadAbortRef.current === controller) {
+        loadAbortRef.current = null;
+        setLoading(false);
+        setStatus(null);
+      }
     }
   }, [api]);
 
   const selectLessonVersion = useCallback(async (lessonId: string) => {
-    await loadLesson(lessonId);
-    window.history.replaceState({}, '', `?lessonId=${lessonId}`);
+    if (await loadLesson(lessonId)) {
+      window.history.replaceState({}, '', `?lessonId=${lessonId}`);
+    }
   }, [loadLesson]);
 
   const stopGeneration = useCallback(() => {
@@ -97,6 +124,8 @@ export function useGeneration(api: ApiClient) {
   }, []);
 
   const startNewLesson = useCallback(() => {
+    loadAbortRef.current?.abort();
+    loadAbortRef.current = null;
     stopGeneration();
     setTopic('');
     setOriginalTopic('');

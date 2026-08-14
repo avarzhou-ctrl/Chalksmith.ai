@@ -91,5 +91,7 @@ def _migrate_lesson_versions(engine) -> None:
 
 
 def get_session(request: Request):
-    with Session(request.app.state.engine) as session:
+    # Committed objects stay usable without an implicit refresh that checks a
+    # connection back out while an SSE stream waits on external services.
+    with Session(request.app.state.engine, expire_on_commit=False) as session:
         yield session

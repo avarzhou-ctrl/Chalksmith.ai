@@ -124,8 +124,8 @@ Every other resource is suffixed: `-stg` for staging, `-prod` for production. Lo
 | Secrets | `chalksmith-db-password-stg` <br> `chalksmith-clerk-key-stg` | `chalksmith-db-password-stg` <br> `chalksmith-clerk-key-stg` | `chalksmith-db-password-prod` <br> `chalksmith-clerk-key-prod` |
 
 `bin/setup.sh local|stg|prod start|shutdown` implements all requirements discussed in this section. 
-- `start`: skips satisfied requirements and creates only the ones needed, then leaves the database running; `local` is an alias for the staging resources.
-- `shutdown`: stops the database instance but keeps secrets, buckets, and data for the next run.
+- `start`: skips satisfied requirements and creates only the ones needed, waits for any Cloud SQL operation to finish, then leaves the database running; `local` is an alias for the staging resources.
+- `shutdown`: waits for the Cloud SQL stop operation, then keeps secrets, buckets, and data for the next run.
 
 ### 2.1 Setup environment secrets
 
@@ -235,7 +235,7 @@ gcloud sql instances create chalksmith-postgres-prod \
 
 Shared-core carries no SLA, and `ZONAL` availability means a zone outage is an outage.
 
-`max_connections` on this tier is derived from 0.6 GB of memory and is small; read it with `SELECT * FROM pg_settings WHERE name = 'max_connections'`. Build the engine with `pool_size=2, max_overflow=0` and cap the API at 2 instances ([Section 3.2](#32-staging-and-production-deployment)) — SQLAlchemy's defaults of 5 pooled plus 10 overflow per process would let an API at `--max 5` demand 75 connections.
+`max_connections` on this tier is derived from 0.6 GB of memory and is small; read it with `SELECT * FROM pg_settings WHERE name = 'max_connections'`. Build the engine with `pool_size=2, max_overflow=0` and cap the API at 2 instances ([Section 3.2](#32-staging-and-production-deployment)) — SQLAlchemy's defaults of 5 pooled plus 10 overflow per process would let an API at `--max 5` demand 75 connections. Ordinary API dependencies close their sessions before sending the response; only the generation SSE keeps request scope, and committed objects do not implicitly reacquire a connection while it waits on the LLM, renderer, or storage.
 
 The v2 schema is created by `create_db_and_tables()` during API startup unless `AUTO_CREATE_TABLES=false`, so a fresh environment needs no explicit schema step. Run the scripts below only to initialize without starting the API, or to import v1 data. Both resolve the connection the same way the API does, so the instance must be running and reachable — from a workstation that means the proxy in [Section 3.1.1](#311-start-cloud-sql-and-verify-gcp-access).
 

@@ -36,12 +36,15 @@ export default function RootLayout({
               <span className="hidden text-md font-semibold text-stone-50 sm:inline">Chalksmith.ai</span>
             </Link>
             <nav className="hidden items-center gap-10 text-sm font-medium text-stone-300 sm:flex">
-              <a className="transition-colors hover:text-stone-50" href="/content">
-                Content
-              </a>
-              <a className="transition-colors hover:text-stone-50" href="/about">
+              <Link className="transition-colors hover:text-stone-50" href="/dashboard">
+                Dashboard
+              </Link>
+              <Link className="transition-colors hover:text-stone-50" href="/content">
+                Explore
+              </Link>
+              <Link className="transition-colors hover:text-stone-50" href="/about">
                 About Us
-              </a>
+              </Link>
             </nav>
 
             <AuthButton />
