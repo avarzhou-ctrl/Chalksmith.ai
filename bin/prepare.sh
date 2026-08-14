@@ -91,6 +91,10 @@ grant_project_role "serviceAccount:${api_account}" roles/aiplatform.user
 grant_project_role "user:${human}" roles/cloudsql.client
 grant_project_role "user:${human}" roles/secretmanager.secretAccessor
 
+# domain.sh also runs as the human account: domain mapping needs Search Console
+# ownership verification, which binds to a user, so the deployer cannot stand in.
+grant_project_role "user:${human}" roles/run.admin
+
 # Signing a GCS URL means the API account calls signBlob as itself.
 gcloud iam service-accounts add-iam-policy-binding "${api_account}" \
   --project "${project}" --member "serviceAccount:${api_account}" \

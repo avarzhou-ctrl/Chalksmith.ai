@@ -3,12 +3,53 @@
 # prepare.sh; buckets, secrets, and the Cloud SQL instance come from setup.sh, which
 # is also the only place that stops the database.
 #
+# Configuration defaults come from .env/env.deploy; already-exported variables
+# take precedence.
+#
 #   ./bin/deploy.sh stg|prod start|shutdown
 set -euo pipefail
 
 # Cloud Build uploads the working directory, so both builds need the repository root.
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${repo_root}"
+
+deploy_env_file="${DEPLOY_ENV_FILE:-${repo_root}/.env/env.deploy}"
+
+# Load a strict dotenv subset without executing shell code. This catches typos,
+# keeps values literal, and lets one-off exported values override the file.
+load_deploy_env() {
+  local file="$1" line name value line_number=0
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    line_number=$((line_number + 1))
+    line="${line%$'\r'}"
+    [[ "${line}" =~ ^[[:space:]]*$ || "${line}" =~ ^[[:space:]]*# ]] && continue
+    if [[ ! "${line}" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+      echo "Invalid deployment config at ${file}:${line_number}; expected NAME=value." >&2
+      exit 1
+    fi
+    name="${BASH_REMATCH[1]}"
+    value="${BASH_REMATCH[2]}"
+    case "${name}" in
+      PROJECT_ID|REGION|DOMAIN|LLM_PROVIDER|LLM_MODEL|VERTEX_AI_LOCATION|LLM_SECRET_NAME) ;;
+      BUILD_SERVICE_ACCOUNT|CLOUD_SQL_INSTANCE_NAME|API_SERVICE|RENDERER_SERVICE|WEB_SERVICE) ;;
+      ARTIFACT_REPOSITORY|GCS_BUCKET|DATABASE_NAME|DATABASE_USER|DB_PASSWORD_SECRET_NAME) ;;
+      CLERK_KEY_SECRET_NAME|CLERK_KEY_FILE|REVISION_TAG|STAGING_ORIGINS) ;;
+      *)
+        echo "Unknown deployment setting ${name} at ${file}:${line_number}." >&2
+        exit 1
+        ;;
+    esac
+    if [[ -z "${!name+x}" ]]; then
+      printf -v "${name}" '%s' "${value}"
+      export "${name}"
+    fi
+  done < "${file}"
+}
+
+if [[ -f "${deploy_env_file}" ]]; then
+  load_deploy_env "${deploy_env_file}"
+  echo "Loaded deployment config: ${deploy_env_file}"
+fi
 
 environment="${1:-}"
 action="${2:-start}"
@@ -19,7 +60,8 @@ if [[ "${environment}" != "stg" && "${environment}" != "prod" ]] ||
 fi
 
 if [[ -z "${PROJECT_ID:-}" ]]; then
-  echo "Missing required environment variable: PROJECT_ID" >&2
+  echo "Missing required deployment setting: PROJECT_ID" >&2
+  echo "Copy bin/env.deploy.template to .env/env.deploy and replace its placeholders." >&2
   exit 1
 fi
 REGION="${REGION:-us-central1}"
@@ -57,8 +99,8 @@ if [[ "${environment}" == "prod" ]]; then
   domain="${domain%.}"
   domain="$(printf '%s' "${domain}" | tr '[:upper:]' '[:lower:]')"
   if [[ -z "${domain}" ]]; then
-    echo "Missing required environment variable for prod: DOMAIN" >&2
-    echo "Use a bare domain, for example: export DOMAIN=example.com" >&2
+    echo "Missing required deployment setting for prod: DOMAIN" >&2
+    echo "Use a bare domain in .env/env.deploy, for example: DOMAIN=example.com" >&2
     exit 1
   fi
   if [[ ! "${domain}" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
@@ -78,7 +120,7 @@ CLERK_PUBLISHABLE_KEY="${CLERK_PUBLISHABLE_KEY:-$(clerk_value NEXT_PUBLIC_CLERK_
 required=(LLM_PROVIDER LLM_MODEL CLERK_PUBLISHABLE_KEY CLERK_ISSUER)
 for name in "${required[@]}"; do
   if [[ -z "${!name:-}" ]]; then
-    echo "Missing required environment variable: ${name}" >&2
+    echo "Missing required deployment setting: ${name}" >&2
     exit 1
   fi
 done
@@ -212,6 +254,7 @@ API: ${api_url}
 Web: ${web_url}
 ${domain:+Domain origins: ${base_origins}}
 
-Add ${web_url} to the Clerk allowed URLs for this instance; sign-in fails until you do.
-Cloud Run also answers on a second hostname that is not in FRONTEND_ORIGINS -- use the URL above.
+Configure ${site_domain} as the Clerk production domain and complete Clerk's DNS records before testing sign-in.
+The run.app URL is for deployment diagnostics; Clerk production keys only work on the configured custom domain.
+Cloud Run also answers on a second hostname that is not in FRONTEND_ORIGINS -- use the URL above for diagnostics.
 EOF

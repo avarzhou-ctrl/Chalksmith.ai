@@ -5,24 +5,24 @@ const SITE_DOMAIN = process.env.NEXT_PUBLIC_SITE_DOMAIN || 'chalksmith.ai';
 const APP_HOST = `app.${SITE_DOMAIN}`;
 const MARKETING_HOSTS = new Set([SITE_DOMAIN, `www.${SITE_DOMAIN}`]);
 
+// Cloud Run terminates TLS and forwards to the container's own port, so anything
+// derived from the request carries :8080 into an absolute redirect.
+const appUrl = (pathname: string, search: string) => {
+  const destination = new URL(pathname, `https://${APP_HOST}`);
+  destination.search = search;
+  return destination;
+};
+
 export default clerkMiddleware((_auth, request: NextRequest) => {
   const url = request.nextUrl.clone();
   const host = request.headers.get('host')?.split(':')[0];
   const pathname = url.pathname;
 
   if (host && MARKETING_HOSTS.has(host) && pathname === '/generation') {
-    const destination = new URL('/', request.url);
-    destination.hostname = APP_HOST;
-    destination.protocol = 'https:';
-    destination.search = url.search;
-    return NextResponse.redirect(destination);
+    return NextResponse.redirect(appUrl('/', url.search));
   }
   if (host && MARKETING_HOSTS.has(host) && pathname === '/dashboard') {
-    const destination = new URL('/home', request.url);
-    destination.hostname = APP_HOST;
-    destination.protocol = 'https:';
-    destination.search = url.search;
-    return NextResponse.redirect(destination);
+    return NextResponse.redirect(appUrl('/home', url.search));
   }
   if (host === APP_HOST) {
     if (pathname === '/') {
@@ -34,12 +34,10 @@ export default clerkMiddleware((_auth, request: NextRequest) => {
       return NextResponse.rewrite(url);
     }
     if (pathname === '/generation') {
-      url.pathname = '/';
-      return NextResponse.redirect(url);
+      return NextResponse.redirect(appUrl('/', url.search));
     }
     if (pathname === '/dashboard') {
-      url.pathname = '/home';
-      return NextResponse.redirect(url);
+      return NextResponse.redirect(appUrl('/home', url.search));
     }
   }
   return NextResponse.next();

@@ -230,7 +230,7 @@ The database password is generated on the spot and never printed. The Clerk serv
 
 ### 4. Debug locally
 
-Starts the Cloud SQL Auth Proxy against the staging instance and the three local processes; `shutdown` stops those four and leaves the instance running for the next session. Requires [`cloud-sql-proxy`](https://cloud.google.com/sql/docs/postgres/sql-proxy) and `.env/env.local` ([GCP.md](doc/GCP.md#312-configure-local-runtime)).
+Starts the Cloud SQL Auth Proxy against the staging instance and the three local processes; `shutdown` stops those four and leaves the instance running for the next session. Requires [`cloud-sql-proxy`](https://cloud.google.com/sql/docs/postgres/sql-proxy) and `.env/env.local`, created from `bin/env.local.template` ([GCP.md](doc/GCP.md#312-configure-local-runtime)).
 
 ```bash
 ./bin/debug.sh start|shutdown
@@ -243,15 +243,23 @@ Logs and PIDs are written to the ignored `.env/run/` directory.
 Builds the images and deploys the three Cloud Run services. The database must already be running, which is step 3's job; a stopped instance aborts the run rather than being started here. `shutdown` deletes those three services and leaves everything else, including the database, in place; against production it asks for a typed confirmation.
 
 ```bash
-export PROJECT_ID=your-project-id DOMAIN=example.com
-export LLM_PROVIDER=vertex LLM_MODEL=gemini-3.6-flash
+cp bin/env.deploy.template .env/env.deploy
+chmod 600 .env/env.deploy
 
+# Replace the template placeholders once, then deploy without an export wrapper.
 ./bin/deploy.sh prod start
 ```
 
-`DOMAIN` is required for `prod start`; the script derives the root, `www`, and `app` HTTPS origins. It configures the services but does not create DNS records or a load balancer. Staging can omit it and use `./bin/deploy.sh stg start`. The Clerk pair falls back to `.env/clerk.key.<env>`, and the script impersonates `chalksmith-deployer` itself.
+For a one-off override, an already-exported variable takes precedence over the
+file:
 
-Afterwards, add the web URL the script prints to that Clerk instance's allowed URLs; sign-in fails until you do.
+```bash
+REVISION_TAG=manual-test ./bin/deploy.sh prod start
+```
+
+`deploy.sh` reads project, region, domain, and model settings from the ignored `.env/env.deploy`; exported variables override matching file values. `DOMAIN` is required for `prod start`, and the script derives the root, `www`, and `app` HTTPS origins. It configures the services but does not create DNS records or a load balancer; follow [DOMAIN.md](doc/DOMAIN.md) for domain mapping, DNS, certificates, Clerk, and multiple-domain setup. Staging can use the same file with `./bin/deploy.sh stg start`. The Clerk pair falls back to `.env/clerk.key.<env>`, and the script impersonates `chalksmith-deployer` itself.
+
+Before testing production sign-in, configure the root `DOMAIN` on the Clerk Production instance, complete Clerk's DNS and certificate steps, and create the Cloud Run mappings in [DOMAIN.md](doc/DOMAIN.md). The generated `run.app` URL is for deployment diagnostics; Clerk production keys only work on the configured custom domain.
 
 
 ## Contact

@@ -6,16 +6,19 @@ Never commit service-account JSON files, database passwords, or provider secrets
 
 ## Resource overview
 
-| Resource | Purpose | Local development | Staging | Production |
-| :--- | :--- | :--- | :--- | :--- | 
-| Vertex AI | Gemini lesson generation | Application Default Credentials | Cloud Run API service account | Cloud Run API service account |
-| Cloud Storage (GCS) | Private PDFs, HTML, and MP4 artifacts | `chalksmith-gcs-stg` | `chalksmith-gcs-stg` | `chalksmith-gcs-prod` |
-| Cloud SQL (PostgreSQL16) | Lesson metadata and source code | `chalksmith-postgres-stg` | `chalksmith-postgres-stg` | `chalksmith-postgres-prod`|
-| Cloud Run | Next.js web, FastAPI API, isolated Manim renderer | 3 local processes | Required | Required |
-| Secret Manager | Database password, Clerk server key, etc. | `chalksmith-db-password-stg` <br> `chalksmith-clerk-key-stg` | <nobr> `chalksmith-db-password-stg` <br> `chalksmith-clerk-key-stg` | <nobr> `chalksmith-db-password-prod` <br> `chalksmith-clerk-key-prod` |
-| Cloud Build | Container image storage and builds | Not used | Required | Required |
+| Resource | Purpose | Local | Staging | Production |
+| :--- | :--- | :--- | :--- | :--- |
+| Vertex AI | Gemini lesson generation | Application Default Credentials | `chalksmith-api` service account | `chalksmith-api` service account |
+| Cloud Storage (GCS) | Uploaded PDFs and images, generated HTML, MP4, and Python | `chalksmith-gcs-stg` | `chalksmith-gcs-stg` | `chalksmith-gcs-prod` |
+| Cloud SQL (PostgreSQL 16) | Lesson metadata and generated source code | `chalksmith-postgres-stg` | `chalksmith-postgres-stg` | `chalksmith-postgres-prod` |
+| Secret Manager | Database password, Clerk server key, optional OpenAI key |  <nobr> `chalksmith-db-password-stg` <br> `chalksmith-clerk-key-stg` | <nobr> `chalksmith-db-password-stg` <br> `chalksmith-clerk-key-stg` | <nobr> `chalksmith-db-password-prod` <br> `chalksmith-clerk-key-prod` |
+| Cloud Build | Builds the api, renderer, and web images from repository source | Not used | `${your-project-id}_cloudbuild` | `${your-project-id}_cloudbuild` |
+| Artifact Registry | Container image storage | Not used | `chalksmith-stg` | `chalksmith-prod` |
+| Cloud Run | Next.js web, FastAPI API, isolated Manim renderer | 3 local processes | <nobr>`chalksmith-{web,api,renderer}-stg` | <nobr>`chalksmith-{web,api,renderer}-prod` |
 
 Vertex AI uses Google credentials and does not use a Gemini Developer API key in this architecture.
+
+Cloud Build is the one row that does not follow the `-stg`/`-prod` suffix used everywhere else ([Section 2](#2-deploy-gcs-buckets-database-and-secrets-in-gcp)). `gcloud builds submit` creates `${your-project-id}_cloudbuild` in the US multi-region on the first build and stages both environments' source tarballs there. Nothing in `bin/` creates or prunes it, and it has no lifecycle rule, so it grows by one repository tarball per image build.
 
 ## Current project values
 
@@ -282,34 +285,22 @@ Both runtimes read the same two files from the ignored `.env/` directory:
 
 Values are literal; neither file is expanded by a shell, so `${...}` placeholders must be substituted before saving. Real environment variables win over both files, which is how a single file serves two processes with different roles.
 
-`.env/env.local`:
+Create `.env/env.local` from its tracked template and restrict its permissions:
 
-```dotenv
-APP_ENV=local
-APP_ROLE=api
-FRONTEND_ORIGINS=http://localhost:3000
-
-GCP_PROJECT_ID=your-project-id
-
-LLM_PROVIDER=vertex
-LLM_MODEL=gemini-3.6-flash
-VERTEX_AI_LOCATION=global
-
-# Staging Cloud SQL through the local proxy from Section 3.1.1.
-# Percent-encode the password; a value holding '/', '+', or '=' silently truncates the URL.
-DATABASE_URL=postgresql://chalksmith:<url-encoded-password>@127.0.0.1:5432/chalksmith
-
-GCS_BUCKET=chalksmith-gcs-stg
-GCS_SIGNER_SERVICE_ACCOUNT=chalksmith-api@your-project-id.iam.gserviceaccount.com
-MANIM_RENDERER_URL=http://localhost:8081
-
-NEXT_PUBLIC_API_URL=http://localhost:8000
+```bash
+cp bin/env.local.template .env/env.local
+chmod 600 .env/env.local
 ```
 
-- Clerk settings (`CLERK_ISSUER`, `CLERK_JWKS_URL`, `CLERK_AUDIENCE`, `CLERK_AUTHORIZED_PARTIES`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`) belong in `.env/clerk.key.stg` only.
+Replace the project ID in `GCP_PROJECT_ID` and `GCS_SIGNER_SERVICE_ACCOUNT`, and
+replace the URL-encoded database-password placeholder. The template documents
+the local web/API/renderer URLs, Vertex defaults, the mutually exclusive OpenAI
+alternative, staging GCS resources, and all optional backend tuning values.
+
+- Clerk instance settings (`CLERK_ISSUER`, optional `CLERK_JWKS_URL` and `CLERK_AUDIENCE`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`) belong in `.env/clerk.key.stg`, created from `bin/clerk.key.template`. Do not duplicate `CLERK_AUTHORIZED_PARTIES` there: locally it inherits `FRONTEND_ORIGINS`, while `deploy.sh` derives and injects it for deployed environments.
 - The renderer process reads the same file but must override the role: `APP_ROLE=renderer uv run ...`.
 - `CLOUD_SQL_INSTANCE`, `DATABASE_NAME`, `DATABASE_USER`, and `DATABASE_PASSWORD` are the deployed alternative to `DATABASE_URL` and are unused locally.
-- `LLM_PROVIDER=openai` replaces the three Vertex settings with `OPENAI_API_KEY`.
+- `LLM_PROVIDER=openai` replaces the Vertex provider/model settings with an OpenAI model and `OPENAI_API_KEY`; the mutually exclusive examples are in `bin/env.local.template`.
 - `APP_ENV=local` skips the strict startup validation, so an omitted variable silently takes its default rather than failing. Defaults that matter: `SIGNED_URL_TTL_SECONDS=900`, `GENERATION_TIMEOUT_SECONDS=900`, `MANIM_TIMEOUT_SECONDS=600`, `LLM_TIMEOUT_SECONDS=120`, `LLM_MAX_OUTPUT_TOKENS=16384`, `MAX_SOURCE_FILES=5`, `MAX_SOURCE_BYTES=10000000`, `AUTO_CREATE_TABLES=true`.
 
 #### 3.1.3 Start three local debugging processes
@@ -354,16 +345,17 @@ The content in this section is implemented in `bin/deploy.sh`.
 | Artifact Registry | `chalksmith-stg` | `chalksmith-prod` |
 | Cloud Run services | `chalksmith-{api,web,renderer}-stg` | `chalksmith-{api,web,renderer}-prod` |
 
-Export before `start`:
+Create the ignored deployment configuration once before `start`:
 
 ```bash
-export PROJECT_ID=your-project-id DOMAIN=example.com
-export LLM_PROVIDER=vertex LLM_MODEL=gemini-3.6-flash
+cp bin/env.deploy.template .env/env.deploy
+chmod 600 .env/env.deploy
 
+# Replace its placeholders, then run directly:
 ./bin/deploy.sh prod start
 ```
 
-`DOMAIN` is required only for `prod start` and must be a bare domain such as `example.com`. The script derives `https://example.com`, `https://www.example.com`, and `https://app.example.com` for CORS and Clerk authorized parties, and compiles the domain into the web host routing. It does not create DNS records, certificates, or a load balancer; those front-door resources have a separate lifecycle from service revisions. `CLERK_ISSUER` and `CLERK_PUBLISHABLE_KEY` fall back to `.env/clerk.key.<env>` ([CLERK.md](CLERK.md)); `prod` refuses a `pk_test_` key.
+`deploy.sh` automatically reads `.env/env.deploy` using literal `NAME=value` syntax; it does not evaluate shell expressions. Already-exported variables take precedence, so they remain available for one-off overrides. `DOMAIN` is required only for `prod start` and must be a bare domain such as `example.com`. The script derives `https://example.com`, `https://www.example.com`, and `https://app.example.com` for CORS and Clerk authorized parties, and compiles the domain into the web host routing. It does not create DNS records, certificates, or a load balancer; those front-door resources have a separate lifecycle from service revisions. Follow [DOMAIN.md](DOMAIN.md) to verify ownership, create mappings, add DNS records, configure Clerk, or plan a second base domain. `CLERK_ISSUER` and `CLERK_PUBLISHABLE_KEY` fall back to `.env/clerk.key.<env>` ([CLERK.md](CLERK.md)); `prod` refuses a `pk_test_` key.
 
 Two dependencies fix the order: the API needs the renderer URL, and the web image needs the API URL.
 
@@ -393,11 +385,11 @@ Attach an Artifact Registry cleanup policy retaining the most recent few tags pe
 
 After `start`:
 
-1. Add the printed web URL to that Clerk instance's allowed URLs. Sign-in is rejected by Clerk until this is done, and it cannot be scripted from here.
-2. Use the URL the script printed. Cloud Run answers each service on two hostnames, the legacy `-<hash>-uc.a.run.app` form and the newer `-<project-number>.<region>.run.app` form; only the first is written into `FRONTEND_ORIGINS` and the Clerk authorized parties, so the other fails CORS and Clerk verification. `gcloud run services list` reports the newer form.
+1. Configure the root `DOMAIN` on the Clerk Production instance, add Clerk's DNS records, deploy its certificates, and create the Cloud Run mappings and product DNS records in [DOMAIN.md](DOMAIN.md). Clerk production keys work only on that configured custom domain.
+2. Use the printed `run.app` URL only for unauthenticated deployment diagnostics. Cloud Run answers each service on two hostnames, the legacy `-<hash>-uc.a.run.app` form and the newer `-<project-number>.<region>.run.app` form; only the first is written into `FRONTEND_ORIGINS` and the Clerk authorized parties. `gcloud run services list` reports the newer form.
 3. Verify the API through `/docs` or any `/v2/...` route, which answers `401` without a token. `/healthz` is answered upstream of the container on `*.run.app` and is not a usable deployment check.
 
-`shutdown` deletes the three Cloud Run services and nothing else; images, buckets, secrets, and data all survive, which makes `start` repeatable. Stopping the database is `bin/setup.sh <env> shutdown`, so a `start` between sessions costs no instance boot. Each `start` prints the web URL again — confirm it still matches the Clerk allowed URLs.
+`shutdown` deletes the three Cloud Run services and nothing else; images, buckets, secrets, and data all survive, which makes `start` repeatable. Stopping the database is `bin/setup.sh <env> shutdown`, so a `start` between sessions costs no instance boot. Each `start` prints the web URL again for deployment diagnostics; production authentication continues to use the configured custom domain.
 
 Logs are structured JSON on stdout, collected by Cloud Logging. Every API response carries an `X-Request-Id` header matching `jsonPayload.request_id`, and user identity appears only as `owner_id_hash`.
 
