@@ -3,26 +3,18 @@
 # prepare.sh; buckets, secrets, and the Cloud SQL instance come from setup.sh, which
 # is also the only place that stops the database.
 #
-#   ./bin/deploy.sh --type=stg|prod start|shutdown [--yes]
+#   ./bin/deploy.sh stg|prod start|shutdown
 set -euo pipefail
 
 # Cloud Build uploads the working directory, so both builds need the repository root.
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${repo_root}"
 
-environment=""
-action=""
-confirmed=0
-for arg in "$@"; do
-  case "${arg}" in
-    --type=*) environment="${arg#*=}" ;;
-    --yes) confirmed=1 ;;
-    start|shutdown) action="${arg}" ;;
-    *) echo "Unknown argument: ${arg}" >&2; exit 1 ;;
-  esac
-done
-if [[ "${environment}" != "stg" && "${environment}" != "prod" || -z "${action}" ]]; then
-  echo "Usage: ./bin/deploy.sh --type=stg|prod start|shutdown [--yes]" >&2
+environment="${1:-}"
+action="${2:-start}"
+if [[ "${environment}" != "stg" && "${environment}" != "prod" ]] ||
+   [[ "${action}" != "start" && "${action}" != "shutdown" ]]; then
+  echo "Usage: ./bin/deploy.sh stg|prod start|shutdown" >&2
   exit 1
 fi
 
@@ -39,7 +31,7 @@ web_service="${WEB_SERVICE:-chalksmith-web-${environment}}"
 
 if [[ "${action}" == "shutdown" ]]; then
   # Production is a live service; removing its services takes the product offline.
-  if [[ "${environment}" == "prod" && "${confirmed}" -eq 0 ]]; then
+  if [[ "${environment}" == "prod" ]]; then
     read -rp "Delete the PRODUCTION Cloud Run services and take Chalksmith offline? Type 'prod' to confirm: " answer
     [[ "${answer}" == "prod" ]] || { echo "Aborted." >&2; exit 1; }
   fi
@@ -113,6 +105,14 @@ for account in "${api_account}" "${renderer_account}" "${web_account}"; do
     exit 1
   fi
 done
+# Checked here rather than at --set-secrets, which would fail after the builds.
+for secret in "${db_password_secret}" "${clerk_secret}"; do
+  if ! gcloud secrets describe "${secret}" >/dev/null 2>&1; then
+    echo "Missing secret ${secret}. Run ./bin/setup.sh ${environment} start first." >&2
+    exit 1
+  fi
+done
+
 if ! gcloud artifacts repositories describe "${repository}" --location "${REGION}" >/dev/null 2>&1; then
   gcloud artifacts repositories create "${repository}" --location "${REGION}" --repository-format docker
 fi

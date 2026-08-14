@@ -107,7 +107,7 @@ Deploy through impersonation rather than a downloaded key:
 ```bash
 gcloud config set auth/impersonate_service_account \
   chalksmith-deployer@your-project-id.iam.gserviceaccount.com
-./bin/deploy.sh --type=stg start
+./bin/deploy.sh stg start
 gcloud config unset auth/impersonate_service_account
 ```
 
@@ -351,10 +351,10 @@ The content in this section is implemented in `bin/deploy.sh`.
 ```bash
 # "start" builds the images and deploys the three Cloud Run services
 # "shutdown" deletes those three services; the database is stopped by setup.sh
-./bin/deploy.sh --type=stg|prod start|shutdown
+./bin/deploy.sh stg|prod start|shutdown
 ```
 
-`shutdown` is a staging affordance. Production is a live service: it stays up, and `--type=prod shutdown` takes the product offline, so it demands an explicit confirmation unless `--yes` is passed.
+`shutdown` is a staging affordance. Production is a live service: it stays up, and `prod shutdown` takes the product offline, so it demands a typed confirmation.
 
 | Resource | Staging | Production |
 | :--- | :--- | :--- |

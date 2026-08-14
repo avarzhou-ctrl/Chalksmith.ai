@@ -240,7 +240,7 @@ Logs and PIDs are written to the ignored `.env/run/` directory.
 
 ### 5. Deploy an environment
 
-Builds the images and deploys the three Cloud Run services. The database must already be running, which is step 3's job; a stopped instance aborts the run rather than being started here. `shutdown` deletes those three services and leaves everything else, including the database, in place; against production it asks for confirmation unless `--yes` is passed.
+Builds the images and deploys the three Cloud Run services. The database must already be running, which is step 3's job; a stopped instance aborts the run rather than being started here. `shutdown` deletes those three services and leaves everything else, including the database, in place; against production it asks for a typed confirmation.
 
 ```bash
 export PROJECT_ID=your-project-id REGION=us-central1
@@ -249,7 +249,7 @@ export CLERK_PUBLISHABLE_KEY=pk_... CLERK_ISSUER=https://<instance>.clerk.accoun
 
 gcloud config set auth/impersonate_service_account \
   chalksmith-deployer@your-project-id.iam.gserviceaccount.com
-./bin/deploy.sh --type=stg|prod start|shutdown
+./bin/deploy.sh stg|prod start|shutdown
 gcloud config unset auth/impersonate_service_account
 ```
 

@@ -201,7 +201,7 @@ cat <<EOF
 
 Ready, with ${sql_instance} left running:
 
-  ./bin/debug.sh start                      # local processes against ${sql_instance}
-  ./bin/deploy.sh --type=${environment} start
-  ./bin/setup.sh ${environment} shutdown             # stop the instance when done for the day
+  ./bin/debug.sh start              # local processes against ${sql_instance}
+  ./bin/deploy.sh ${environment} start
+  ./bin/setup.sh ${environment} shutdown    # stop the instance when done for the day
 EOF
