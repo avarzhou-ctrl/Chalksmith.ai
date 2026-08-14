@@ -3,22 +3,22 @@
 import { useState, useRef, DragEvent, ChangeEvent, forwardRef } from "react";
 import { Paperclip, X } from "lucide-react";
 
-export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  topic: string;
-  format: string;
+export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'maxLength'> {
   files?: File[];
   onFilesChange?: (files: File[]) => void;
   value: string;
   maxLength: number;
+  fileUploadDisabled?: boolean;
   generationButton: React.ReactNode;
 }
 
 const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className = "", topic, format, files = [], onFilesChange, value, maxLength, generationButton, ...props }, ref) => {
+  ({ className = "", files = [], onFilesChange, value, maxLength, fileUploadDisabled = false, generationButton, ...props }, ref) => {
     const [isDragActive, setIsDragActive] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const handleFiles = (newFiles: File[]) => {
+      if (fileUploadDisabled) return;
       const pdfFiles = newFiles.filter((file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"));
       if (pdfFiles.length) {
         onFilesChange?.([...files, ...pdfFiles]);
@@ -76,7 +76,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       >
         <textarea
           ref={ref}
-          className="bg-transparent h-20 focus:outline-none resize-none text-sm text-primary-text placeholder:text-secondary-text"
+          className={`h-20 resize-none bg-transparent text-sm text-primary-text placeholder:text-secondary-text focus:outline-none ${className}`}
           value={value}
           maxLength={maxLength}
           {...props}
@@ -109,7 +109,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             <button
               type="button"
               onClick={onButtonClick}
-              disabled={!topic.trim() || !format}
+              disabled={fileUploadDisabled}
               className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:opacity-40"
             >
               <Paperclip size={20} />

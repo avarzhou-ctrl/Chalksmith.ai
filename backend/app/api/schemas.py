@@ -25,7 +25,15 @@ class LessonResponse(BaseModel):
     updated_at: datetime
 
 
-class LessonVersionResponse(LessonResponse):
+class LessonVersionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    parent_lesson_id: UUID | None
+    version_number: int
+    topic: str
+    status: Literal["generating", "ready", "failed", "deleting"]
+    summary: str | None
     edit_instruction: str | None
 
 

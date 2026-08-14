@@ -31,6 +31,7 @@ load_deploy_env() {
     value="${BASH_REMATCH[2]}"
     case "${name}" in
       PROJECT_ID|REGION|DOMAIN|LLM_PROVIDER|LLM_MODEL|VERTEX_AI_LOCATION|LLM_SECRET_NAME) ;;
+      LLM_TIMEOUT_SECONDS|LLM_MAX_OUTPUT_TOKENS|MAX_SOURCE_CHARACTERS) ;;
       BUILD_SERVICE_ACCOUNT|CLOUD_SQL_INSTANCE_NAME|API_SERVICE|RENDERER_SERVICE|WEB_SERVICE) ;;
       ARTIFACT_REPOSITORY|GCS_BUCKET|DATABASE_NAME|DATABASE_USER|DB_PASSWORD_SECRET_NAME) ;;
       CLERK_KEY_SECRET_NAME|CLERK_KEY_FILE|REVISION_TAG|STAGING_ORIGINS) ;;
@@ -165,6 +166,17 @@ web_image="${registry}/web:${revision}"
 # Staging runs the same startup validation as production, so both report production.
 app_env="${APP_ENV_OVERRIDE:-production}"
 vertex_ai_location="${VERTEX_AI_LOCATION:-global}"
+llm_timeout_seconds="${LLM_TIMEOUT_SECONDS:-120}"
+llm_max_output_tokens="${LLM_MAX_OUTPUT_TOKENS:-16384}"
+max_source_characters="${MAX_SOURCE_CHARACTERS:-200000}"
+
+for setting in llm_timeout_seconds llm_max_output_tokens max_source_characters; do
+  value="${!setting}"
+  if [[ ! "${value}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "${setting} must be a positive integer." >&2
+    exit 1
+  fi
+done
 
 if [[ "${environment}" == "prod" ]]; then
   base_origins="https://${domain},https://www.${domain},https://app.${domain}"
@@ -221,9 +233,17 @@ gcloud builds submit --config bin/cloudbuild-backend.yaml \
   --service-account "projects/${PROJECT_ID}/serviceAccounts/${build_account}" \
   --substitutions "_API_IMAGE=${api_image},_RENDERER_IMAGE=${renderer_image}" .
 
+# Cloud Build stages one source archive per submission in this shared bucket.
+# Expiring completed archives prevents deploy frequency from growing storage forever.
+cloud_build_bucket="gs://${PROJECT_ID}_cloudbuild"
+if gcloud storage buckets describe "${cloud_build_bucket}" >/dev/null 2>&1; then
+  gcloud storage buckets update "${cloud_build_bucket}" \
+    --lifecycle-file "${repo_root}/bin/cloudbuild-source-lifecycle.json" >/dev/null
+fi
+
 gcloud run deploy "${renderer_service}" --image "${renderer_image}" --region "${REGION}" \
   --service-account "${renderer_account}" --no-allow-unauthenticated --cpu 2 --memory 2Gi \
-  --concurrency 1 --timeout 900 --min 0 --max 2 \
+  --concurrency 1 --timeout 900 --min 0 --max 2 --cpu-throttling \
   --set-env-vars "APP_ENV=${app_env},APP_ROLE=renderer,MANIM_TIMEOUT_SECONDS=600"
 renderer_url="$(gcloud run services describe "${renderer_service}" --region "${REGION}" --format 'value(status.url)')"
 gcloud run services add-iam-policy-binding "${renderer_service}" --region "${REGION}" \
@@ -236,8 +256,9 @@ fi
 connection_name="${PROJECT_ID}:${REGION}:${sql_instance}"
 gcloud run deploy "${api_service}" --image "${api_image}" --region "${REGION}" \
   --service-account "${api_account}" --allow-unauthenticated --cpu 1 --memory 1Gi \
-  --concurrency 8 --timeout 900 --min 0 --max 2 --add-cloudsql-instances "${connection_name}" \
-  --set-env-vars "^|^APP_ENV=${app_env}|APP_ROLE=api|GCP_PROJECT_ID=${PROJECT_ID}|CLERK_ISSUER=${CLERK_ISSUER}|CLERK_AUTHORIZED_PARTIES=${initial_origins}|LLM_PROVIDER=${LLM_PROVIDER}|LLM_MODEL=${LLM_MODEL}|VERTEX_AI_LOCATION=${vertex_ai_location}|CLOUD_SQL_INSTANCE=${connection_name}|DATABASE_NAME=${database}|DATABASE_USER=${database_user}|GCS_BUCKET=${bucket}|GCS_SIGNER_SERVICE_ACCOUNT=${api_account}|MANIM_RENDERER_URL=${renderer_url}|GENERATION_TIMEOUT_SECONDS=840|FRONTEND_ORIGINS=${initial_origins}" \
+  --concurrency 8 --timeout 900 --min 0 --max 2 --cpu-throttling \
+  --add-cloudsql-instances "${connection_name}" \
+  --set-env-vars "^|^APP_ENV=${app_env}|APP_ROLE=api|GCP_PROJECT_ID=${PROJECT_ID}|CLERK_ISSUER=${CLERK_ISSUER}|CLERK_AUTHORIZED_PARTIES=${initial_origins}|LLM_PROVIDER=${LLM_PROVIDER}|LLM_MODEL=${LLM_MODEL}|LLM_TIMEOUT_SECONDS=${llm_timeout_seconds}|LLM_MAX_OUTPUT_TOKENS=${llm_max_output_tokens}|VERTEX_AI_LOCATION=${vertex_ai_location}|CLOUD_SQL_INSTANCE=${connection_name}|DATABASE_NAME=${database}|DATABASE_USER=${database_user}|GCS_BUCKET=${bucket}|GCS_SIGNER_SERVICE_ACCOUNT=${api_account}|MANIM_RENDERER_URL=${renderer_url}|GENERATION_TIMEOUT_SECONDS=840|MAX_SOURCE_CHARACTERS=${max_source_characters}|FRONTEND_ORIGINS=${initial_origins}" \
   --set-secrets "${secret_bindings}"
 api_url="$(gcloud run services describe "${api_service}" --region "${REGION}" --format 'value(status.url)')"
 
@@ -246,7 +267,7 @@ gcloud builds submit --config bin/cloudbuild-web.yaml \
   --substitutions "_WEB_IMAGE=${web_image},_API_URL=${api_url},_CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY},_SITE_DOMAIN=${site_domain}" .
 gcloud run deploy "${web_service}" --image "${web_image}" --region "${REGION}" \
   --service-account "${web_account}" --allow-unauthenticated --cpu 1 --memory 512Mi \
-  --concurrency 40 --timeout 60 --min 0 --max 2 \
+  --concurrency 40 --timeout 60 --min 0 --max 2 --cpu-throttling \
   --set-secrets "CLERK_SECRET_KEY=${clerk_secret}:latest"
 web_url="$(gcloud run services describe "${web_service}" --region "${REGION}" --format 'value(status.url)')"
 

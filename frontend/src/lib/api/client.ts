@@ -62,7 +62,7 @@ export function createApiClient({
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await requestRaw(path, init);
     if (!response.ok) {
-      throw await toApiError(response);
+      throw await apiErrorFromResponse(response);
     }
     if (response.status === 204) {
       return undefined as T;
@@ -77,7 +77,7 @@ function normalizePath(path: string): string {
   return path.startsWith('/') ? path : `/${path}`;
 }
 
-async function toApiError(response: Response): Promise<ApiError> {
+export async function apiErrorFromResponse(response: Response): Promise<ApiError> {
   try {
     const body = (await response.json()) as Partial<ApiErrorBody>;
     if (body.error?.code && body.error.message) {

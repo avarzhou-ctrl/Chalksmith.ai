@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from time import monotonic
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 from fastapi import FastAPI
 from fastapi.security import HTTPAuthorizationCredentials
@@ -266,7 +267,9 @@ class StorageTests(unittest.TestCase):
 
 class ApplicationTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.app: FastAPI = create_app(Settings(app_env="test"))
+        # Without an explicit URL the engine falls back to an on-disk SQLite file,
+        # which the lifespan below then creates in the repository's .env directory.
+        self.app: FastAPI = create_app(Settings(app_env="test", database_url="sqlite://"))
         self.client = TestClient(self.app)
 
     def test_healthcheck(self) -> None:
@@ -370,6 +373,28 @@ class GenerationDeadlineTests(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaises(TimeoutError):
             await service._await(asyncio.sleep(1))
+
+    async def test_failed_generation_cleanup_removes_output_and_uploaded_sources(self) -> None:
+        storage = MagicMock()
+        service = GenerationService(
+            session=None,  # type: ignore[arg-type]
+            llm=None,  # type: ignore[arg-type]
+            storage=storage,
+            renderers={},
+            deadline=monotonic() + 1,
+            request_id="cleanup-test",
+        )
+        lesson_id = uuid4()
+
+        await service._cleanup_failed_storage(
+            lesson_id=lesson_id,
+            owner_hash="owner-hash",
+            object_key=f"lessons/teacher/{lesson_id}/lesson.html",
+            source_prefix=f"sources/teacher/{lesson_id}/",
+        )
+
+        storage.delete.assert_called_once_with(f"lessons/teacher/{lesson_id}/lesson.html")
+        storage.delete_prefix.assert_called_once_with(f"sources/teacher/{lesson_id}/")
 
     async def test_renderer_cancellation_kills_the_process_group(self) -> None:
         class FakeProcess:

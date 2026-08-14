@@ -61,7 +61,7 @@ class Settings(BaseModel):
     max_source_files: int = Field(default=5, gt=0)
     max_source_bytes: int = Field(default=10_000_000, gt=0)
     max_total_source_bytes: int = Field(default=25_000_000, gt=0)
-    max_source_characters: int = Field(default=120_000, gt=0)
+    max_source_characters: int = Field(default=200_000, gt=0)
     auto_create_tables: bool = True
 
     @field_validator("frontend_origins")
@@ -168,7 +168,7 @@ class Settings(BaseModel):
             max_source_files=os.getenv("MAX_SOURCE_FILES", "5"),
             max_source_bytes=os.getenv("MAX_SOURCE_BYTES", "10000000"),
             max_total_source_bytes=os.getenv("MAX_TOTAL_SOURCE_BYTES", "25000000"),
-            max_source_characters=os.getenv("MAX_SOURCE_CHARACTERS", "120000"),
+            max_source_characters=os.getenv("MAX_SOURCE_CHARACTERS", "200000"),
             auto_create_tables=_bool_env("AUTO_CREATE_TABLES", True),
         )
 

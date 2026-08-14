@@ -18,7 +18,7 @@ Never commit service-account JSON files, database passwords, or provider secrets
 
 Vertex AI uses Google credentials and does not use a Gemini Developer API key in this architecture.
 
-Cloud Build is the one row that does not follow the `-stg`/`-prod` suffix used everywhere else ([Section 2](#2-deploy-gcs-buckets-database-and-secrets-in-gcp)). `gcloud builds submit` creates `${your-project-id}_cloudbuild` in the US multi-region on the first build and stages both environments' source tarballs there. Nothing in `bin/` creates or prunes it, and it has no lifecycle rule, so it grows by one repository tarball per image build.
+Cloud Build is the one row that does not follow the `-stg`/`-prod` suffix used everywhere else ([Section 2](#2-deploy-gcs-buckets-database-and-secrets-in-gcp)). `gcloud builds submit` creates `${your-project-id}_cloudbuild` in the US multi-region on the first build and stages both environments' source tarballs there. After the first build, `deploy.sh` applies `bin/cloudbuild-source-lifecycle.json` so completed source archives expire after seven days instead of growing without bound.
 
 ## Current project values
 
@@ -379,7 +379,7 @@ Step 5 runs before the web hostname exists, so both origin variables start at a 
 
 Renderer concurrency is 1: a Manim render occupies the container's CPU for the whole job. The API is capped at 2 instances to stay within the database connection limit ([Section 2.3](#23-database-initialization-and-v1-migration)).
 
-All three services deploy at `--min 0` on request-based billing, including production. Do not pass `--no-cpu-throttling` or switch a service to instance-based billing; the sizing rationale is in [COST.md](COST.md). One constraint is not about cost: request-based billing throttles CPU once the response is sent, so generation must keep holding the request open for its full duration rather than returning early and continuing in the background.
+All three services explicitly deploy with `--min 0 --cpu-throttling`, retaining request-based billing even if a previous revision used instance-based billing. Do not pass `--no-cpu-throttling`; the sizing rationale is in [COST.md](COST.md). One constraint is not about cost: request-based billing throttles CPU once the response is sent, so generation must keep holding the request open for its full duration rather than returning early and continuing in the background.
 
 Attach an Artifact Registry cleanup policy retaining the most recent few tags per repository. Every deploy pushes a git-SHA-tagged image, and the renderer image carries a full LaTeX and ffmpeg toolchain.
 

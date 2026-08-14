@@ -8,11 +8,12 @@ interface Option {
 }
 
 interface DropdownProps {
-    options: Option[];
+    options: readonly Option[];
     value: string;
     onChange: (value: string) => void;
     placeholder: string;
     disabled?: boolean;
+    variant?: 'default' | 'search';
 }
 
 export default function Dropdown({
@@ -20,7 +21,8 @@ export default function Dropdown({
     value,
     onChange,
     placeholder = "Select an option",
-    disabled = false
+    disabled = false,
+    variant = 'default',
 }: DropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -56,6 +58,8 @@ export default function Dropdown({
     const disabledStyles = disabled 
         ? "opacity-40 cursor-not-allowed" 
         : "cursor-pointer";
+    const triggerStyles = variant === 'search' ? 'h-12 rounded-lg px-4' : 'rounded-xl px-4 py-2';
+    const menuStyles = variant === 'search' ? 'rounded-lg' : 'rounded-xl';
 
     return (
         <div className="relative w-full" ref={dropdownRef}>
@@ -63,7 +67,7 @@ export default function Dropdown({
                 type="button"
                 onClick={handleToggle}
                 disabled={disabled}
-                className={`w-full flex items-center justify-between px-4 py-2 rounded-xl border text-sm font-medium transition-all duration-300 outline-none focus:ring-2 focus:ring-accent/50 ${buttonStyles} ${disabledStyles} min-w-0`}
+                className={`flex w-full min-w-0 items-center justify-between border text-sm font-medium outline-none transition-all duration-300 focus:ring-2 focus:ring-accent/50 ${triggerStyles} ${buttonStyles} ${disabledStyles}`}
             >
                 <span className="truncate mr-2">{selectedOption ? selectedOption.label : placeholder}</span>
                 <svg 
@@ -77,7 +81,7 @@ export default function Dropdown({
             </button>
 
             {isOpen && (
-                <ul className="absolute z-50 w-full mt-2 bg-secondary-bg border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <ul className={`absolute z-50 mt-2 w-full overflow-hidden border border-border bg-secondary-bg shadow-xl animate-in fade-in zoom-in-95 duration-200 ${menuStyles}`}>
                     {options.map((option) => (
                         <li key={option.value}>
                             <button

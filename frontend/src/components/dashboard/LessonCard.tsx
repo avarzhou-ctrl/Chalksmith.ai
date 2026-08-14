@@ -8,14 +8,14 @@ import { TriangleAlert } from "lucide-react";
 import EditableTitle from "@/components/generation/EditableTitle";
 import { renameLesson } from "@/lib/api/lessons";
 import { useApi } from "@/lib/hooks/useApi";
-import type { LessonListItem } from '@/lib/types/api';
+import { getLessonFormatLabel, type LessonFormat, type LessonListItem } from '@/lib/types/api';
 import { useState, useRef, useEffect } from "react";
 
 interface LessonCardProps {
     id: string;
     title: string;
     description: React.ReactNode;
-    format: string;
+    format: LessonFormat;
     status: LessonListItem['status'];
     createdAt: string;
     versionCount: number;
@@ -39,12 +39,6 @@ export default function LessonCard({
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isActionsOpen, setIsActionsOpen] = useState(false);
     const actionsRef = useRef<HTMLDivElement>(null);
-    const formatLabels: Record<string, string> = {
-        video: 'Video',
-        interactive: 'Interactive Display',
-        slides: 'Presentation',
-    };
-    
     const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
 
     useEffect(() => {
@@ -56,7 +50,7 @@ export default function LessonCard({
         day: 'numeric',
         year: 'numeric',
     }).format(new Date(createdAt));
-    const formatLabel = formatLabels[format] ?? format;
+    const formatLabel = getLessonFormatLabel(format);
 
     useEffect(() => {
         const closeActions = (event: MouseEvent) => {

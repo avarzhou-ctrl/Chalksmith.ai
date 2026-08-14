@@ -20,9 +20,10 @@ from backend.app.db.lessons import (
     count_lesson_versions,
     get_owned_lesson,
     get_lesson_root,
+    list_lesson_version_summaries,
     list_lesson_versions,
     list_owned_lessons,
-    save_lesson,
+    save_lessons,
 )
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
@@ -75,7 +76,7 @@ def get_lesson_versions(
     session: Session = Depends(get_session, scope="function"),
 ):
     lesson = _owned_or_404(session, lesson_id, user.uid)
-    return list_lesson_versions(session, lesson)
+    return list_lesson_version_summaries(session, lesson)
 
 
 @router.patch("/{lesson_id}", response_model=LessonResponse)
@@ -98,10 +99,11 @@ def update_lesson(
     root = get_lesson_root(session, lesson)
     if root is None:
         raise AppError(code="lesson_not_found", message="Lesson not found.", status_code=404)
-    for version in list_lesson_versions(session, root):
+    versions = list_lesson_versions(session, root)
+    for version in versions:
         version.topic = topic
-        save_lesson(session, version)
-    return _owned_or_404(session, lesson_id, user.uid)
+    save_lessons(session, versions)
+    return lesson
 
 
 @router.delete("/{lesson_id}", status_code=204)
@@ -119,7 +121,7 @@ def remove_lesson(
     # A retryable storage/DB failure must never leave a ready record pointing at a missing file.
     for version in versions:
         version.status = "deleting"
-        save_lesson(session, version)
+    save_lessons(session, versions)
     for version in versions:
         try:
             storage.delete_prefix(f"sources/{user.uid}/{version.id}/")

@@ -1,4 +1,14 @@
-export type LessonFormat = 'interactive' | 'slides' | 'video';
+export const LESSON_FORMAT_OPTIONS = [
+  { label: 'Interactive Display', value: 'interactive' },
+  { label: 'Presentation', value: 'slides' },
+  { label: 'Video', value: 'video' },
+] as const;
+
+export type LessonFormat = (typeof LESSON_FORMAT_OPTIONS)[number]['value'];
+
+export function getLessonFormatLabel(format: LessonFormat): string {
+  return LESSON_FORMAT_OPTIONS.find((option) => option.value === format)?.label ?? format;
+}
 
 export interface ApiErrorBody {
   error: {
@@ -23,7 +33,13 @@ export interface Lesson {
   updated_at: string;
 }
 
-export interface LessonVersion extends Lesson {
+export interface LessonVersion {
+  id: string;
+  parent_lesson_id: string | null;
+  version_number: number;
+  topic: string;
+  status: Lesson['status'];
+  summary: string | null;
   edit_instruction: string | null;
 }
 

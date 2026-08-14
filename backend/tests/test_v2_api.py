@@ -300,6 +300,27 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual([version["version_number"] for version in history], [1, 2])
         self.assertEqual(history[1]["parent_lesson_id"], first_id)
         self.assertEqual(history[1]["edit_instruction"], "Add a worked example.")
+        self.assertNotIn("source_code", history[0])
+
+        commits = 0
+
+        def count_commit(_session) -> None:
+            nonlocal commits
+            commits += 1
+
+        event.listen(Session, "after_commit", count_commit)
+        try:
+            renamed = self.client.patch(
+                f"/v2/lessons/{edited_id}",
+                json={"topic": "Right triangles"},
+            )
+        finally:
+            event.remove(Session, "after_commit", count_commit)
+
+        self.assertEqual(renamed.status_code, 200)
+        self.assertEqual(commits, 1)
+        renamed_versions = self.client.get(f"/v2/lessons/{first_id}/versions").json()
+        self.assertEqual([version["topic"] for version in renamed_versions], ["Right triangles"] * 2)
 
     def test_lesson_list_counts_versions_with_one_grouped_query(self) -> None:
         with Session(self.app.state.engine) as session:

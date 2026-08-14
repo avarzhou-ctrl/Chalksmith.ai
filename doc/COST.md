@@ -50,6 +50,8 @@ The practical consequence: **there is no infrastructure tuning left worth doing.
 
 What that buys, and what it does not: no SLA, and a zone outage is an outage. That is a deliberate trade at 100–500 requests a day, where the jump to a dedicated-core machine with regional HA costs roughly five times as much. Revisit when downtime costs more than the tier does, not before.
 
+Google classifies shared-core tiers as low-cost test and development machines and recommends against production use. The current production choice is therefore a deliberate cost/reliability exception: monitor connection pressure, memory, latency, and restarts, then move to dedicated core before traffic or uptime requirements outgrow it.
+
 Backups diverge by environment because their value does, not to save money. Staging is reproducible from a deploy, so its backups are pure waste. Production holds lessons a user paid Vertex AI tokens to generate; daily backups alone would put the recovery point up to 24 hours back, and the WAL archive that closes that gap costs about a dollar a month at this write volume. Enable PITR in production.
 
 Stopping is the only real lever, and it only applies to staging: stopped, an instance bills storage alone — roughly a sixth of what it costs running.
@@ -68,7 +70,7 @@ Measured against this workload:
 | renderer (600 renders × 120s) | 144,000 | 144,000 | — | |
 | **Total** | **153,000** | **150,750** | **15,000** | **$0** |
 
-All three fit inside the free allotment; even ignoring the free tier entirely, the same usage prices at $4.05/month. Utilization is on the order of 1% — two orders of magnitude below the crossover.
+All three fit inside the free allotment; even ignoring the free tier entirely, the same usage prices at $4.05/month. Utilization is on the order of 1% — two orders of magnitude below the crossover. `deploy.sh` passes `--cpu-throttling` explicitly so a prior service configuration cannot silently carry instance-based billing into the next revision.
 
 ### 4.2 What "lifetime" means under instance-based
 
@@ -120,7 +122,9 @@ Infrastructure is flat at this scale. Three things are not:
 
 1. **Vertex AI generation**, billed per token, will overtake the entire $12 baseline well before the infrastructure does. It is the only line that scales with product success.
 2. **Render volume.** Under request-based billing the renderer already consumes 85% of the free CPU allotment at 20 generations/day. The allotment runs out at roughly **24 generations/day**; past that each render costs about **$0.006**, which stays negligible for a long time but is no longer zero.
-3. **Artifact Registry.** Every deploy pushes images tagged with a git SHA, and the renderer image carries a full LaTeX and ffmpeg toolchain. Without a cleanup policy retaining the most recent few tags per repository, the registry outgrows the database.
+3. **Build and image storage.** Every deploy pushes images tagged with a git SHA and uploads source archives for two Cloud Build submissions. `deploy.sh` applies retention policies to both Artifact Registry and the shared Cloud Build source bucket so deploy frequency does not grow storage indefinitely.
+
+The deploy template also exposes `LLM_MAX_OUTPUT_TOKENS` and `MAX_SOURCE_CHARACTERS`. These are the direct worst-case output and source-input guardrails; reduce them only after measuring real generated lessons, because values that are too small trade lower token spend for truncated code or incomplete source context. The source default is 200,000 characters: roughly 50,000 tokens for typical English text (about $0.075 of Gemini 3.6 Flash input) and up to about 200,000 tokens or $0.30 for dense CJK text. Raising it further adds latency and makes the shared provider configuration more likely to exceed a 128K-token context window.
 
 ## Appendix A: Recomputing
 

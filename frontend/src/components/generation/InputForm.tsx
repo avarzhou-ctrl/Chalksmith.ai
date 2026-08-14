@@ -3,13 +3,14 @@
 import FormatSelector from './FormatSelector';
 import Textarea from '@/components/ui/Textarea';
 import { CircleArrowUp, CirclePause } from 'lucide-react';
+import type { LessonFormat } from '@/lib/types/api';
 
 const TOPIC_CHARACTER_LIMIT = 100;
 
 interface InputFormProps {
-    format: string;
+    format: LessonFormat | '';
     topic: string;
-    onFormatChange: (value: string) => void;
+    onFormatChange: (value: LessonFormat) => void;
     onTopicChange: (value: string) => void;
     onGenerate: () => void;
     onStopGenerate: () => void;
@@ -65,10 +66,9 @@ export default function InputForm({
             </div>
             <div className="relative mt-4 group flex-1 flex flex-col">
                 <Textarea 
-                    topic={topic}
-                    format={format}
                     placeholder={isEditMode ? "How should I edit this lesson?" : "Describe your topic..."}
                     disabled={disabled}
+                    fileUploadDisabled={disabled || !topic.trim() || !format}
                     value={topic}
                     maxLength={TOPIC_CHARACTER_LIMIT}
                     files={sourceFiles}

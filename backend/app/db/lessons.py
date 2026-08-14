@@ -1,9 +1,21 @@
+from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
 from backend.app.db.models import Lesson, utc_now
+
+
+@dataclass(frozen=True)
+class LessonVersionSummary:
+    id: UUID
+    parent_lesson_id: UUID | None
+    version_number: int
+    topic: str
+    status: str
+    summary: str | None
+    edit_instruction: str | None
 
 
 def create_lesson(
@@ -75,6 +87,26 @@ def list_lesson_versions(session: Session, lesson: Lesson) -> list[Lesson]:
     )
 
 
+def list_lesson_version_summaries(
+    session: Session,
+    lesson: Lesson,
+) -> list[LessonVersionSummary]:
+    rows = session.exec(
+        select(
+            Lesson.id,
+            Lesson.parent_lesson_id,
+            Lesson.version_number,
+            Lesson.topic,
+            Lesson.status,
+            Lesson.summary,
+            Lesson.edit_instruction,
+        )
+        .where(Lesson.owner_id == lesson.owner_id, Lesson.root_lesson_id == lesson.root_lesson_id)
+        .order_by(col(Lesson.version_number))
+    ).all()
+    return [LessonVersionSummary(*row) for row in rows]
+
+
 def count_lesson_versions(
     session: Session,
     owner_id: str,
@@ -94,13 +126,13 @@ def count_lesson_versions(
 
 
 def next_version_number(session: Session, root_lesson_id: UUID, owner_id: str) -> int:
-    versions = session.exec(
-        select(Lesson.version_number).where(
+    latest_version = session.exec(
+        select(func.max(Lesson.version_number)).where(
             Lesson.owner_id == owner_id,
             Lesson.root_lesson_id == root_lesson_id,
         )
-    ).all()
-    return max(versions, default=0) + 1
+    ).one()
+    return (latest_version or 0) + 1
 
 
 def save_lesson(session: Session, lesson: Lesson) -> Lesson:
@@ -110,3 +142,15 @@ def save_lesson(session: Session, lesson: Lesson) -> Lesson:
     if session.expire_on_commit:
         session.refresh(lesson)
     return lesson
+
+
+def save_lessons(session: Session, lessons: list[Lesson]) -> list[Lesson]:
+    updated_at = utc_now()
+    for lesson in lessons:
+        lesson.updated_at = updated_at
+    session.add_all(lessons)
+    session.commit()
+    if session.expire_on_commit:
+        for lesson in lessons:
+            session.refresh(lesson)
+    return lessons

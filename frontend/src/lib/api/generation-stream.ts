@@ -1,6 +1,6 @@
 import type { ApiClient } from '@/lib/api/client';
-import { ApiError } from '@/lib/api/client';
-import type { ApiErrorBody, GenerationEvent, GenerationRequest } from '@/lib/types/api';
+import { ApiError, apiErrorFromResponse } from '@/lib/api/client';
+import type { GenerationEvent, GenerationRequest } from '@/lib/types/api';
 
 interface StreamGenerationOptions {
   client: ApiClient;
@@ -23,17 +23,12 @@ export async function streamGeneration({
   });
 
   if (!response.ok || !response.body) {
-    try {
-      const body = await response.json() as ApiErrorBody;
-      throw new ApiError(body.error.message, response.status, body.error.code, body.error.details);
-    } catch (caught) {
-      if (caught instanceof ApiError) throw caught;
-      throw new ApiError(
-        `Generation stream failed with status ${response.status}.`,
-        response.status,
-        'GENERATION_STREAM_FAILED',
-      );
-    }
+    if (!response.ok) throw await apiErrorFromResponse(response);
+    throw new ApiError(
+      'Generation stream ended without a response body.',
+      response.status,
+      'GENERATION_STREAM_FAILED',
+    );
   }
 
   const reader = response.body.getReader();

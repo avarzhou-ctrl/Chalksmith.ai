@@ -14,7 +14,6 @@ import LoadingOverlay from '@/components/generation/LoadingOverlay';
 import Button from '@/components/ui/Button';
 import { useApi } from '@/lib/hooks/useApi';
 import { useGeneration } from '@/lib/hooks/useGeneration';
-import type { LessonFormat } from '@/lib/types/api';
 
 export default function GenerationPage() {
   const api = useApi();
@@ -111,13 +110,12 @@ export default function GenerationPage() {
               loading={loading}
               format={format}
               topic={topic}
-              onFormatChange={(value) => setFormat(value as LessonFormat)}
+              onFormatChange={setFormat}
               onTopicChange={setTopic}
               onGenerate={() => void generateLesson()}
               onStopGenerate={stopGeneration}
               sourceFiles={sourceFiles}
               onSourceFilesChange={setSourceFiles}
-              currentLessonId={lesson?.id ?? null}
               error={error}
               generationStatus={status}
             />

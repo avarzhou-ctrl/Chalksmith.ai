@@ -51,6 +51,10 @@ def configure_logging() -> None:
     root_logger.addHandler(handler)
     root_logger.setLevel(logging.INFO)
 
+    # Request stages already carry timings; dependency request logs add volume without context.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+
 
 class RequestLoggingMiddleware:
     """Log after the final response body so SSE durations include generation work."""

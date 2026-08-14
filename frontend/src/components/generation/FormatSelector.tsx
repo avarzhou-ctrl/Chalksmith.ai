@@ -1,27 +1,22 @@
 'use client';
 
 import Dropdown from '@/components/ui/Dropdown';
+import { LESSON_FORMAT_OPTIONS, type LessonFormat } from '@/lib/types/api';
 
 interface FormatSelectorProps {
-    value: string;
-    onChange: (value: string) => void;
+    value: LessonFormat | '';
+    onChange: (value: LessonFormat) => void;
     disabled?: boolean;
 }
 
 export default function FormatSelector({ value, onChange, disabled }: FormatSelectorProps) {
-    const models = [
-        { label: 'Interactive Display', value: 'interactive' },
-        { label: 'Presentation', value: 'slides' },
-        { label: 'Video', value: 'video' }
-    ];
-    
     return (
         <div className="flex flex-col gap-1.5 min-w-0">
             <label className="text-xs font-semibold text-secondary-text uppercase tracking-wider truncate whitespace-nowrap">Format</label>
             <Dropdown
-                options={models}
+                options={LESSON_FORMAT_OPTIONS}
                 value={value}
-                onChange={onChange}
+                onChange={(nextValue) => onChange(nextValue as LessonFormat)}
                 placeholder="Select a format"
                 disabled={disabled}
             />

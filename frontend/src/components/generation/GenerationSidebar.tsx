@@ -6,6 +6,7 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 import InputForm from "./InputForm";
 import FormatOutput from "@/components/ui/FormatOutput";
 import type { GenerationMessage } from '@/lib/hooks/useGeneration';
+import type { LessonFormat } from '@/lib/types/api';
 
 interface GenerationSidebarProps {
   isCollapsed: boolean;
@@ -15,15 +16,14 @@ interface GenerationSidebarProps {
   selectedLessonId: string | null;
   onSelectVersion: (lessonId: string) => void;
   loading: boolean;
-  format: string;
+  format: LessonFormat | '';
   topic: string;
-  onFormatChange: (format: string) => void;
+  onFormatChange: (format: LessonFormat) => void;
   onTopicChange: (topic: string) => void;
-  onGenerate: (override?: string) => void;
+  onGenerate: () => void;
   onStopGenerate: () => void;
   sourceFiles: File[];
   onSourceFilesChange: (files: File[]) => void;
-  currentLessonId: string | null;
   error: string | null;
   generationStatus: string | null;
 }
@@ -44,7 +44,6 @@ export default function GenerationSidebar({
   onStopGenerate,
   sourceFiles,
   onSourceFilesChange,
-  currentLessonId,
   error,
   generationStatus
 }: GenerationSidebarProps) {
@@ -180,7 +179,7 @@ export default function GenerationSidebar({
                 sourceFiles={sourceFiles}
                 onSourceFilesChange={onSourceFilesChange}
                 disabled={loading}
-                isEditMode={!!currentLessonId}
+                isEditMode={Boolean(selectedLessonId)}
               />
               {generationStatus && (
                 <p className="text-center text-xs text-secondary-text">{generationStatus}</p>

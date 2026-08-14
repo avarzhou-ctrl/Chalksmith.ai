@@ -11,13 +11,14 @@ from uuid import UUID
 
 from sqlmodel import Session
 
+from backend.app.core.config import get_settings
 from backend.app.db.lessons import (
     create_lesson,
     get_owned_lesson,
     next_version_number,
     save_lesson,
 )
-from backend.app.integrations.llm.base import LLMProvider, LLMProviderError
+from backend.app.integrations.llm.base import LLMProvider, LLMProviderError, LLMResult
 from backend.app.integrations.storage import GCSStorage
 from backend.app.renderers.base import RenderError, Renderer
 from backend.app.services.prompts import (
@@ -52,6 +53,59 @@ class GenerationService:
     async def _await(self, operation: Awaitable[T]) -> T:
         remaining = self.deadline - monotonic()
         return await asyncio.wait_for(operation, timeout=max(0, remaining))
+
+    async def _generate_with_logging(
+        self,
+        prompt: str,
+        *,
+        lesson_id: UUID,
+        owner_hash: str,
+        stage: str,
+    ) -> LLMResult:
+        started = monotonic()
+        result = await self._await(self.llm.generate(prompt))
+        logger.info(
+            "lesson_llm_completed",
+            extra={
+                "lesson_id": str(lesson_id),
+                "owner_id_hash": owner_hash,
+                "stage": stage,
+                "provider": result.provider,
+                "model": result.model,
+                "input_tokens": result.input_tokens,
+                "output_tokens": result.output_tokens,
+                "duration_ms": round((monotonic() - started) * 1000),
+                "request_id": self.request_id,
+            },
+        )
+        return result
+
+    async def _cleanup_failed_storage(
+        self,
+        *,
+        lesson_id: UUID,
+        owner_hash: str,
+        object_key: str | None,
+        source_prefix: str | None,
+    ) -> None:
+        operations = []
+        if object_key:
+            operations.append(("output", self.storage.delete, object_key))
+        if source_prefix:
+            operations.append(("sources", self.storage.delete_prefix, source_prefix))
+        for target, operation, key in operations:
+            try:
+                await asyncio.to_thread(operation, key)
+            except Exception:
+                logger.warning(
+                    "lesson_storage_cleanup_failed",
+                    extra={
+                        "lesson_id": str(lesson_id),
+                        "owner_id_hash": owner_hash,
+                        "stage": target,
+                        "request_id": self.request_id,
+                    },
+                )
 
     async def stream(
         self,
@@ -89,6 +143,7 @@ class GenerationService:
             version_number=version_number,
             edit_instruction=edit_instruction,
         )
+        source_prefix = f"sources/{owner_id}/{lesson.id}/" if sources else None
         yield _event("started", {"lesson_id": str(lesson.id)})
 
         try:
@@ -111,21 +166,11 @@ class GenerationService:
                 edit_instruction=edit_instruction,
             )
             yield _event("progress", {"stage": "generating", "message": "Creating lesson code…"})
-            llm_started = monotonic()
-            result = await self._await(self.llm.generate(prompt))
-            logger.info(
-                "lesson_llm_completed",
-                extra={
-                    "lesson_id": str(lesson.id),
-                    "owner_id_hash": owner_hash,
-                    "stage": "generating",
-                    "provider": result.provider,
-                    "model": result.model,
-                    "input_tokens": result.input_tokens,
-                    "output_tokens": result.output_tokens,
-                    "duration_ms": round((monotonic() - llm_started) * 1000),
-                    "request_id": self.request_id,
-                },
+            result = await self._generate_with_logging(
+                prompt,
+                lesson_id=lesson.id,
+                owner_hash=owner_hash,
+                stage="generating",
             )
             yield _event("progress", {"stage": "validating", "message": "Checking the generated lesson…"})
             generated = parse_generated_lesson(result.text)
@@ -152,29 +197,15 @@ class GenerationService:
                         },
                     )
                     yield _event("progress", {"stage": "repairing", "message": "Repairing the video scene…"})
-                    llm_started = monotonic()
-                    repair = await self._await(
-                        self.llm.generate(
-                            build_repair_prompt(
-                                original_prompt=prompt,
-                                code=generated.code,
-                                error=str(first_error),
-                            )
-                        )
-                    )
-                    logger.info(
-                        "lesson_llm_completed",
-                        extra={
-                            "lesson_id": str(lesson.id),
-                            "owner_id_hash": owner_hash,
-                            "stage": "repairing",
-                            "provider": repair.provider,
-                            "model": repair.model,
-                            "input_tokens": repair.input_tokens,
-                            "output_tokens": repair.output_tokens,
-                            "duration_ms": round((monotonic() - llm_started) * 1000),
-                            "request_id": self.request_id,
-                        },
+                    repair = await self._generate_with_logging(
+                        build_repair_prompt(
+                            original_prompt=prompt,
+                            code=generated.code,
+                            error=str(first_error),
+                        ),
+                        lesson_id=lesson.id,
+                        owner_hash=owner_hash,
+                        stage="repairing",
                     )
                     generated = parse_generated_lesson(repair.text)
                     render_started = monotonic()
@@ -233,6 +264,12 @@ class GenerationService:
             )
             lesson.status = "failed"
             lesson.error_message = "Generation was cancelled."
+            await self._cleanup_failed_storage(
+                lesson_id=lesson.id,
+                owner_hash=owner_hash,
+                object_key=object_key,
+                source_prefix=source_prefix,
+            )
             save_lesson(self.session, lesson)
             raise
         except Exception as error:
@@ -246,18 +283,12 @@ class GenerationService:
                     "request_id": self.request_id,
                 },
             )
-            if object_key:
-                try:
-                    await asyncio.to_thread(self.storage.delete, object_key)
-                except Exception:
-                    logger.warning(
-                        "lesson_output_cleanup_failed",
-                        extra={
-                            "lesson_id": str(lesson.id),
-                            "owner_id_hash": owner_hash,
-                            "request_id": self.request_id,
-                        },
-                    )
+            await self._cleanup_failed_storage(
+                lesson_id=lesson.id,
+                owner_hash=owner_hash,
+                object_key=object_key,
+                source_prefix=source_prefix,
+            )
             lesson.status = "failed"
             lesson.error_message = _public_error(error)
             save_lesson(self.session, lesson)
@@ -277,7 +308,13 @@ def _event(event: str, data: dict[str, object]) -> str:
 
 def _public_error(error: Exception) -> str:
     if isinstance(error, LLMProviderError):
-        return "The configured AI provider could not complete this request."
+        # The upstream text is what makes this actionable: an exhausted balance, an
+        # unknown model id, and a rejected key all arrive as the same generic
+        # failure otherwise. Production keeps the generic message so provider
+        # internals stay out of browser-visible responses.
+        if get_settings().app_env == "production":
+            return "The configured AI provider could not complete this request."
+        return f"The configured AI provider could not complete this request. Upstream: {error}"
     if isinstance(error, RenderError):
         return "The generated lesson could not be rendered. Please try again."
     if isinstance(error, TimeoutError):

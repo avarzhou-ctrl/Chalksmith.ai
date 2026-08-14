@@ -9,4 +9,4 @@ RUN uv sync --project backend --frozen --no-dev --no-extra video
 COPY backend backend
 
 ENV PATH="/srv/chalksmith/backend/.venv/bin:$PATH"
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]

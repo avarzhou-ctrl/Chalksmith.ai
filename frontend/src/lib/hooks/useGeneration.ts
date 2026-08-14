@@ -58,13 +58,14 @@ export function useGeneration(api: ApiClient) {
   const [messages, setMessages] = useState<GenerationMessage[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const loadAbortRef = useRef<AbortController | null>(null);
+  const previewCacheRef = useRef(new Map<string, { url: string; expiresAt: number }>());
 
   useEffect(() => () => {
     abortRef.current?.abort();
     loadAbortRef.current?.abort();
   }, []);
 
-  const loadLesson = useCallback(async (lessonId: string) => {
+  const loadLesson = useCallback(async (lessonId: string, refreshVersions = true) => {
     loadAbortRef.current?.abort();
     const controller = new AbortController();
     loadAbortRef.current = controller;
@@ -76,18 +77,29 @@ export function useGeneration(api: ApiClient) {
     try {
       const [saved, versions] = await Promise.all([
         getLesson(api, lessonId, controller.signal),
-        getLessonVersions(api, lessonId, controller.signal),
+        refreshVersions
+          ? getLessonVersions(api, lessonId, controller.signal)
+          : Promise.resolve(null),
       ]);
       if (controller.signal.aborted) return false;
       setLesson(saved);
       setTitle(saved.topic);
       setOriginalTopic(saved.topic);
       setFormat(saved.format);
-      setMessages(messagesForVersions(versions));
+      if (versions) setMessages(messagesForVersions(versions));
       if (saved.status === 'ready') {
-        const access = await getLessonAccessUrl(api, saved.id, false, controller.signal);
-        if (controller.signal.aborted) return false;
-        setPreviewUrl(access.url);
+        const cachedPreview = previewCacheRef.current.get(saved.id);
+        if (cachedPreview && cachedPreview.expiresAt > Date.now() + 30_000) {
+          setPreviewUrl(cachedPreview.url);
+        } else {
+          const access = await getLessonAccessUrl(api, saved.id, false, controller.signal);
+          if (controller.signal.aborted) return false;
+          previewCacheRef.current.set(saved.id, {
+            url: access.url,
+            expiresAt: Date.now() + access.expires_in * 1000,
+          });
+          setPreviewUrl(access.url);
+        }
       } else if (saved.status === 'failed') {
         setError(saved.error_message || 'Lesson generation failed.');
       } else if (saved.status === 'deleting') {
@@ -111,7 +123,7 @@ export function useGeneration(api: ApiClient) {
   }, [api]);
 
   const selectLessonVersion = useCallback(async (lessonId: string) => {
-    if (await loadLesson(lessonId)) {
+    if (await loadLesson(lessonId, false)) {
       window.history.replaceState({}, '', `?lessonId=${lessonId}`);
     }
   }, [loadLesson]);
