@@ -1,7 +1,8 @@
 # AGENTS.md — Backend
 
 Context for agents working inside `backend/`. The repository-wide rules (commit format,
-project log, boundaries) live in the root [AGENTS.md](../AGENTS.md); this file only covers
+boundaries) live in the root [AGENTS.md](../AGENTS.md) and the project history in
+[CHANGELOG.md](../CHANGELOG.md); this file only covers
 the Python service. Deployment details are in [GCP.md](../doc/GCP.md) and [README.md](../README.md);
 the API contract and refactor rationale are in [REFACTOR.md](../doc/REFACTOR.md).
 

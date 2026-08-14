@@ -44,6 +44,7 @@ class Settings(BaseModel):
     openai_api_key: SecretStr | None = None
     deepseek_api_key: SecretStr | None = None
     deepseek_base_url: str = DEFAULT_DEEPSEEK_BASE_URL
+    deepseek_thinking: bool = False
 
     cloud_sql_instance: str | None = None
     database_url: str | None = None
@@ -153,6 +154,7 @@ class Settings(BaseModel):
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
             deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", DEFAULT_DEEPSEEK_BASE_URL),
+            deepseek_thinking=_bool_env("DEEPSEEK_THINKING", False),
             cloud_sql_instance=os.getenv("CLOUD_SQL_INSTANCE"),
             database_url=os.getenv("DATABASE_URL"),
             database_name=os.getenv("DATABASE_NAME"),

@@ -18,6 +18,8 @@ from backend.app.core.config import LOCAL_CLERK_FILE, LOCAL_ENV_FILE, REPOSITORY
 from backend.app.core.errors import AppError
 from backend.app.integrations.auth import _decode_clerk_token, get_current_user
 from backend.app.integrations.llm.base import LLMResult
+from backend.app.integrations.llm.base import LLMProviderError
+from backend.app.integrations.llm.deepseek import DeepSeekProvider
 from backend.app.integrations.llm.factory import create_llm_provider
 from backend.app.integrations.llm.gemini import VertexGeminiProvider
 from backend.app.integrations.storage import GCSStorage
@@ -141,6 +143,42 @@ class SettingsTests(unittest.TestCase):
         client.assert_called_once_with(
             api_key="secret", base_url="https://api.deepseek.com", timeout=settings.llm_timeout_seconds
         )
+
+    def test_deepseek_keeps_the_output_budget_for_the_answer(self) -> None:
+        provider = DeepSeekProvider(
+            api_key="secret",
+            model="deepseek-v4-flash",
+            base_url="https://api.deepseek.com",
+            timeout_seconds=120,
+            max_output_tokens=16_384,
+        )
+        message = MagicMock(content="summary\n---CODE_START---\ncode")
+        completion = MagicMock(choices=[MagicMock(finish_reason="stop", message=message)])
+        provider.client = MagicMock()
+        provider.client.chat.completions.create = AsyncMock(return_value=completion)
+
+        result = asyncio.run(provider.generate("prompt"))
+
+        request = provider.client.chat.completions.create.call_args.kwargs
+        self.assertEqual(request["extra_body"], {"thinking": {"type": "disabled"}})
+        self.assertEqual(result.text, "summary\n---CODE_START---\ncode")
+
+    def test_deepseek_reports_a_truncated_answer_as_a_token_limit(self) -> None:
+        provider = DeepSeekProvider(
+            api_key="secret",
+            model="deepseek-v4-flash",
+            base_url="https://api.deepseek.com",
+            timeout_seconds=120,
+            max_output_tokens=16_384,
+        )
+        completion = MagicMock(choices=[MagicMock(finish_reason="length")])
+        provider.client = MagicMock()
+        provider.client.chat.completions.create = AsyncMock(return_value=completion)
+
+        # Truncation surfaces downstream as a malformed lesson, which reads as a
+        # model formatting failure rather than an exhausted budget.
+        with self.assertRaisesRegex(LLMProviderError, "16384-token output limit"):
+            asyncio.run(provider.generate("prompt"))
 
     def test_deepseek_provider_requires_key(self) -> None:
         with self.assertRaisesRegex(AppError, "DEEPSEEK_API_KEY"):

@@ -34,6 +34,7 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
             base_url=settings.deepseek_base_url,
             timeout_seconds=settings.llm_timeout_seconds,
             max_output_tokens=settings.llm_max_output_tokens,
+            thinking=settings.deepseek_thinking,
         )
     if not settings.openai_api_key:
         raise AppError(code="llm_not_configured", message="OPENAI_API_KEY is not configured.", status_code=503)
