@@ -68,6 +68,33 @@ window.addEventListener("load", () => {
 }, { once: true });
 </script>"""
 
+KATEX_STYLESHEET = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css"
+KATEX_SCRIPT = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"
+KATEX_AUTO_RENDER_SCRIPT = (
+    "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
+)
+# The slides prompt allows no Reveal math plugin, so a deck that writes LaTeX would
+# otherwise show its own source. Typesetting after load lets the deferred KaTeX
+# scripts finish first, and the relayout re-measures slides the new boxes resized.
+KATEX_TYPESET_SCRIPT = r"""<script data-chalksmith-katex>
+window.addEventListener("load", () => {
+  if (typeof renderMathInElement !== "function") return;
+  renderMathInElement(document.body, {
+    delimiters: [
+      { left: "$$", right: "$$", display: true },
+      { left: "\\[", right: "\\]", display: true },
+      { left: "$", right: "$", display: false },
+      { left: "\\(", right: "\\)", display: false },
+    ],
+    ignoredTags: ["script", "noscript", "style", "textarea", "pre", "option"],
+    throwOnError: false,
+  });
+  if (window.Reveal && typeof window.Reveal.layout === "function") {
+    window.Reveal.layout();
+  }
+}, { once: true });
+</script>"""
+
 _LINK_TAG = re.compile(r"<link\b[^>]*>", re.IGNORECASE)
 _SCRIPT_TAG = re.compile(
     r"<script\b[^>]*\bsrc\s*=\s*(['\"])(?P<url>[^'\"]+)\1[^>]*>\s*</script>",
@@ -143,7 +170,22 @@ def normalize_reveal_assets(code: str) -> str:
         missing_head_assets.append(f'<script src="{REVEAL_SCRIPT}"></script>')
     normalized = _inject_into_head(normalized, "".join(missing_head_assets))
     normalized = _inject_into_head(normalized, REVEAL_FALLBACK_STYLE, before_close=True)
-    return _inject_before_body_close(normalized, REVEAL_FALLBACK_SCRIPT)
+    normalized = _inject_before_body_close(normalized, REVEAL_FALLBACK_SCRIPT)
+    return _ensure_katex(normalized)
+
+
+def _ensure_katex(code: str) -> str:
+    """Give every deck a math typesetter, the way Reveal's own assets are pinned."""
+    if "katex" in code.lower():
+        return code
+    head_assets = (
+        f'<link rel="stylesheet" href="{KATEX_STYLESHEET}">'
+        f'<script defer src="{KATEX_SCRIPT}"></script>'
+        f'<script defer src="{KATEX_AUTO_RENDER_SCRIPT}"></script>'
+    )
+    return _inject_before_body_close(
+        _inject_into_head(code, head_assets), KATEX_TYPESET_SCRIPT
+    )
 
 
 def _inject_into_head(code: str, content: str, *, before_close: bool = False) -> str:

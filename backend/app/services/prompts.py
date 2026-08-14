@@ -28,6 +28,10 @@ https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/black.min.css
 https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js
 Do not use another Reveal.js version, theme, CDN path, or plugin. Set embedded: true in
 Reveal.initialize because the presentation runs inside a constrained preview iframe.
+Write mathematics as LaTeX, inline between $ and $ or displayed between $$ and $$; KaTeX is
+already loaded for you and typesets it, so do not load a math library yourself. Everything
+between a pair of dollar signs is typeset as a formula, so write a literal dollar amount as
+\$ to keep prices and currency out of the math.
 Set an explicit dark background on html and body so lesson text remains visible while external
 Reveal.js assets are loading or unavailable.
 Create a coherent short lesson that moves from a learning goal through definitions and a visual
