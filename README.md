@@ -243,15 +243,13 @@ Logs and PIDs are written to the ignored `.env/run/` directory.
 Builds the images and deploys the three Cloud Run services. The database must already be running, which is step 3's job; a stopped instance aborts the run rather than being started here. `shutdown` deletes those three services and leaves everything else, including the database, in place; against production it asks for a typed confirmation.
 
 ```bash
-export PROJECT_ID=your-project-id REGION=us-central1
+export PROJECT_ID=your-project-id DOMAIN=example.com
 export LLM_PROVIDER=vertex LLM_MODEL=gemini-3.6-flash
-export CLERK_PUBLISHABLE_KEY=pk_... CLERK_ISSUER=https://<instance>.clerk.accounts.dev
 
-gcloud config set auth/impersonate_service_account \
-  chalksmith-deployer@your-project-id.iam.gserviceaccount.com
-./bin/deploy.sh stg|prod start|shutdown
-gcloud config unset auth/impersonate_service_account
+./bin/deploy.sh prod start
 ```
+
+`DOMAIN` is required for `prod start`; the script derives the root, `www`, and `app` HTTPS origins. It configures the services but does not create DNS records or a load balancer. Staging can omit it and use `./bin/deploy.sh stg start`. The Clerk pair falls back to `.env/clerk.key.<env>`, and the script impersonates `chalksmith-deployer` itself.
 
 Afterwards, add the web URL the script prints to that Clerk instance's allowed URLs; sign-in fails until you do.
 

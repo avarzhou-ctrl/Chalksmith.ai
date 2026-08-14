@@ -6,10 +6,12 @@ import './globals.css'
 import Link from 'next/link'
 import { AuthButton } from '@/components/auth/AuthButton'
 
+const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || 'chalksmith.ai'
+
 export const metadata: Metadata = {
   title: 'Chalksmith | Code-Driven STEM Animations',
   description: 'An AI-driven tool for generating code-driven educational STEM animations from natural language.',
-  metadataBase: new URL('https://chalksmith.ai'),
+  metadataBase: new URL(`https://${siteDomain}`),
   icons: {
     icon: '/favicon.ico',
     apple: '/logo.png',

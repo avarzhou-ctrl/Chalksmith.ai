@@ -102,14 +102,7 @@ Two types of service accounts (SA) serve both local and staging/production envir
 
 Generated Python therefore executes in a container that cannot access the database, bucket, LLM, or secrets.
 
-Deploy through impersonation rather than a downloaded key:
-
-```bash
-gcloud config set auth/impersonate_service_account \
-  chalksmith-deployer@your-project-id.iam.gserviceaccount.com
-./bin/deploy.sh stg start
-gcloud config unset auth/impersonate_service_account
-```
+`bin/deploy.sh` impersonates `chalksmith-deployer` for one run rather than using a downloaded key.
 
 ## 2. Deploy GCS buckets, database and secrets in GCP
 
@@ -361,13 +354,16 @@ The content in this section is implemented in `bin/deploy.sh`.
 | Artifact Registry | `chalksmith-stg` | `chalksmith-prod` |
 | Cloud Run services | `chalksmith-{api,web,renderer}-stg` | `chalksmith-{api,web,renderer}-prod` |
 
-Export before `start`; the Clerk values come from [CLERK.md](CLERK.md), and staging uses the development instance while production uses the production one:
+Export before `start`:
 
 ```bash
-export PROJECT_ID=your-project-id REGION=us-central1
+export PROJECT_ID=your-project-id DOMAIN=example.com
 export LLM_PROVIDER=vertex LLM_MODEL=gemini-3.6-flash
-export CLERK_PUBLISHABLE_KEY=pk_... CLERK_ISSUER=https://<instance>.clerk.accounts.dev
+
+./bin/deploy.sh prod start
 ```
+
+`DOMAIN` is required only for `prod start` and must be a bare domain such as `example.com`. The script derives `https://example.com`, `https://www.example.com`, and `https://app.example.com` for CORS and Clerk authorized parties, and compiles the domain into the web host routing. It does not create DNS records, certificates, or a load balancer; those front-door resources have a separate lifecycle from service revisions. `CLERK_ISSUER` and `CLERK_PUBLISHABLE_KEY` fall back to `.env/clerk.key.<env>` ([CLERK.md](CLERK.md)); `prod` refuses a `pk_test_` key.
 
 Two dependencies fix the order: the API needs the renderer URL, and the web image needs the API URL.
 

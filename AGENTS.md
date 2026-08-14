@@ -94,6 +94,7 @@ Ask first:
 - **2026-02-23**: Defined Tailwind color palette in `src/app/globals.css`.
 
 # Project Log
+- **2026-08-14**: Simplified production deployment to `DOMAIN=example.com ./bin/deploy.sh prod start`, deriving root/`www`/`app` origins inside the script and compiling the same domain into Next.js host routing and metadata while retaining domain-optional staging deployments (`bin/deploy.sh`, `bin/cloudbuild-web.yaml`, `infra/docker/web.Dockerfile`, `frontend/src/proxy.ts`, `frontend/src/app/layout.tsx`, `README.md`, `doc/GCP.md`, `AGENTS.md`).
 - **2026-08-14**: Aligned the Dashboard `Lessons` heading baseline with the Sidebar Logo and increased its spacing from the lesson-card grid without materially moving the cards (`frontend/src/app/dashboard/page.tsx`, `AGENTS.md`).
 - **2026-08-14**: Updated the site-header navigation to show `Dashboard`, `Explore`, and `About Us` in that order, retaining the existing `/content` route behind the renamed Explore link and using Next.js links for all three destinations (`frontend/src/app/layout.tsx`, `AGENTS.md`).
 - **2026-08-14**: Replaced the Dashboard Logo's hard-coded production-domain link with a current-origin relative homepage route so local, staging, custom-domain, and production deployments navigate correctly (`frontend/src/components/dashboard/DashboardSidebar.tsx`, `AGENTS.md`).

@@ -10,6 +10,8 @@ steps:
       - NEXT_PUBLIC_API_URL=${_API_URL}
       - --build-arg
       - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${_CLERK_PUBLISHABLE_KEY}
+      - --build-arg
+      - NEXT_PUBLIC_SITE_DOMAIN=${_SITE_DOMAIN}
       - .
 images:
   - ${_WEB_IMAGE}
@@ -20,3 +22,4 @@ substitutions:
   _WEB_IMAGE: us-central1-docker.pkg.dev/example/chalksmith/web:latest
   _API_URL: http://localhost:8000
   _CLERK_PUBLISHABLE_KEY: unset
+  _SITE_DOMAIN: chalksmith.ai

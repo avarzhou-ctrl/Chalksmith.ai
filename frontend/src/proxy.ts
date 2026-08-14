@@ -1,8 +1,9 @@
 import { clerkMiddleware } from '@clerk/nextjs/server';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const APP_HOST = 'app.chalksmith.ai';
-const MARKETING_HOSTS = new Set(['chalksmith.ai', 'www.chalksmith.ai']);
+const SITE_DOMAIN = process.env.NEXT_PUBLIC_SITE_DOMAIN || 'chalksmith.ai';
+const APP_HOST = `app.${SITE_DOMAIN}`;
+const MARKETING_HOSTS = new Set([SITE_DOMAIN, `www.${SITE_DOMAIN}`]);
 
 export default clerkMiddleware((_auth, request: NextRequest) => {
   const url = request.nextUrl.clone();

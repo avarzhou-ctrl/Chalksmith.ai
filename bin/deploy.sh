@@ -23,6 +23,11 @@ if [[ -z "${PROJECT_ID:-}" ]]; then
   exit 1
 fi
 REGION="${REGION:-us-central1}"
+build_account="${BUILD_SERVICE_ACCOUNT:-chalksmith-deployer@${PROJECT_ID}.iam.gserviceaccount.com}"
+
+# Process-scoped, unlike `gcloud config set`, so an interrupted run leaves no
+# impersonation behind in the caller's gcloud configuration.
+export CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT="${build_account}"
 
 sql_instance="${CLOUD_SQL_INSTANCE_NAME:-chalksmith-postgres-${environment}}"
 api_service="${API_SERVICE:-chalksmith-api-${environment}}"
@@ -46,6 +51,30 @@ if [[ "${action}" == "shutdown" ]]; then
   exit 0
 fi
 
+domain=""
+if [[ "${environment}" == "prod" ]]; then
+  domain="${DOMAIN:-}"
+  domain="${domain%.}"
+  domain="$(printf '%s' "${domain}" | tr '[:upper:]' '[:lower:]')"
+  if [[ -z "${domain}" ]]; then
+    echo "Missing required environment variable for prod: DOMAIN" >&2
+    echo "Use a bare domain, for example: export DOMAIN=example.com" >&2
+    exit 1
+  fi
+  if [[ ! "${domain}" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+    echo "DOMAIN must be a bare domain without a scheme, path, port, spaces, or commas." >&2
+    exit 1
+  fi
+fi
+site_domain="${domain:-chalksmith.ai}"
+
+# Environment wins; the file setup.sh reads is the fallback. `|| true` keeps a
+# missing file or key from aborting under set -e.
+clerk_file="${CLERK_KEY_FILE:-${repo_root}/.env/clerk.key.${environment}}"
+clerk_value() { grep -m1 "^$1=" "${clerk_file}" 2>/dev/null | cut -d= -f2- | tr -d '\r\n' || true; }
+CLERK_ISSUER="${CLERK_ISSUER:-$(clerk_value CLERK_ISSUER)}"
+CLERK_PUBLISHABLE_KEY="${CLERK_PUBLISHABLE_KEY:-$(clerk_value NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)}"
+
 required=(LLM_PROVIDER LLM_MODEL CLERK_PUBLISHABLE_KEY CLERK_ISSUER)
 for name in "${required[@]}"; do
   if [[ -z "${!name:-}" ]]; then
@@ -61,6 +90,11 @@ if [[ "${LLM_PROVIDER}" == "openai" && -z "${LLM_SECRET_NAME:-}" ]]; then
   echo "Missing required environment variable for OpenAI: LLM_SECRET_NAME" >&2
   exit 1
 fi
+# A development key deploys cleanly and then fails sign-in in the browser.
+if [[ "${environment}" == "prod" && "${CLERK_PUBLISHABLE_KEY}" != pk_live_* ]]; then
+  echo "CLERK_PUBLISHABLE_KEY is a development key; prod needs the production Clerk instance." >&2
+  exit 1
+fi
 
 repository="${ARTIFACT_REPOSITORY:-chalksmith-${environment}}"
 bucket="${GCS_BUCKET:-chalksmith-gcs-${environment}}"
@@ -72,7 +106,6 @@ clerk_secret="${CLERK_KEY_SECRET_NAME:-chalksmith-clerk-key-${environment}}"
 api_account="chalksmith-api@${PROJECT_ID}.iam.gserviceaccount.com"
 renderer_account="chalksmith-renderer@${PROJECT_ID}.iam.gserviceaccount.com"
 web_account="chalksmith-web@${PROJECT_ID}.iam.gserviceaccount.com"
-build_account="${BUILD_SERVICE_ACCOUNT:-chalksmith-deployer@${PROJECT_ID}.iam.gserviceaccount.com}"
 
 registry="${REGION}-docker.pkg.dev/${PROJECT_ID}/${repository}"
 revision="${REVISION_TAG:-$(git rev-parse --short HEAD)}"
@@ -85,7 +118,7 @@ app_env="${APP_ENV_OVERRIDE:-production}"
 vertex_ai_location="${VERTEX_AI_LOCATION:-global}"
 
 if [[ "${environment}" == "prod" ]]; then
-  base_origins="${PRODUCTION_ORIGINS:-https://chalksmith.ai,https://www.chalksmith.ai,https://app.chalksmith.ai}"
+  base_origins="https://${domain},https://www.${domain},https://app.${domain}"
 else
   base_origins="${STAGING_ORIGINS:-}"
 fi
@@ -118,7 +151,7 @@ if ! gcloud artifacts repositories describe "${repository}" --location "${REGION
 fi
 # Every deploy pushes a new git-SHA tag; without this the registry grows without bound.
 gcloud artifacts repositories set-cleanup-policies "${repository}" --location "${REGION}" \
-  --policy-file "${repo_root}/bin/artifact-cleanup-policy.json" --no-dry-run >/dev/null
+  --policy "${repo_root}/bin/artifact-cleanup-policy.json" --no-dry-run >/dev/null
 
 # The API creates its tables at startup, so the instance must already be up.
 # setup.sh owns its lifecycle; this only checks.
@@ -161,7 +194,7 @@ api_url="$(gcloud run services describe "${api_service}" --region "${REGION}" --
 
 gcloud builds submit --config bin/cloudbuild-web.yaml \
   --service-account "projects/${PROJECT_ID}/serviceAccounts/${build_account}" \
-  --substitutions "_WEB_IMAGE=${web_image},_API_URL=${api_url},_CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY}" .
+  --substitutions "_WEB_IMAGE=${web_image},_API_URL=${api_url},_CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY},_SITE_DOMAIN=${site_domain}" .
 gcloud run deploy "${web_service}" --image "${web_image}" --region "${REGION}" \
   --service-account "${web_account}" --allow-unauthenticated --cpu 1 --memory 512Mi \
   --concurrency 40 --timeout 60 --min 0 --max 2 \
@@ -177,6 +210,7 @@ cat <<EOF
 Environment: ${environment}
 API: ${api_url}
 Web: ${web_url}
+${domain:+Domain origins: ${base_origins}}
 
 Add ${web_url} to the Clerk allowed URLs for this instance; sign-in fails until you do.
 Cloud Run also answers on a second hostname that is not in FRONTEND_ORIGINS -- use the URL above.
