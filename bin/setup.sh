@@ -89,39 +89,54 @@ echo "Bucket:      gs://${bucket}"
 echo "SQL:         ${sql_instance}"
 echo
 
+# gcloud asks for periodic reauth on its first call. Force it here, where the
+# prompt is visible, instead of inside a probe whose output is captured.
+gcloud auth print-access-token >/dev/null
+
+# Probes once ran with their output discarded, which swallowed that reauth prompt:
+# the failed read looked like "the resource is absent" and the run minted a second
+# database password over the working one. Only a real not-found counts as absent.
+probe_output=""
+gc_probe() {
+  if probe_output="$(gc "$@" 2>&1)"; then
+    return 0
+  fi
+  case "${probe_output}" in
+    *NOT_FOUND*|*"HTTPError 404"*|*"not found: 404"*) probe_output=""; return 1 ;;
+  esac
+  echo "${probe_output}" >&2
+  echo "Cannot read the current state of ${project}; refusing to guess at it." >&2
+  exit 1
+}
+
 if [[ "${action}" == "shutdown" ]]; then
   sql_stop "${sql_instance}"
   exit 0
 fi
 
 # --- Secrets -----------------------------------------------------------------
-# True when the secret exists and already holds at least one version.
-secret_has_value() {
-  gc secrets describe "$1" >/dev/null 2>&1 &&
-    gc secrets versions list "$1" --limit=1 --format='value(name)' 2>/dev/null | grep -q .
+ensure_secret() {
+  if gc_probe secrets describe "$1"; then
+    return 0
+  fi
+  gc secrets create "$1" --replication-policy=automatic >/dev/null
+  echo "created: $1"
 }
 
-# Returns 0 when the secret exists but still has no version.
-needs_value() {
-  if secret_has_value "$1"; then
-    echo "exists: $1"
-    return 1
-  fi
-  if ! gc secrets describe "$1" >/dev/null 2>&1; then
-    gc secrets create "$1" --replication-policy=automatic >/dev/null
-    echo "created: $1"
-  fi
-  return 0
+# True when the secret exists and already holds at least one version.
+secret_has_value() {
+  gc_probe secrets describe "$1" || return 1
+  gc_probe secrets versions list "$1" --limit=1 --format='value(name)' &&
+    [[ -n "${probe_output}" ]]
 }
 
 # Adds a version only when the local value differs. Not used for the database
 # password: it is generated once and the Cloud SQL user is created from it.
 sync_secret_value() {
   local name="$1" value="$2"
-  if ! gc secrets describe "${name}" >/dev/null 2>&1; then
-    gc secrets create "${name}" --replication-policy=automatic >/dev/null
-    echo "created: ${name}"
-  elif [[ "$(gc secrets versions access latest --secret "${name}" 2>/dev/null)" == "${value}" ]]; then
+  ensure_secret "${name}"
+  if gc_probe secrets versions access latest --secret "${name}" &&
+     [[ "${probe_output}" == "${value}" ]]; then
     echo "current: ${name}"
     return 0
   fi
@@ -150,7 +165,10 @@ read_clerk_key() {
   printf '%s' "${value}"
 }
 
-if needs_value "${db_secret}"; then
+ensure_secret "${db_secret}"
+if secret_has_value "${db_secret}"; then
+  echo "exists: ${db_secret}"
+else
   # Hex, not base64: the value goes into a DATABASE_URL, where '/' and '+' are reserved.
   printf '%s' "$(openssl rand -hex 32)" | gc secrets versions add "${db_secret}" --data-file=- >/dev/null
   echo "  added a generated database password"
@@ -177,7 +195,7 @@ gc secrets add-iam-policy-binding "${clerk_secret}" \
   --role roles/secretmanager.secretAccessor >/dev/null
 
 # --- Bucket ------------------------------------------------------------------
-if gc storage buckets describe "gs://${bucket}" >/dev/null 2>&1; then
+if gc_probe storage buckets describe "gs://${bucket}"; then
   echo "exists: gs://${bucket}"
 else
   gc storage buckets create "gs://${bucket}" --location "${region}" \
@@ -191,7 +209,7 @@ gc storage buckets add-iam-policy-binding "gs://${bucket}" \
 echo "configured: gs://${bucket}"
 
 # --- Cloud SQL ---------------------------------------------------------------
-if gc sql instances describe "${sql_instance}" >/dev/null 2>&1; then
+if gc_probe sql instances describe "${sql_instance}"; then
   echo "exists: ${sql_instance}"
 else
   # db-f1-micro is Enterprise-only; a project defaulting to Enterprise Plus rejects it.
@@ -209,12 +227,13 @@ fi
 # re-run finds the instance stopped where the first run found it fresh.
 sql_start "${sql_instance}"
 
-if ! gc sql databases describe "${database}" --instance "${sql_instance}" >/dev/null 2>&1; then
+if ! gc_probe sql databases describe "${database}" --instance "${sql_instance}"; then
   gc sql databases create "${database}" --instance "${sql_instance}"
 fi
 
 db_password="$(gc secrets versions access latest --secret "${db_secret}")"
-if gc sql users list --instance "${sql_instance}" --filter "name=${database_user}" --format 'value(name)' | grep -q .; then
+if gc_probe sql users list --instance "${sql_instance}" --filter "name=${database_user}" --format 'value(name)' &&
+   [[ -n "${probe_output}" ]]; then
   gc sql users set-password "${database_user}" --instance "${sql_instance}" --password "${db_password}"
 else
   gc sql users create "${database_user}" --instance "${sql_instance}" --password "${db_password}"

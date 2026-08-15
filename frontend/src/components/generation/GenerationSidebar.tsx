@@ -167,8 +167,14 @@ export default function GenerationSidebar({
           <Separator className="h-1 bg-border/20 hover:bg-accent/40 transition-colors cursor-row-resize" />
 
           {/* Control Panel */}
-          <Panel minSize="20%" maxSize="50" defaultSize="30%">
-            <div className="p-6 bg-primary-bg/50 border-t border-border flex flex-col gap-6 backdrop-blur-lg overflow-y-auto">
+          <Panel minSize="20%" maxSize="50" defaultSize="35%">
+            {/* pb-8 matches the preview card's bottom offset so both boxes end on the same line */}
+            <div className="h-full px-6 pt-6 pb-8 bg-primary-bg/50 border-t border-border flex flex-col gap-4 backdrop-blur-lg overflow-y-auto">
+              {error && (
+                <p className="shrink-0 text-xs text-red-500 bg-red-500/10 p-2 rounded border border-red-500/20 text-center animate-in fade-in">
+                  {error}
+                </p>
+              )}
               <InputForm
                 format={format}
                 topic={topic}
@@ -181,15 +187,6 @@ export default function GenerationSidebar({
                 disabled={loading}
                 isEditMode={Boolean(selectedLessonId)}
               />
-              {generationStatus && (
-                <p className="text-center text-xs text-secondary-text">{generationStatus}</p>
-              )}
-              
-              {error && (
-                <p className="text-xs text-red-500 bg-red-500/10 p-2 rounded border border-red-500/20 text-center animate-in fade-in">
-                  {error}
-                </p>
-              )}
             </div>
           </Panel>
         </Group>

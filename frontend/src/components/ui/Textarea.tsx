@@ -10,10 +10,11 @@ export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTex
   maxLength: number;
   fileUploadDisabled?: boolean;
   generationButton: React.ReactNode;
+  containerClassName?: string;
 }
 
 const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className = "", files = [], onFilesChange, value, maxLength, fileUploadDisabled = false, generationButton, ...props }, ref) => {
+  ({ className = "", containerClassName = "", files = [], onFilesChange, value, maxLength, fileUploadDisabled = false, generationButton, ...props }, ref) => {
     const [isDragActive, setIsDragActive] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -72,17 +73,19 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           focus-within:ring-2 focus-within:ring-accent focus-within:border-transparent
           transition-all duration-200
           ${isDragActive ? "border-accent bg-accent/20" : "border-surface bg-secondary-bg"}
+          ${containerClassName}
         `}
       >
         <textarea
           ref={ref}
-          className={`h-20 resize-none bg-transparent text-sm text-primary-text placeholder:text-secondary-text focus:outline-none ${className}`}
+          className={`min-h-20 resize-none bg-transparent text-sm text-primary-text placeholder:text-secondary-text focus:outline-none ${className}`}
           value={value}
           maxLength={maxLength}
           {...props}
         />
-        <div className="flex justify-between items-center mt-2">
-          <div className="flex items-center gap-4">
+        {/* -mb/-mr cancel the icon buttons' hit-area padding so glyphs sit on the container's px-4/py-3 inset */}
+        <div className="flex justify-between items-end mt-2 -mb-1.5">
+          <div className="flex items-center gap-4 pb-1.5">
             <p className="pointer-events-none text-xs text-secondary-text">
               {value.length}/{maxLength}
             </p>
@@ -97,7 +100,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 -mr-1.5">
             <input
               ref={inputRef}
               type="file"

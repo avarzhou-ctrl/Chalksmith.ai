@@ -5,7 +5,7 @@ import Textarea from '@/components/ui/Textarea';
 import { CircleArrowUp, CirclePause } from 'lucide-react';
 import type { LessonFormat } from '@/lib/types/api';
 
-const TOPIC_CHARACTER_LIMIT = 100;
+const TOPIC_CHARACTER_LIMIT = 200;
 
 interface InputFormProps {
     format: LessonFormat | '';
@@ -58,13 +58,13 @@ export default function InputForm({
     );
 
     return (
-        <div className="flex flex-col w-full min-w-0 flex-1">
-            <div className="flex flex-row gap-4 min-w-0">
+        <div className="flex flex-col w-full min-w-0 flex-1 min-h-0">
+            <div className="flex flex-row gap-4 min-w-0 shrink-0">
                 <div className="flex-1 min-w-0">
                     <FormatSelector value={format} onChange={onFormatChange} disabled={disabled || isEditMode} />
                 </div>
             </div>
-            <div className="relative mt-4 group flex-1 flex flex-col">
+            <div className="relative mt-4 group flex-1 min-h-0 flex flex-col">
                 <Textarea 
                     placeholder={isEditMode ? "How should I edit this lesson?" : "Describe your topic..."}
                     disabled={disabled}
@@ -81,6 +81,7 @@ export default function InputForm({
                         }
                     }}
                     className="flex-1 resize-none"
+                    containerClassName="h-full min-h-0"
                     generationButton={generationButton}
                 />
             </div>
