@@ -1,4 +1,11 @@
-"""Dry-run-first migration from the v1 lesson table and static files to v2."""
+"""Dry-run-first migration from the v1 lesson table and static files to v2.
+
+Slides and interactive lessons rebuild from `lesson.code`; only video needs a
+legacy file, so `--static-root` matters just for those rows. v1 gitignored
+`backend/static/`, so extract the branch snapshot first:
+
+    git archive v1.0 backend/static | tar -x -C /tmp/v1static --strip-components=2
+"""
 
 import argparse
 import json
@@ -12,7 +19,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from google.cloud import storage
 from sqlalchemy import create_engine, text
 
-from backend.app.renderers.html import secure_html_document
+from backend.app.renderers.html import normalize_reveal_assets, secure_html_document
 
 FORMAT_MAP = {
     "p5.js": "interactive",
@@ -23,6 +30,10 @@ FORMAT_MAP = {
     "slides": "slides",
     "video": "video",
 }
+
+# Rebuilt HTML goes through the same normalization the v2 renderer applies, so a
+# migrated deck pins the same CDN assets and carries the same CSP as a new one.
+HTML_FORMATS = {"interactive", "slides"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -66,6 +77,27 @@ def find_static_file(root: Path, legacy_url: str | None) -> Path | None:
     return next(root.rglob(name), None)
 
 
+def build_html_artifact(code: str, lesson_format: str) -> tuple[bytes, str, str]:
+    normalized = normalize_reveal_assets(code) if lesson_format == "slides" else code
+    return (
+        secure_html_document(normalized).encode("utf-8"),
+        "html",
+        "text/html; charset=utf-8",
+    )
+
+
+def read_video_artifact(artifact: Path) -> tuple[bytes, str, str]:
+    content_type = mimetypes.guess_type(artifact.name)[0] or "application/octet-stream"
+    return artifact.read_bytes(), artifact.suffix.lower().lstrip("."), content_type
+
+
+def as_utc(value: datetime | None) -> datetime:
+    """v1 stored naive UTC timestamps; v2 columns are timezone-aware."""
+    if value is None:
+        return datetime.now(timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
 def main() -> None:
     args = parse_args()
     source_url = os.environ.get("V1_DATABASE_URL")
@@ -81,7 +113,7 @@ def main() -> None:
     source = create_engine(psycopg_url(source_url))
     destination = create_engine(psycopg_url(destination_url))
     bucket = storage.Client().bucket(bucket_name) if args.apply else None
-    migrated = skipped = files = 0
+    migrated = skipped = files = incomplete = 0
 
     with source.connect() as source_connection, destination.begin() as destination_connection:
         rows = source_connection.execute(text("SELECT * FROM lesson ORDER BY created_at")).mappings()
@@ -93,37 +125,47 @@ def main() -> None:
                 skipped += 1
                 continue
             lesson_id = stable_uuid(str(row["id"]))
-            artifact = find_static_file(args.static_root, row.get("url"))
+            code = row.get("code")
+
+            artifact: tuple[bytes, str, str] | None = None
+            if lesson_format in HTML_FORMATS and code:
+                artifact = build_html_artifact(code, lesson_format)
+            elif lesson_format not in HTML_FORMATS:
+                legacy_file = find_static_file(args.static_root, row.get("url"))
+                if legacy_file:
+                    artifact = read_video_artifact(legacy_file)
+
             object_key = None
             status = "failed"
+            # The generated source survives either way, so a lost render stays re-runnable.
             error_message = "Legacy output file was not found during migration."
             if artifact:
-                object_key = f"lessons/{owner_id}/{lesson_id}/lesson{artifact.suffix.lower()}"
+                payload, extension, content_type = artifact
+                object_key = f"lessons/{owner_id}/{lesson_id}/lesson.{extension}"
                 status = "ready"
                 error_message = None
                 if bucket:
-                    content_type = mimetypes.guess_type(artifact.name)[0] or "application/octet-stream"
                     blob = bucket.blob(object_key)
                     blob.content_disposition = "inline"
                     blob.cache_control = "private, max-age=300"
-                    if artifact.suffix.lower() in {".html", ".htm"}:
-                        blob.upload_from_string(
-                            secure_html_document(artifact.read_text(encoding="utf-8")),
-                            content_type=content_type,
-                        )
-                    else:
-                        blob.upload_from_filename(artifact, content_type=content_type)
+                    blob.upload_from_string(payload, content_type=content_type)
                     files += 1
+            else:
+                incomplete += 1
 
-            created_at = row.get("created_at") or datetime.now(timezone.utc)
+            created_at = as_utc(row.get("created_at"))
             values = {
                 "id": lesson_id,
                 "owner_id": owner_id,
+                # v1 had no edit lineage, so every migrated lesson is its own root v1.
+                "root_lesson_id": lesson_id,
+                "parent_lesson_id": None,
+                "version_number": 1,
                 "topic": row.get("topic") or "Untitled lesson",
                 "format": lesson_format,
                 "status": status,
                 "summary": row.get("summary"),
-                "source_code": row.get("code"),
+                "source_code": code,
                 "object_key": object_key,
                 "error_message": error_message,
                 "created_at": created_at,
@@ -133,10 +175,12 @@ def main() -> None:
                 destination_connection.execute(
                     text("""
                         INSERT INTO lessons
-                            (id, owner_id, topic, format, status, summary, source_code,
+                            (id, owner_id, root_lesson_id, parent_lesson_id, version_number,
+                             topic, format, status, summary, source_code,
                              object_key, error_message, created_at, updated_at)
                         VALUES
-                            (:id, :owner_id, :topic, :format, :status, :summary, :source_code,
+                            (:id, :owner_id, :root_lesson_id, :parent_lesson_id, :version_number,
+                             :topic, :format, :status, :summary, :source_code,
                              :object_key, :error_message, :created_at, :updated_at)
                         ON CONFLICT (id) DO NOTHING
                     """),
@@ -148,7 +192,10 @@ def main() -> None:
             destination_connection.rollback()
 
     mode = "applied" if args.apply else "dry-run"
-    print(f"Migration {mode}: {migrated} rows eligible, {skipped} skipped, {files} files uploaded.")
+    print(
+        f"Migration {mode}: {migrated} rows eligible ({incomplete} without an artifact), "
+        f"{skipped} skipped, {files} files uploaded."
+    )
 
 
 if __name__ == "__main__":

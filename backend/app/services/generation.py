@@ -29,6 +29,7 @@ from backend.app.integrations.llm.base import (
 from backend.app.integrations.storage import GCSStorage
 from backend.app.renderers.base import RenderError, Renderer
 from backend.app.services.prompts import (
+    GeneratedLesson,
     build_generation_prompt,
     build_repair_prompt,
     parse_generated_lesson,
@@ -241,6 +242,7 @@ class GenerationService:
         started = monotonic()
         owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()[:16]
         object_key: str | None = None
+        generated: GeneratedLesson | None = None
         previous_code = None
         root_lesson_id = None
         parent_lesson_id = None
@@ -302,7 +304,7 @@ class GenerationService:
             if result is None:
                 raise RuntimeError("The AI provider returned no final result.")
             yield _event("progress", {"stage": "validating", "message": "Checking the generated lesson…"})
-            generated = parse_generated_lesson(result.text)
+            generated = parse_generated_lesson(result.text, lesson_format)
             renderer = self.renderers[lesson_format]
 
             yield _event("progress", {"stage": "rendering", "message": "Preparing the lesson preview…"})
@@ -344,7 +346,7 @@ class GenerationService:
                             yield _event("progress", _progress_data(llm_event))
                     if repair is None:
                         raise RuntimeError("The AI provider returned no repair result.")
-                    generated = parse_generated_lesson(repair.text)
+                    generated = parse_generated_lesson(repair.text, lesson_format)
                     render_started = monotonic()
                     render_stage = "repairing"
                     asset = await self._await(renderer.render(generated.code, workdir))
@@ -428,6 +430,10 @@ class GenerationService:
             )
             lesson.status = "failed"
             lesson.error_message = _public_error(error)
+            # Keep the rejected code: without it a render failure can only be
+            # diagnosed by reproducing the prompt against the model.
+            if generated:
+                lesson.source_code = generated.code
             save_lesson(self.session, lesson)
             yield _event(
                 "error",

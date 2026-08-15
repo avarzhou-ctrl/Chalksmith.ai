@@ -1,3 +1,4 @@
+import ast
 import asyncio
 import os
 import signal
@@ -28,6 +29,7 @@ from backend.app.renderers.base import RenderError
 from backend.app.renderers.manim import LocalManimRenderer, is_local_renderer_url, validate_manim_code
 from backend.app.renderer_main import renderer_app
 from backend.app.services.generation import GenerationService, LLMProgress
+from backend.app.services.prompts import parse_generated_lesson
 
 
 class SettingsTests(unittest.TestCase):
@@ -540,6 +542,49 @@ class RendererCancellationTests(unittest.IsolatedAsyncioTestCase):
                 await task
 
         kill_process_group.assert_called_once_with(process.pid, signal.SIGKILL)
+
+
+class ParseGeneratedLessonTests(unittest.TestCase):
+    def test_drops_invented_closing_separator(self) -> None:
+        lesson = parse_generated_lesson(
+            "A summary.\n---CODE_START---\nfrom manim import *\nx = 1\n---CODE_END---\n", "video"
+        )
+        self.assertEqual(lesson.summary, "A summary.")
+        self.assertEqual(lesson.code, "from manim import *\nx = 1")
+        ast.parse(lesson.code)
+
+    def test_drops_any_trailing_prose_not_only_a_known_marker(self) -> None:
+        for trailer in ("--- END ---", "[END OF CODE]", "Hope this helps!", "```", "*** fin ***"):
+            with self.subTest(trailer=trailer):
+                lesson = parse_generated_lesson(f"S\n---CODE_START---\nx = 1\n{trailer}\n", "video")
+                self.assertEqual(lesson.code, "x = 1")
+
+    def test_keeps_a_trailing_comment_because_it_already_parses(self) -> None:
+        lesson = parse_generated_lesson("S\n---CODE_START---\nx = 1\n# Done\n", "video")
+        self.assertEqual(lesson.code, "x = 1\n# Done")
+        ast.parse(lesson.code)
+
+    def test_keeps_code_whose_last_line_is_valid_python(self) -> None:
+        code = "from manim import *\n\n\nclass GeneratedScene(Scene):\n    def construct(self):\n        self.wait(2.5)"
+        lesson = parse_generated_lesson(f"S\n---CODE_START---\n{code}\n", "video")
+        self.assertEqual(lesson.code, code)
+
+    def test_leaves_badly_malformed_python_for_validation_to_reject(self) -> None:
+        broken = "def f(\n" + "\n".join(f"x{index} = {index}" for index in range(20))
+        lesson = parse_generated_lesson(f"S\n---CODE_START---\n{broken}\n", "video")
+        self.assertEqual(lesson.code, broken)
+        with self.assertRaises(SyntaxError):
+            ast.parse(lesson.code)
+
+    def test_truncates_html_after_the_document_ends(self) -> None:
+        lesson = parse_generated_lesson(
+            "S\n---CODE_START---\n<html><body>hi</body></html>\n---CODE_END---\nthanks!", "slides"
+        )
+        self.assertEqual(lesson.code, "<html><body>hi</body></html>")
+
+    def test_still_strips_markdown_fences(self) -> None:
+        lesson = parse_generated_lesson("S\n---CODE_START---\n```python\nx = 1\n```", "video")
+        self.assertEqual(lesson.code, "x = 1")
 
 
 if __name__ == "__main__":

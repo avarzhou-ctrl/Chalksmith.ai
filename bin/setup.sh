@@ -95,18 +95,38 @@ if [[ "${action}" == "shutdown" ]]; then
 fi
 
 # --- Secrets -----------------------------------------------------------------
+# True when the secret exists and already holds at least one version.
+secret_has_value() {
+  gc secrets describe "$1" >/dev/null 2>&1 &&
+    gc secrets versions list "$1" --limit=1 --format='value(name)' 2>/dev/null | grep -q .
+}
+
 # Returns 0 when the secret exists but still has no version.
 needs_value() {
-  if gc secrets describe "$1" >/dev/null 2>&1; then
-    if gc secrets versions list "$1" --limit=1 --format='value(name)' 2>/dev/null | grep -q .; then
-      echo "exists: $1"
-      return 1
-    fi
-  else
+  if secret_has_value "$1"; then
+    echo "exists: $1"
+    return 1
+  fi
+  if ! gc secrets describe "$1" >/dev/null 2>&1; then
     gc secrets create "$1" --replication-policy=automatic >/dev/null
     echo "created: $1"
   fi
   return 0
+}
+
+# Adds a version only when the local value differs. Not used for the database
+# password: it is generated once and the Cloud SQL user is created from it.
+sync_secret_value() {
+  local name="$1" value="$2"
+  if ! gc secrets describe "${name}" >/dev/null 2>&1; then
+    gc secrets create "${name}" --replication-policy=automatic >/dev/null
+    echo "created: ${name}"
+  elif [[ "$(gc secrets versions access latest --secret "${name}" 2>/dev/null)" == "${value}" ]]; then
+    echo "current: ${name}"
+    return 0
+  fi
+  printf '%s' "${value}" | gc secrets versions add "${name}" --data-file=- >/dev/null
+  echo "  added a new version of ${name}"
 }
 
 # Accepts a file holding the bare key or one with a CLERK_SECRET_KEY= line.
@@ -136,14 +156,18 @@ if needs_value "${db_secret}"; then
   echo "  added a generated database password"
 fi
 
-if needs_value "${clerk_secret}"; then
+# With a key file present the local value is authoritative; without one, an
+# already-populated secret is left alone rather than prompted for.
+clerk_key_file="${CLERK_KEY_FILE:-${repo_root}/.env/clerk.key.${environment}}"
+if [[ -f "${clerk_key_file}" ]] || ! secret_has_value "${clerk_secret}"; then
   clerk_value="$(read_clerk_key)"
   if [[ -z "${clerk_value}" ]]; then
     echo "No Clerk server key supplied for ${clerk_secret}." >&2
     exit 1
   fi
-  printf '%s' "${clerk_value}" | gc secrets versions add "${clerk_secret}" --data-file=- >/dev/null
-  echo "  added the Clerk server key"
+  sync_secret_value "${clerk_secret}" "${clerk_value}"
+else
+  echo "exists: ${clerk_secret}"
 fi
 
 gc secrets add-iam-policy-binding "${db_secret}" \

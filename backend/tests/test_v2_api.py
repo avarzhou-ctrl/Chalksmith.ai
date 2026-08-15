@@ -27,7 +27,8 @@ from backend.app.renderers.html import (
     REVEAL_SCRIPT,
     REVEAL_THEME_STYLESHEET,
 )
-from backend.app.services.prompts import FORMAT_RULES
+from backend.app.renderers.base import RenderError
+from backend.app.services.prompts import FORMAT_RULES, build_repair_prompt
 from backend.app.services.sources import extract_sources
 
 
@@ -499,6 +500,43 @@ class V2ApiTests(unittest.TestCase):
         self.assertIn("use `mouseX` and", rules)
         self.assertIn("do not divide them", rules)
         self.assertIn("p5.js `scale()`", rules)
+
+    def test_html_renderer_rejects_counter_loop_moving_away_from_bound(self) -> None:
+        generated = """<!doctype html><html><body><script>
+const p5 = true;
+for (let i = steps; i >= 0; i++) drawPoint(i);
+</script></body></html>"""
+        with TemporaryDirectory() as directory, self.assertRaisesRegex(
+            RenderError, "counter loop whose update moves away"
+        ):
+            __import__("asyncio").run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+
+    def test_html_renderer_accepts_terminating_counter_loop_and_ignores_lesson_text(self) -> None:
+        generated = """<!doctype html><html><body><script>
+const p5 = true;
+const example = "for (let i = steps; i >= 0; i++)";
+for (let i = steps; i >= 0; i--) drawPoint(i);
+</script></body></html>"""
+        with TemporaryDirectory() as directory:
+            asset = __import__("asyncio").run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+
+        self.assertEqual(asset.extension, "html")
+
+    def test_interactive_prompt_and_repair_prompt_address_runtime_validation(self) -> None:
+        self.assertIn("decrement toward a lower bound", FORMAT_RULES["interactive"])
+        repair = build_repair_prompt(
+            original_prompt="Create an interactive lesson.",
+            code="<html><script>const p5 = true;</script></html>",
+            error="counter loop whose update moves away",
+        )
+
+        self.assertIn("failed validation or rendering", repair)
+        self.assertIn("requested format", repair)
+        self.assertNotIn("previous Manim code", repair)
 
 
 if __name__ == "__main__":
