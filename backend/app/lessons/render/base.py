@@ -1,3 +1,5 @@
+"""Shared renderer contracts and result types."""
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol

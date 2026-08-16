@@ -20,6 +20,9 @@ class LessonResponse(BaseModel):
     status: Literal["generating", "ready", "failed", "deleting"]
     summary: str | None
     source_code: str | None
+    spec_version: str | None
+    runtime_version: str | None
+    compiler_version: str | None
     error_message: str | None
     created_at: datetime
     updated_at: datetime

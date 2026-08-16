@@ -27,14 +27,13 @@ from backend.app.integrations.llm.base import (
     StreamingLLMProvider,
 )
 from backend.app.integrations.storage import GCSStorage
-from backend.app.renderers.base import RenderError, Renderer
-from backend.app.services.prompts import (
-    GeneratedLesson,
-    build_generation_prompt,
-    build_repair_prompt,
-    parse_generated_lesson,
+from backend.app.lessons.formats import (
+    FormatRequest,
+    PreparedLesson,
+    get_lesson_format_strategy,
 )
-from backend.app.services.sources import SourceDocument, source_context
+from backend.app.lessons.render.base import RenderError, Renderer
+from backend.app.lessons.sources import SourceDocument, source_context
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -242,8 +241,9 @@ class GenerationService:
         started = monotonic()
         owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()[:16]
         object_key: str | None = None
-        generated: GeneratedLesson | None = None
+        generated: PreparedLesson | None = None
         previous_code = None
+        previous_spec = None
         root_lesson_id = None
         parent_lesson_id = None
         version_number = 1
@@ -252,6 +252,11 @@ class GenerationService:
             if not base_lesson:
                 raise ValueError("The lesson to edit was not found.")
             previous_code = base_lesson.source_code
+            previous_spec = base_lesson.lesson_spec
+            if base_lesson.format == "slides" and previous_spec is None:
+                raise ValueError(
+                    "Legacy Slides lessons are read-only. Create a new Slides lesson instead."
+                )
             root_lesson_id = base_lesson.root_lesson_id
             parent_lesson_id = base_lesson.id
             version_number = next_version_number(self.session, root_lesson_id, owner_id)
@@ -281,21 +286,25 @@ class GenerationService:
                         "application/pdf",
                     )
                 )
-            prompt = build_generation_prompt(
-                topic=topic,
-                lesson_format=lesson_format,
-                sources=source_context(sources),
-                previous_code=previous_code,
-                edit_instruction=edit_instruction,
+            strategy = get_lesson_format_strategy(lesson_format)
+            prompt = strategy.build_prompt(
+                FormatRequest(
+                    topic=topic,
+                    lesson_format=lesson_format,
+                    sources=source_context(sources),
+                    previous_code=previous_code,
+                    previous_spec=previous_spec,
+                    edit_instruction=edit_instruction,
+                )
             )
-            yield _event("progress", {"stage": "generating", "message": "Creating lesson code…"})
+            yield _event("progress", {"stage": "generating", "message": "Creating lesson…"})
             result = None
             async for llm_event in self._generate_with_progress(
                 prompt,
                 lesson_id=lesson.id,
                 owner_hash=owner_hash,
                 stage="generating",
-                message="Creating lesson code…",
+                message="Creating lesson…",
             ):
                 if isinstance(llm_event, LLMResult):
                     result = llm_event
@@ -304,7 +313,6 @@ class GenerationService:
             if result is None:
                 raise RuntimeError("The AI provider returned no final result.")
             yield _event("progress", {"stage": "validating", "message": "Checking the generated lesson…"})
-            generated = parse_generated_lesson(result.text, lesson_format)
             renderer = self.renderers[lesson_format]
 
             yield _event("progress", {"stage": "rendering", "message": "Preparing the lesson preview…"})
@@ -313,12 +321,13 @@ class GenerationService:
                 render_started = monotonic()
                 render_stage = "rendering"
                 try:
-                    asset = await self._await(renderer.render(generated.code, workdir))
-                except RenderError as first_error:
-                    if lesson_format != "video":
+                    generated = strategy.prepare(result.text)
+                    asset = await self._await(renderer.render(generated.source_code, workdir))
+                except Exception as first_error:
+                    if not strategy.can_repair(first_error):
                         raise
                     logger.warning(
-                        "lesson_render_retry",
+                        "lesson_generation_retry",
                         extra={
                             "lesson_id": str(lesson.id),
                             "owner_id_hash": owner_hash,
@@ -327,18 +336,17 @@ class GenerationService:
                             "request_id": self.request_id,
                         },
                     )
-                    yield _event("progress", {"stage": "repairing", "message": "Repairing the video scene…"})
+                    yield _event(
+                        "progress",
+                        {"stage": "repairing", "message": strategy.repair_message},
+                    )
                     repair = None
                     async for llm_event in self._generate_with_progress(
-                        build_repair_prompt(
-                            original_prompt=prompt,
-                            code=generated.code,
-                            error=str(first_error),
-                        ),
+                        strategy.build_repair_prompt(prompt, result.text, first_error),
                         lesson_id=lesson.id,
                         owner_hash=owner_hash,
                         stage="repairing",
-                        message="Repairing the video scene…",
+                        message=strategy.repair_message,
                     ):
                         if isinstance(llm_event, LLMResult):
                             repair = llm_event
@@ -346,10 +354,10 @@ class GenerationService:
                             yield _event("progress", _progress_data(llm_event))
                     if repair is None:
                         raise RuntimeError("The AI provider returned no repair result.")
-                    generated = parse_generated_lesson(repair.text, lesson_format)
+                    generated = strategy.prepare(repair.text)
                     render_started = monotonic()
                     render_stage = "repairing"
-                    asset = await self._await(renderer.render(generated.code, workdir))
+                    asset = await self._await(renderer.render(generated.source_code, workdir))
 
                 output_bytes = asset.path.stat().st_size
                 logger.info(
@@ -376,7 +384,11 @@ class GenerationService:
 
             lesson.status = "ready"
             lesson.summary = generated.summary
-            lesson.source_code = generated.code
+            lesson.source_code = generated.source_code
+            lesson.lesson_spec = generated.lesson_spec
+            lesson.spec_version = generated.spec_version
+            lesson.runtime_version = generated.runtime_version
+            lesson.compiler_version = generated.compiler_version
             lesson.object_key = object_key
             save_lesson(self.session, lesson)
             logger.info(
@@ -433,7 +445,11 @@ class GenerationService:
             # Keep the rejected code: without it a render failure can only be
             # diagnosed by reproducing the prompt against the model.
             if generated:
-                lesson.source_code = generated.code
+                lesson.source_code = generated.source_code
+                lesson.lesson_spec = generated.lesson_spec
+                lesson.spec_version = generated.spec_version
+                lesson.runtime_version = generated.runtime_version
+                lesson.compiler_version = generated.compiler_version
             save_lesson(self.session, lesson)
             yield _event(
                 "error",

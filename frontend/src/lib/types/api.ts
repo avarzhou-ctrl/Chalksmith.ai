@@ -28,6 +28,9 @@ export interface Lesson {
   status: 'generating' | 'ready' | 'failed' | 'deleting';
   summary: string | null;
   source_code: string | null;
+  spec_version: string | null;
+  runtime_version: string | null;
+  compiler_version: string | null;
   error_message: string | null;
   created_at: string;
   updated_at: string;

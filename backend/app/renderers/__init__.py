@@ -1,1 +1,0 @@
-"""Sandboxable lesson renderers."""

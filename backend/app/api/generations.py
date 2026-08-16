@@ -11,14 +11,15 @@ from backend.app.api.dependencies import get_renderers, get_request_settings
 from backend.app.api.schemas import LessonFormat
 from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
+from backend.app.db.lessons import get_owned_lesson
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.llm import get_llm_provider
 from backend.app.integrations.llm.base import LLMProvider
 from backend.app.integrations.storage import GCSStorage, get_storage
-from backend.app.renderers.base import Renderer
-from backend.app.services.generation import GenerationService
-from backend.app.services.sources import extract_sources
+from backend.app.lessons.generation import GenerationService
+from backend.app.lessons.render.base import Renderer
+from backend.app.lessons.sources import extract_sources
 
 router = APIRouter(prefix="/v2/generations", tags=["generations"])
 
@@ -47,6 +48,18 @@ async def generate_lesson(
         )
     if not topic.strip():
         raise AppError(code="topic_required", message="A lesson topic is required.", status_code=422)
+    if base_lesson_id:
+        base_lesson = get_owned_lesson(session, base_lesson_id, user.uid)
+        if (
+            base_lesson
+            and base_lesson.format == "slides"
+            and base_lesson.lesson_spec is None
+        ):
+            raise AppError(
+                code="legacy_lesson_read_only",
+                message="Legacy Slides lessons are read-only. Create a new Slides lesson instead.",
+                status_code=409,
+            )
     deadline = monotonic() + settings.generation_timeout_seconds
     try:
         documents = await asyncio.wait_for(

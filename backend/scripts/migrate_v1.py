@@ -19,7 +19,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from google.cloud import storage
 from sqlalchemy import create_engine, text
 
-from backend.app.renderers.html import normalize_reveal_assets, secure_html_document
+from backend.app.lessons.render.html import normalize_reveal_assets, secure_html_document
 
 FORMAT_MAP = {
     "p5.js": "interactive",

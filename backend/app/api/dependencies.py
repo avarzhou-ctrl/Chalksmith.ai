@@ -1,9 +1,13 @@
 from fastapi import Request
 
 from backend.app.core.config import Settings
-from backend.app.renderers.base import Renderer
-from backend.app.renderers.html import HTMLRenderer
-from backend.app.renderers.manim import RemoteManimRenderer, UnavailableManimRenderer, is_local_renderer_url
+from backend.app.lessons.render.base import Renderer
+from backend.app.lessons.render.html import HTMLRenderer
+from backend.app.lessons.render.manim import (
+    RemoteManimRenderer,
+    UnavailableManimRenderer,
+    is_local_renderer_url,
+)
 
 
 def get_request_settings(request: Request) -> Settings:

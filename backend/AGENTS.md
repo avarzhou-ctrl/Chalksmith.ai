@@ -24,32 +24,75 @@ central security property of the backend: keep generated Python execution confin
 
 ## Directory map
 
-```
+```text
 backend/
-├── app/main.py                  # create_app() factory; routers, handlers, middleware, lifespan
-├── app/renderer_main.py         # Separate FastAPI app: POST /internal/render/manim
-├── app/core/config.py           # Settings (frozen pydantic model) + from_env() + get_settings()
-├── app/core/errors.py           # AppError and the three JSON error handlers
-├── app/core/logging.py          # JsonFormatter + RequestLoggingMiddleware (request_id)
-├── app/api/                     # Routers only: validate, delegate, serialize
-│   ├── generations.py           #   POST /v2/generations  → SSE stream
-│   ├── lessons.py               #   /v2/lessons CRUD + access-url
-│   ├── schemas.py               #   Pydantic response/request models (not the ORM models)
-│   └── dependencies.py          #   Per-request settings and renderer map
-├── app/db/models.py             # Lesson SQLModel table — the only table
-├── app/db/session.py            # Engine construction, table creation, additive migration
-├── app/db/lessons.py            # Every lesson query, all owner-scoped
-├── app/services/generation.py   # GenerationService.stream() — the whole generation pipeline
-├── app/services/prompts.py      # Per-format prompt rules, repair prompt, response parsing
-├── app/services/sources.py      # PDF upload validation and text extraction
-├── app/integrations/auth.py     # Clerk JWT verification → AuthUser
-├── app/integrations/storage.py  # GCSStorage (upload, delete, signed URLs)
-├── app/integrations/llm/        # LLMProvider protocol + Vertex Gemini / OpenAI + factory
-├── app/renderers/               # HTMLRenderer, Local/Remote/Unavailable Manim renderers
-├── scripts/init_db.py           # Create the v2 schema
-├── scripts/migrate_v1.py        # Dry-run-first v1 → v2 migration
-└── tests/                       # stdlib unittest, no pytest
+├── .python-version              # Local uv/pyenv default: Python 3.12
+├── pyproject.toml               # Runtime dependencies and video extra
+├── uv.lock                      # Locked Python dependency graph
+├── app/
+│   ├── main.py                  # Public API application factory
+│   ├── renderer_main.py         # Private POST /internal/render/manim app
+│   ├── api/                     # HTTP validation, delegation, serialization
+│   │   ├── dependencies.py      # Request settings and renderer wiring
+│   │   ├── generations.py       # POST /v2/generations SSE endpoint
+│   │   ├── health.py            # Health check
+│   │   ├── lessons.py           # Lesson CRUD, versions, and access URLs
+│   │   └── schemas.py           # API Pydantic models, not ORM models
+│   ├── core/
+│   │   ├── config.py            # Frozen Settings, env loading, validation
+│   │   ├── errors.py            # AppError and JSON exception handlers
+│   │   └── logging.py           # JSON logs and request-id middleware
+│   ├── db/
+│   │   ├── lessons.py           # Owner-scoped lesson queries and mutations
+│   │   ├── models.py            # Lesson SQLModel table
+│   │   └── session.py           # Engine, sessions, schema creation, additive migration
+│   ├── integrations/
+│   │   ├── auth.py              # Clerk JWT verification and AuthUser
+│   │   ├── storage.py           # GCS upload, delete, and signed URLs
+│   │   └── llm/
+│   │       ├── base.py          # Provider protocol, result, stream chunk, errors
+│   │       ├── factory.py       # Provider selection
+│   │       ├── gemini.py        # Vertex Gemini provider
+│   │       ├── openai.py        # OpenAI Responses provider
+│   │       └── deepseek.py      # DeepSeek chat-completions provider
+│   └── lessons/                 # Lesson-generation domain
+│       ├── generation.py        # GenerationService orchestration and SSE events
+│       ├── sources.py           # PDF validation, extraction, prompt context
+│       ├── formats/
+│       │   ├── contracts.py     # Format requests, prepared results, strategy protocol
+│       │   ├── code.py          # Code response parsing, prompts, shared code strategy
+│       │   ├── registry.py      # Format-to-strategy selection
+│       │   ├── slides/
+│       │   │   ├── strategy.py  # Validated Spec → compiled Slides result
+│       │   │   ├── prompt.py    # Kind-and-Block JSON generation prompt
+│       │   │   ├── catalog.py   # LLM-facing Block capabilities and categories
+│       │   │   ├── spec.py      # chalksmith.slides.v1 kinds, blocks, validators
+│       │   │   ├── compiler.py  # Block composition → Reveal HTML
+│       │   │   └── assets/v1/
+│       │   ├── interactive/
+│       │   │   ├── strategy.py  # Interactive code strategy
+│       │   │   └── prompt.py    # p5.js code-generation rules
+│       │   └── video/
+│       │       ├── strategy.py  # Video code and repair strategy
+│       │       └── prompt.py    # Manim code-generation rules
+│       └── render/
+│           ├── base.py          # Renderer protocol, asset, and RenderError
+│           ├── html.py          # HTML validation, CSP, Reveal/KaTeX pinning
+│           └── manim.py         # Local, remote, unavailable renderers and AST guard
+├── scripts/
+│   ├── init_db.py               # Create the current schema
+│   ├── migrate_v1.py            # Dry-run-first v1 lesson migration
+│   ├── migrate_v1_users.py      # Clerk v1 user mapping/import support
+│   └── sync_lessons.py          # Idempotent cross-environment lesson sync
+└── tests/
+    ├── fixtures/
+    │   └── lesson_specs/
+    │       └── slides.json      # Representative valid Slides v1 Spec
+    ├── test_v2_api.py           # HTTP, generation, storage, ownership tests
+    └── test_v2_app.py           # Settings, providers, renderers, Specs, deadlines
 ```
+
+Routine `__init__.py` files and generated `__pycache__/` directories are omitted from the map.
 
 ## Request flow: generation
 
@@ -69,9 +112,14 @@ backend/
 3. Every external await observes the shared deadline. One-shot stages use `self._await(...)`;
    model streaming re-derives the remaining time before each chunk/heartbeat wait. Add new
    awaits the same way, or a slow stage can outlive the request budget.
-4. `parse_generated_lesson()` splits the model output on `---CODE_START---`.
-5. The renderer for the format runs in a `TemporaryDirectory`. **`video` only:** a `RenderError`
-   triggers one repair round-trip through `build_repair_prompt()`; other formats fail directly.
+4. A format strategy parses the model output. Slides always use the strict `chalksmith.slides.v1`
+   Kind-and-Block JSON specification and deterministic block-composition compiler; Interactive and
+   Video still use `formats/code.py` parsing and the `---CODE_START---` contract. Historical Slides
+   without a specification remain readable from their stored artifact but are intentionally
+   read-only.
+5. The renderer for the format runs in a `TemporaryDirectory`. Structured Slides get one bounded
+   specification-repair attempt for JSON/schema/capacity errors. Video gets one code-repair
+   attempt after `RenderError`; platform compiler/renderer defects are not sent to the model.
 6. The output uploads to `lessons/{owner_id}/{lesson_id}/lesson.{ext}`; uploaded sources live at
    `sources/{owner_id}/{lesson_id}/{filename}`.
 
@@ -82,7 +130,9 @@ disconnects (`CancelledError`/`GeneratedExit`) are recorded as `failed` too, not
 
 ## Data model and versioning
 
-One table, `lessons`. An edit is a **new row**, not an update:
+One table, `lessons`. An edit is a **new row**, not an update. Structured lessons store canonical
+`lesson_spec` JSON plus `spec_version`, `runtime_version`, and `compiler_version`;
+`source_code` is compiler output for those rows and remains the canonical legacy input otherwise.
 
 - `root_lesson_id` — shared by every revision; a first-generation row points at itself.
 - `parent_lesson_id` — the row that was edited.
@@ -106,17 +156,19 @@ and new ones must not appear. Missing-or-not-yours is always a 404 via `_owned_o
 **Generated code is never trusted.**
 - `interactive`/`slides`: `HTMLRenderer` requires the marker (`p5` / `reveal`), rejects
   `eval(`/`document.write(`/`new Function(`, injects the CSP `<meta>` from
-  `backend/app/renderers/html.py`, and pins Reveal.js to the three verified CDN URLs.
+  `backend/app/lessons/render/html.py`, and pins Reveal.js to the three verified CDN URLs.
+- Structured Slides contain no model-authored HTML, CSS, JavaScript, or SVG. The model returns
+  validated semantic data and the platform compiler owns the complete document and embedded CSS.
 - `video`: `validate_manim_code()` AST-walks the source against an import allowlist
   (`manim`, `math`, `numpy`, `random`), blocked builtins, dunder names, and blocked attributes,
   and requires a `GeneratedScene` class. The API only ever *sends* the code onward.
 - `RemoteManimRenderer` attaches a Google OIDC ID token unless the target is localhost.
   With `MANIM_RENDERER_URL` unset the map gets `UnavailableManimRenderer`, which fails cleanly.
 
-**Prompt injection.** `build_generation_prompt()` fences `REQUEST`, `SOURCES`, `EDIT_INSTRUCTION`,
-and `EXISTING_CODE` as untrusted data with an explicit instruction to ignore embedded rule
-changes. Keep that framing when editing prompts; also keep the truncation on the repair prompt's
-error text (`error[-4000:]`).
+**Prompt injection.** `build_code_generation_prompt()` and structured format prompts fence
+`REQUEST`, `SOURCES`, `EDIT_INSTRUCTION`, and prior code/specification as untrusted data with an
+explicit instruction to ignore embedded rule changes. Keep that framing when editing prompts; also
+keep repair diagnostics bounded to the last 4,000 characters.
 
 **Error and log shape.** Client-facing failures raise `AppError(code=…, message=…, status_code=…)`
 and always serialize as `{"error": {"code", "message", "details"?}}`. Messages are user-facing:
@@ -138,13 +190,15 @@ built by `Settings.from_env()`, cached by `get_settings()`, and attached to `app
 Read it inside a request via `Depends(get_request_settings)` — not by calling `get_settings()`
 again, which would ignore per-app overrides used by tests.
 
-- Locally, values come from `.env/env.local` plus `.env/clerk.key.stg` at the repository root (gitignored, shared
-  with other services). `backend/.env.example` is the template — update it whenever you add a key.
+- Locally, values come from `.env/env.local` plus `.env/clerk.key.stg` at the repository root
+  (gitignored and shared with other services). `bin/env.local.template` is the tracked runtime
+  template; update it whenever you add a key.
 - `validate_production_configuration()` fails startup when `APP_ENV=production` and a required key
   is missing, when origins/renderer URL are not HTTPS, or when Cloud SQL settings are incomplete.
   The renderer role is exempt. New required production settings belong in that validator.
-- Adding a setting means touching four places: the field, `from_env()`, `.env.example`, and (if
-  production must have it) the validator.
+- Adding a setting means touching the field, `from_env()`, `bin/env.local.template`, and, when
+  deployed, `bin/env.deploy.template`/`bin/deploy.sh`; production-required values also belong in
+  the validator.
 
 Database URL resolution: explicit `DATABASE_URL` → Cloud SQL unix socket
 (`postgresql+psycopg://…?host=/cloudsql/…`) → `sqlite:///./.env/chalksmith.local.db` for
@@ -192,14 +246,17 @@ response carries `X-Request-Id`, which matches the `request_id` field in the str
 
 ## Editing notes
 
-- Layering: routers validate and serialize, services own the workflow, `db/` owns queries,
-  `integrations/` and `renderers/` own external boundaries. Do not query the database from a
+- Layering: routers validate and serialize, `lessons/` owns the workflow and format behavior,
+  `db/` owns queries, and `integrations/` owns vendor boundaries. Do not query the database from a
   router body or call GCS from `db/`.
-- `integrations/llm/base.py` and `renderers/base.py` are `Protocol`s. A new provider or renderer
+- `integrations/llm/base.py` and `lessons/render/base.py` are `Protocol`s. A new provider or renderer
   implements the protocol and is wired in `llm/factory.py` or `api/dependencies.py`; nothing else
   should need to change.
-- Adding a lesson format means: a `LessonFormat` literal in `api/schemas.py`, a `FORMAT_RULES`
-  entry in `services/prompts.py`, and a renderer in the `get_renderers()` map.
+- Adding a lesson format means: add the `LessonFormat` literal in `api/schemas.py`, colocate its
+  strategy and prompt under `lessons/formats/<format>/`, register it in `formats/registry.py`, and
+  wire its renderer in `api/dependencies.py`. Declarative formats also colocate their Spec, compiler,
+  and versioned assets there. Code formats reuse the envelope and parser in `formats/code.py`;
+  shared renderer implementations stay under `lessons/render/`.
 - Comments explain *why*, not *what*, and stay sparse — match the existing density.
 - Do not add dependencies without approval; `pyproject.toml` pins the API surface deliberately and
   `uv.lock` is checked in CI.

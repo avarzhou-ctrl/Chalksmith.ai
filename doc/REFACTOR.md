@@ -173,8 +173,7 @@ One `GenerationService` owns the full deadline and state transition:
 │   │   ├── core/                   # Settings, errors, logging
 │   │   ├── db/                     # SQLModel models and owner-scoped queries
 │   │   ├── integrations/           # Clerk JWT, storage, LLM adapters
-│   │   ├── renderers/              # HTML validation and Manim boundary
-│   │   ├── services/               # Generation, prompts, source extraction
+│   │   ├── lessons/                # Generation, formats, parsing, rendering
 │   │   ├── main.py                 # Public API entry point
 │   │   └── renderer_main.py        # Private renderer entry point
 │   ├── scripts/                    # Schema initialization and v1 migration

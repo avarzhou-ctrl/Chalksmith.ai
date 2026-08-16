@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 
-from backend.app.renderers.base import RenderError, RenderedAsset
+from backend.app.lessons.render.base import RenderError, RenderedAsset
 
 CONTENT_SECURITY_POLICY = (
     "default-src 'none'; "

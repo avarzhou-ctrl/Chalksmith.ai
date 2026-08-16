@@ -6,8 +6,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from backend.app.core.config import get_settings
-from backend.app.renderers.base import RenderError
-from backend.app.renderers.manim import LocalManimRenderer
+from backend.app.lessons.render.base import RenderError
+from backend.app.lessons.render.manim import LocalManimRenderer
 
 
 class RenderRequest(BaseModel):

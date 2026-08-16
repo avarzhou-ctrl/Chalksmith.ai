@@ -1,0 +1,79 @@
+{
+  "schema_version": "chalksmith.slides.v1",
+  "format": "slides",
+  "summary": "A structured lesson about equivalent fractions.",
+  "title": "Equivalent Fractions",
+  "learning_goal": "Explain why two fractions can name the same quantity.",
+  "grade_band": "elementary",
+  "language": "en",
+  "payload": {
+    "slides": [
+      {
+        "kind": "learning-goal",
+        "title": "Our goal",
+        "body": [
+          {
+            "type": "statement",
+            "text": "We will recognize fractions that name the same amount."
+          }
+        ]
+      },
+      {
+        "kind": "concept",
+        "title": "Equal parts",
+        "body": [
+          {
+            "type": "fraction-model",
+            "numerator": 1,
+            "denominator": 2,
+            "label": "One half"
+          },
+          {
+            "type": "fraction-model",
+            "numerator": 2,
+            "denominator": 4,
+            "label": "Two fourths"
+          }
+        ]
+      },
+      {
+        "kind": "worked-example",
+        "title": "Build an equivalent fraction",
+        "body": [
+          {
+            "type": "steps",
+            "items": [
+              "Start with 1/2.",
+              "Multiply both numbers by 2.",
+              "The result is 2/4."
+            ]
+          },
+          {
+            "type": "equation",
+            "expression": "\\frac{1}{2} \\times \\frac{2}{2} = \\frac{2}{4}",
+            "explanation": "Multiply the numerator and denominator by the same number."
+          }
+        ]
+      },
+      {
+        "kind": "comprehension-check",
+        "title": "Your turn",
+        "question": "Which fraction is equivalent to 3/4?",
+        "choices": ["4/5", "6/8", "6/7"],
+        "answer_index": 1,
+        "explanation": "Multiplying both numbers by 2 gives 6/8."
+      },
+      {
+        "kind": "recap",
+        "title": "Remember",
+        "body": [
+          {
+            "type": "callout",
+            "label": "Key idea",
+            "text": "Multiply or divide the numerator and denominator by the same number."
+          }
+        ]
+      }
+    ]
+  }
+}

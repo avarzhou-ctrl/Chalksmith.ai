@@ -80,8 +80,7 @@ The repository contains two independent application runtimes. Node.js commands a
 │   ├── app/core/                # Configuration, errors, and structured logging
 │   ├── app/db/                  # SQLModel models, sessions, and tenant-safe queries
 │   ├── app/integrations/        # Clerk JWT, GCS, Gemini, and OpenAI adapters
-│   ├── app/renderers/           # HTML validation and remote/local Manim boundaries
-│   ├── app/services/            # Generation, prompts, and PDF extraction
+│   ├── app/lessons/             # Generation, format strategies, specs, assets, and renderers
 │   ├── scripts/                 # Schema initialization and v1 migration
 │   └── tests/                   # Backend unit and API tests
 ├── infra/docker/                # Web, API, and renderer images
@@ -91,7 +90,7 @@ The repository contains two independent application runtimes. Node.js commands a
 
 The frontend owns presentation and browser session state. Clerk's Next.js SDK obtains a short-lived session JWT, and the clients in `frontend/src/lib/api/` send it directly to FastAPI as a Bearer token.
 
-The API owns authentication, authorization, generation orchestration, database writes, object storage, and signed access URLs. It verifies Clerk JWT signatures from the Clerk JWKS endpoint and uses the token `sub` as `owner_id`. HTTP handlers remain thin: generation rules live in `services/`, external vendors remain behind `integrations/`, and every lesson query includes the authenticated owner.
+The API owns authentication, authorization, generation orchestration, database writes, object storage, and signed access URLs. It verifies Clerk JWT signatures from the Clerk JWKS endpoint and uses the token `sub` as `owner_id`. HTTP handlers remain thin: generation rules live in `lessons/`, external vendors remain behind `integrations/`, and every lesson query includes the authenticated owner.
 
 The renderer shares backend validation code but has a separate entry point and container. Only `renderer_main.py` executes generated Manim Python. The public API container does not install Manim and cannot fall back to local code execution.
 

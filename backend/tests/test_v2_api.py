@@ -19,7 +19,10 @@ from backend.app.integrations.llm.base import LLMResult, LLMStreamChunk
 from backend.app.integrations.llm.factory import get_llm_provider
 from backend.app.integrations.storage import get_storage
 from backend.app.main import create_app
-from backend.app.renderers.html import (
+from backend.app.lessons.formats.interactive.prompt import INTERACTIVE_RULES
+from backend.app.lessons.formats.code import build_code_repair_prompt
+from backend.app.lessons.render.base import RenderError
+from backend.app.lessons.render.html import (
     HTMLRenderer,
     REVEAL_CORE_STYLESHEET,
     REVEAL_FALLBACK_SCRIPT,
@@ -27,9 +30,7 @@ from backend.app.renderers.html import (
     REVEAL_SCRIPT,
     REVEAL_THEME_STYLESHEET,
 )
-from backend.app.renderers.base import RenderError
-from backend.app.services.prompts import FORMAT_RULES, build_repair_prompt
-from backend.app.services.sources import extract_sources
+from backend.app.lessons.sources import extract_sources
 
 
 class FakeLLM:
@@ -61,6 +62,26 @@ class StreamingFakeLLM(FakeLLM):
             provider=result.provider,
             model=result.model,
             output_tokens=80,
+        )
+
+
+def _slides_response() -> str:
+    return (
+        Path(__file__).parent / "fixtures" / "lesson_specs" / "slides.json"
+    ).read_text(encoding="utf-8")
+
+
+class FakeSlidesLLM:
+    def __init__(self, *responses: str) -> None:
+        self.responses = list(responses or (_slides_response(),))
+        self.prompts: list[str] = []
+
+    async def generate(self, prompt: str) -> LLMResult:
+        self.prompts.append(prompt)
+        return LLMResult(
+            text=self.responses.pop(0),
+            provider="fake",
+            model="fake-slides-model",
         )
 
 
@@ -157,6 +178,134 @@ class V2ApiTests(unittest.TestCase):
         access_response = self.client.post(f"/v2/lessons/{lesson_id}/access-url")
         self.assertEqual(access_response.status_code, 200)
         self.assertEqual(access_response.json()["expires_in"], 300)
+
+    def test_slides_generation_compiles_a_versioned_specification(self) -> None:
+        llm = FakeSlidesLLM()
+        self.app.dependency_overrides[get_llm_provider] = lambda: llm
+
+        response = self.client.post(
+            "/v2/generations",
+            data={"topic": "Equivalent fractions", "format": "slides"},
+        )
+
+        self.assertIn("event: complete", response.text)
+        self.assertNotIn('"stage": "repairing"', response.text)
+        lesson_id = _completed_lesson_id(response.text)
+        lesson = self.client.get(f"/v2/lessons/{lesson_id}").json()
+        self.assertEqual(lesson["spec_version"], "chalksmith.slides.v1")
+        self.assertNotIn("template_id", lesson)
+        self.assertEqual(lesson["runtime_version"], "slides-runtime.v1.1")
+        self.assertEqual(lesson["compiler_version"], "slides-compiler.v1.1")
+        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.1"', lesson["source_code"])
+        self.assertNotIn("data-chalksmith-template", lesson["source_code"])
+        self.assertIn('data-chalksmith-layout="split"', lesson["source_code"])
+        self.assertIn('data-chalksmith-layout="solution-split"', lesson["source_code"])
+        self.assertIn('<div class="slides">', lesson["source_code"])
+        self.assertIn('<div class="cs-slide__body ', lesson["source_code"])
+        self.assertNotIn('<section class="cs-slide__body ', lesson["source_code"])
+        self.assertEqual(
+            lesson["source_code"].count("<section"),
+            lesson["source_code"].count('<section class="cs-slide '),
+        )
+        self.assertIn(
+            ".reveal .slides > section.cs-slide {\n  display: none !important;",
+            lesson["source_code"],
+        )
+        self.assertIn(
+            ".reveal .slides > section.cs-slide.present {\n  display: grid !important;",
+            lesson["source_code"],
+        )
+        self.assertEqual(len(llm.prompts), 1)
+        self.assertIn("The platform owns all layout", llm.prompts[0])
+        self.assertNotIn('"template"', llm.prompts[0])
+        artifact = next(iter(self.storage.objects.values())).decode()
+        self.assertIn("Content-Security-Policy", artifact)
+        self.assertIn("Equivalent Fractions", artifact)
+
+    def test_invalid_slides_specification_gets_one_bounded_repair(self) -> None:
+        llm = FakeSlidesLLM("{}", _slides_response())
+        self.app.dependency_overrides[get_llm_provider] = lambda: llm
+
+        response = self.client.post(
+            "/v2/generations",
+            data={"topic": "Equivalent fractions", "format": "slides"},
+        )
+
+        self.assertIn('"stage": "repairing"', response.text)
+        self.assertIn("event: complete", response.text)
+        self.assertEqual(len(llm.prompts), 2)
+        self.assertIn("Repair the specification, not the layout system", llm.prompts[1])
+
+    def test_structured_slides_edit_uses_the_previous_specification(self) -> None:
+        llm = FakeSlidesLLM(_slides_response(), _slides_response())
+        self.app.dependency_overrides[get_llm_provider] = lambda: llm
+        first = self.client.post(
+            "/v2/generations",
+            data={"topic": "Equivalent fractions", "format": "slides"},
+        )
+        first_id = _completed_lesson_id(first.text)
+
+        edited = self.client.post(
+            "/v2/generations",
+            data={
+                "topic": "Equivalent fractions",
+                "format": "slides",
+                "base_lesson_id": first_id,
+                "edit_instruction": "Use a pizza example.",
+            },
+        )
+
+        self.assertIn("event: complete", edited.text)
+        self.assertEqual(len(llm.prompts), 2)
+        self.assertIn("<PREVIOUS_SPEC>", llm.prompts[1])
+        self.assertIn('"schema_version":"chalksmith.slides.v1"', llm.prompts[1])
+        self.assertNotIn("<!doctype html>", llm.prompts[1])
+
+    def test_legacy_slides_remain_viewable_but_cannot_be_edited(self) -> None:
+        with Session(self.app.state.engine) as session:
+            lesson = create_lesson(
+                session,
+                owner_id="teacher-a",
+                topic="Legacy Slides",
+                lesson_format="slides",
+            )
+            lesson.status = "ready"
+            lesson.summary = "A historical presentation."
+            lesson.source_code = "<!doctype html><html><body>Legacy Slides</body></html>"
+            lesson.object_key = f"lessons/teacher-a/{lesson.id}/lesson.html"
+            lesson_id = lesson.id
+            save_lesson(session, lesson)
+
+        view_response = self.client.get(f"/v2/lessons/{lesson_id}")
+        edit_response = self.client.post(
+            "/v2/generations",
+            data={
+                "topic": "Legacy Slides",
+                "format": "slides",
+                "base_lesson_id": str(lesson_id),
+                "edit_instruction": "Add one example.",
+            },
+        )
+
+        self.assertEqual(view_response.status_code, 200)
+        self.assertEqual(view_response.json()["source_code"], lesson.source_code)
+        self.assertEqual(edit_response.status_code, 409)
+        self.assertEqual(edit_response.json()["error"]["code"], "legacy_lesson_read_only")
+
+        format_change_response = self.client.post(
+            "/v2/generations",
+            data={
+                "topic": "Legacy Slides",
+                "format": "interactive",
+                "base_lesson_id": str(lesson_id),
+                "edit_instruction": "Convert this lesson.",
+            },
+        )
+        self.assertEqual(format_change_response.status_code, 409)
+        self.assertEqual(
+            format_change_response.json()["error"]["code"],
+            "legacy_lesson_read_only",
+        )
 
     def test_database_sessions_match_response_lifetimes(self) -> None:
         routes = [route for route in self.app.routes if isinstance(route, APIRoute)]
@@ -495,7 +644,7 @@ class V2ApiTests(unittest.TestCase):
         self.assertLess(rendered.index(REVEAL_FALLBACK_SCRIPT), rendered.index("</body>"))
 
     def test_interactive_prompt_prevents_double_scaled_pointer_coordinates(self) -> None:
-        rules = FORMAT_RULES["interactive"]
+        rules = INTERACTIVE_RULES
 
         self.assertIn("use `mouseX` and", rules)
         self.assertIn("do not divide them", rules)
@@ -527,8 +676,8 @@ for (let i = steps; i >= 0; i--) drawPoint(i);
         self.assertEqual(asset.extension, "html")
 
     def test_interactive_prompt_and_repair_prompt_address_runtime_validation(self) -> None:
-        self.assertIn("decrement toward a lower bound", FORMAT_RULES["interactive"])
-        repair = build_repair_prompt(
+        self.assertIn("decrement toward a lower bound", INTERACTIVE_RULES)
+        repair = build_code_repair_prompt(
             original_prompt="Create an interactive lesson.",
             code="<html><script>const p5 = true;</script></html>",
             error="counter loop whose update moves away",

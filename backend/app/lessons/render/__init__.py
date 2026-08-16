@@ -1,0 +1,1 @@
+"""Sandboxable lesson artifact rendering."""

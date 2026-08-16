@@ -10,6 +10,7 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import EditableTitle from '@/components/generation/EditableTitle';
 import GenerationSidebar from '@/components/generation/GenerationSidebar';
+import LessonViewport from '@/components/generation/LessonViewport';
 import LoadingOverlay from '@/components/generation/LoadingOverlay';
 import Button from '@/components/ui/Button';
 import { useApi } from '@/lib/hooks/useApi';
@@ -73,16 +74,18 @@ export default function GenerationPage() {
               </header>
 
               <section className="relative flex flex-1 items-center justify-center overflow-hidden px-4 pb-8">
-                <article className="relative flex h-full w-full flex-col overflow-auto rounded-3xl border border-border bg-primary-bg shadow-2xl">
+                <article className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl border border-border bg-primary-bg shadow-2xl">
                   {lesson && <span className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-accent/40 bg-primary-bg/80 px-3 py-1 text-xs font-semibold text-accent shadow-lg backdrop-blur-md">Version {lesson.version_number}</span>}
                   {lesson && <Button onClick={() => setShowCode((current) => !current)} className="absolute right-4 top-4 z-10 flex items-center gap-2 text-xs">{showCode ? <Eye size={14} /> : <Code size={14} />}{showCode ? 'View Material' : 'View Code'}</Button>}
                   {lesson ? (
                     showCode
                       ? <SyntaxHighlighter language={format === 'video' ? 'python' : 'html'} style={vscDarkPlus} customStyle={{ background: 'transparent', margin: 0, padding: '4rem 2rem 2rem', minHeight: '100%' }}>{lesson.source_code || ''}</SyntaxHighlighter>
                       : previewUrl
-                        ? format === 'video'
-                          ? <video className="h-full w-full bg-black object-contain" src={previewUrl} controls autoPlay onLoadedData={() => setLoadedPreviewUrl(previewUrl)} onError={() => setLoadedPreviewUrl(previewUrl)} />
-                          : <iframe key={previewUrl} src={previewUrl} className="h-full w-full border-none bg-primary-bg" title="Lesson preview" sandbox="allow-scripts" onLoad={() => setLoadedPreviewUrl(previewUrl)} />
+                        ? <LessonViewport>
+                            {format === 'video'
+                              ? <video className="size-full bg-black object-contain" src={previewUrl} controls autoPlay onLoadedData={() => setLoadedPreviewUrl(previewUrl)} onError={() => setLoadedPreviewUrl(previewUrl)} />
+                              : <iframe key={previewUrl} src={previewUrl} className="size-full border-none bg-primary-bg" title="Lesson preview" sandbox="allow-scripts" onLoad={() => setLoadedPreviewUrl(previewUrl)} />}
+                          </LessonViewport>
                         : error
                           ? <section className="m-auto max-w-lg p-8 text-center"><h2 className="text-xl font-semibold">Lesson preview unavailable</h2><p className="mt-3 text-sm text-secondary-text">{error}</p><Button variant="outline" size="sm" className="mt-5" onClick={() => void loadLesson(lesson.id)}>Retry preview</Button></section>
                           : <section className="m-auto p-8 text-center text-secondary-text">Loading lesson preview…</section>

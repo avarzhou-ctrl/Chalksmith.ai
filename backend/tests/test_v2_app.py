@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import json
 import os
 import signal
 import tempfile
@@ -14,9 +15,12 @@ from fastapi import FastAPI
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
 from jwt import InvalidTokenError
+from sqlalchemy import inspect, text
+from sqlmodel import create_engine
 
 from backend.app.core.config import LOCAL_CLERK_FILE, LOCAL_ENV_FILE, REPOSITORY_DIR, Settings
 from backend.app.core.errors import AppError
+from backend.app.db.session import create_db_and_tables
 from backend.app.integrations.auth import _decode_clerk_token, get_current_user
 from backend.app.integrations.llm.base import LLMResult
 from backend.app.integrations.llm.base import LLMProviderError
@@ -25,11 +29,17 @@ from backend.app.integrations.llm.factory import create_llm_provider
 from backend.app.integrations.llm.gemini import VertexGeminiProvider
 from backend.app.integrations.storage import GCSStorage
 from backend.app.main import create_app
-from backend.app.renderers.base import RenderError
-from backend.app.renderers.manim import LocalManimRenderer, is_local_renderer_url, validate_manim_code
+from backend.app.lessons.formats import FormatRequest, get_lesson_format_strategy
+from backend.app.lessons.formats.code import parse_generated_lesson
+from backend.app.lessons.formats.slides.strategy import StructuredSlidesStrategy
+from backend.app.lessons.generation import GenerationService, LLMProgress
+from backend.app.lessons.render.base import RenderError
+from backend.app.lessons.render.manim import (
+    LocalManimRenderer,
+    is_local_renderer_url,
+    validate_manim_code,
+)
 from backend.app.renderer_main import renderer_app
-from backend.app.services.generation import GenerationService, LLMProgress
-from backend.app.services.prompts import parse_generated_lesson
 
 
 class SettingsTests(unittest.TestCase):
@@ -432,7 +442,7 @@ class GenerationDeadlineTests(unittest.IsolatedAsyncioTestCase):
             request_id="heartbeat-test",
         )
 
-        with patch("backend.app.services.generation.LLM_HEARTBEAT_SECONDS", 0.001):
+        with patch("backend.app.lessons.generation.LLM_HEARTBEAT_SECONDS", 0.001):
             events = [
                 event
                 async for event in service._generate_with_progress(
@@ -532,9 +542,9 @@ class RendererCancellationTests(unittest.IsolatedAsyncioTestCase):
         renderer = LocalManimRenderer(timeout_seconds=60, max_render_bytes=1_000_000)
         code = "from manim import *\nclass GeneratedScene(Scene):\n def construct(self): pass"
         with tempfile.TemporaryDirectory() as directory, patch(
-            "backend.app.renderers.manim.asyncio.create_subprocess_exec",
+            "backend.app.lessons.render.manim.asyncio.create_subprocess_exec",
             new=AsyncMock(return_value=process),
-        ), patch("backend.app.renderers.manim.os.killpg") as kill_process_group:
+        ), patch("backend.app.lessons.render.manim.os.killpg") as kill_process_group:
             task = asyncio.create_task(renderer.render(code, Path(directory)))
             await asyncio.sleep(0)
             task.cancel()
@@ -585,6 +595,110 @@ class ParseGeneratedLessonTests(unittest.TestCase):
     def test_still_strips_markdown_fences(self) -> None:
         lesson = parse_generated_lesson("S\n---CODE_START---\n```python\nx = 1\n```", "video")
         self.assertEqual(lesson.code, "x = 1")
+
+
+class StructuredSlidesTests(unittest.TestCase):
+    def test_slides_always_use_the_structured_strategy(self) -> None:
+        strategy = get_lesson_format_strategy("slides")
+
+        self.assertIsInstance(strategy, StructuredSlidesStrategy)
+
+    def test_prompt_exposes_a_schema_but_not_the_runtime_styles(self) -> None:
+        prompt = StructuredSlidesStrategy().build_prompt(
+            FormatRequest(topic="Equivalent fractions", lesson_format="slides")
+        )
+
+        self.assertIn('"chalksmith.slides.v1"', prompt)
+        self.assertIn("The platform owns all layout", prompt)
+        self.assertIn("compiler derives layout from the selected blocks", prompt)
+        self.assertNotIn('"template"', prompt)
+        self.assertNotIn("--cs-bg", prompt)
+        self.assertNotIn("Reveal.initialize({", prompt)
+
+    def test_compiler_escapes_content_and_owns_the_document(self) -> None:
+        response = _slides_fixture().replace(
+            "Equivalent Fractions", "Fractions <script>alert(1)</script>"
+        )
+        prepared = StructuredSlidesStrategy().prepare(response)
+
+        self.assertIn("Fractions &lt;script&gt;alert(1)&lt;/script&gt;", prepared.source_code)
+        self.assertNotIn("<script>alert(1)</script>", prepared.source_code)
+        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.1"', prepared.source_code)
+        self.assertEqual(prepared.spec_version, "chalksmith.slides.v1")
+        self.assertNotIn("data-chalksmith-template", prepared.source_code)
+
+    def test_schema_allows_the_prompt_to_adapt_the_teaching_sequence(self) -> None:
+        adapted = _slides_fixture().replace(
+            '"kind": "learning-goal"', '"kind": "concept"'
+        ).replace(
+            '"kind": "worked-example"', '"kind": "concept"'
+        ).replace(
+            '"kind": "recap"', '"kind": "concept"'
+        )
+
+        prepared = StructuredSlidesStrategy().prepare(adapted)
+
+        self.assertEqual(prepared.spec_version, "chalksmith.slides.v1")
+
+    def test_schema_rejects_a_complex_block_in_a_multi_block_body(self) -> None:
+        malformed = json.loads(_slides_fixture())
+        malformed["payload"]["slides"][0]["body"].append(
+            {"type": "process", "steps": ["Observe", "Explain"]}
+        )
+
+        with self.assertRaisesRegex(ValueError, "must occupy a slide body by themselves"):
+            StructuredSlidesStrategy().prepare(json.dumps(malformed))
+
+    def test_compiler_selects_a_visual_layout_and_places_the_visual_second(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["body"].append(
+            {
+                "type": "fraction-model",
+                "numerator": 2,
+                "denominator": 3,
+                "label": "Two thirds",
+            }
+        )
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        body_start = prepared.source_code.index('data-chalksmith-layout="visual-split"')
+        statement_start = prepared.source_code.index("cs-statement", body_start)
+        fraction_start = prepared.source_code.index("cs-fraction", body_start)
+
+        self.assertLess(statement_start, fraction_start)
+
+
+def _slides_fixture() -> str:
+    return (
+        Path(__file__).parent / "fixtures" / "lesson_specs" / "slides.json"
+    ).read_text(encoding="utf-8")
+
+
+class LessonSchemaMigrationTests(unittest.TestCase):
+    def test_adds_specification_metadata_to_an_existing_lessons_table(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            engine = create_engine(f"sqlite:///{Path(directory) / 'legacy.db'}")
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        "CREATE TABLE lessons ("
+                        "id CHAR(32) PRIMARY KEY, "
+                        "owner_id VARCHAR(128) NOT NULL"
+                        ")"
+                    )
+                )
+
+            create_db_and_tables(engine)
+
+            columns = {column["name"] for column in inspect(engine).get_columns("lessons")}
+            self.assertTrue(
+                {
+                    "lesson_spec",
+                    "spec_version",
+                    "runtime_version",
+                    "compiler_version",
+                }.issubset(columns)
+            )
 
 
 if __name__ == "__main__":

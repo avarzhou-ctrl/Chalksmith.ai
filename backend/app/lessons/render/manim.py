@@ -10,7 +10,7 @@ import httpx
 from google.auth.transport.requests import Request
 from google.oauth2 import id_token
 
-from backend.app.renderers.base import RenderError, RenderedAsset
+from backend.app.lessons.render.base import RenderError, RenderedAsset
 
 
 class LocalManimRenderer:

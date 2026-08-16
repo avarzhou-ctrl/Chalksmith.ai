@@ -76,6 +76,10 @@ def _migrate_lesson_versions(engine) -> None:
         "parent_lesson_id": "UUID" if dialect == "postgresql" else "CHAR(32)",
         "version_number": "INTEGER NOT NULL DEFAULT 1",
         "edit_instruction": "TEXT",
+        "lesson_spec": "TEXT",
+        "spec_version": "VARCHAR(64)",
+        "runtime_version": "VARCHAR(64)",
+        "compiler_version": "VARCHAR(64)",
     }
     with engine.begin() as connection:
         for name, definition in additions.items():
