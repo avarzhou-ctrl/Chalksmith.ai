@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.api.generations import router as generations_router
 from backend.app.api.health import router as health_router
 from backend.app.api.lessons import router as lessons_router
+from backend.app.api.local_storage import router as local_storage_router
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.errors import (
     AppError,
@@ -51,6 +52,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(health_router)
     application.include_router(generations_router)
     application.include_router(lessons_router)
+    if active_settings.local_storage_dir:
+        application.include_router(local_storage_router)
     return application
 
 

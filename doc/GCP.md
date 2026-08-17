@@ -257,8 +257,10 @@ The content in this section is implemented in `bin/debug.sh`.
 ```bash
 # "start" for the proxy and the three local processes
 # "shutdown" for those four only; the database keeps running for the next session
-./bin/debug.sh start|shutdown
+./bin/debug.sh start [--local] | shutdown
 ```
+
+`--local` replaces staging's bucket and database with this machine: lesson artifacts go to `.env/storage` and are served by the API itself, rows go to the `.env` SQLite file, and neither the proxy nor any bucket check runs. It exists for debugging on a slow or absent network. Clerk still authenticates against the same instance, so sign-in is unchanged, and the LLM still calls Vertex. The local database starts empty and its `object_key` values name files no other environment has; staging is disposable, so the two are simply allowed to diverge. Deployed environments reject `LOCAL_STORAGE_DIR` outright, because a container's disk does not survive the revision.
 
 #### 3.1.1 Connect to database and verify GCP access
 

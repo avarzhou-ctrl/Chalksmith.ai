@@ -27,7 +27,7 @@ from backend.app.db.lessons import (
 )
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
-from backend.app.integrations.storage import GCSStorage, get_storage
+from backend.app.integrations.storage import Storage, get_storage
 
 router = APIRouter(prefix="/v2/lessons", tags=["lessons"])
 
@@ -111,7 +111,7 @@ def remove_lesson(
     lesson_id: UUID,
     user: AuthUser = Depends(get_current_user),
     session: Session = Depends(get_session, scope="function"),
-    storage: GCSStorage = Depends(get_storage),
+    storage: Storage = Depends(get_storage),
 ) -> Response:
     lesson = _owned_or_404(session, lesson_id, user.uid)
     root = get_lesson_root(session, lesson)
@@ -152,7 +152,7 @@ def create_access_url(
     download: bool = False,
     user: AuthUser = Depends(get_current_user),
     session: Session = Depends(get_session, scope="function"),
-    storage: GCSStorage = Depends(get_storage),
+    storage: Storage = Depends(get_storage),
     settings: Settings = Depends(get_request_settings),
 ) -> AccessURLResponse:
     lesson = _owned_or_404(session, lesson_id, user.uid)

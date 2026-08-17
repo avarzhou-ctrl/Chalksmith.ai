@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
 from jwt import InvalidTokenError
+from pydantic import ValidationError
 from sqlalchemy import inspect, text
 from sqlmodel import create_engine
 
@@ -27,7 +28,9 @@ from backend.app.integrations.llm.base import LLMProviderError
 from backend.app.integrations.llm.deepseek import DeepSeekProvider
 from backend.app.integrations.llm.factory import create_llm_provider
 from backend.app.integrations.llm.gemini import VertexGeminiProvider
-from backend.app.integrations.storage import GCSStorage
+from backend.app.integrations.storage import create_storage
+from backend.app.integrations.storage.gcp import GCSStorage
+from backend.app.integrations.storage.local import LocalStorage
 from backend.app.main import create_app
 from backend.app.lessons.formats import FormatRequest, get_lesson_format_strategy
 from backend.app.lessons.formats.code import parse_generated_lesson
@@ -300,8 +303,8 @@ class AuthenticationTests(unittest.IsolatedAsyncioTestCase):
 
 
 class StorageTests(unittest.TestCase):
-    @patch("backend.app.integrations.storage.impersonated_credentials.Credentials")
-    @patch("backend.app.integrations.storage.storage.Client")
+    @patch("backend.app.integrations.storage.gcp.impersonated_credentials.Credentials")
+    @patch("backend.app.integrations.storage.gcp.storage.Client")
     def test_signed_url_reuses_matching_impersonated_adc(
         self,
         storage_client: MagicMock,
@@ -325,6 +328,103 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(url, "https://signed.example")
         impersonated_credentials.assert_not_called()
         self.assertIs(blob.generate_signed_url.call_args.kwargs["credentials"], client._credentials)
+
+
+class LocalStorageTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.settings = Settings(
+            app_env="local",
+            local_storage_dir=self.directory.name,
+            local_storage_base_url="http://localhost:8000/",
+        )
+        self.storage = LocalStorage(self.settings)
+
+    def test_selected_only_when_a_directory_is_configured(self) -> None:
+        self.assertIsInstance(create_storage(self.settings), LocalStorage)
+        self.assertIsInstance(
+            create_storage(Settings(app_env="local", gcs_bucket="bucket")),
+            GCSStorage,
+        )
+
+    def test_objects_round_trip_and_delete_by_prefix(self) -> None:
+        source = Path(self.directory.name) / "render.html"
+        source.write_text("<html></html>", encoding="utf-8")
+
+        self.storage.upload_file(source, "lessons/teacher/1/lesson.html", "text/html")
+        self.storage.upload_bytes(b"%PDF-", "sources/teacher/1/notes.pdf", "application/pdf")
+        stored = Path(self.directory.name) / "lessons/teacher/1/lesson.html"
+        self.assertEqual(stored.read_text(encoding="utf-8"), "<html></html>")
+
+        self.storage.delete_prefix("sources/teacher/1/")
+        self.assertFalse((Path(self.directory.name) / "sources/teacher/1").exists())
+        self.storage.delete("lessons/teacher/1/lesson.html")
+        self.assertFalse(stored.exists())
+        # GCS deletes are idempotent, and a missing local file must behave the same.
+        self.storage.delete("lessons/teacher/1/lesson.html")
+
+    def test_signed_url_points_at_the_serving_route(self) -> None:
+        self.assertEqual(
+            self.storage.signed_url("lessons/teacher/1/lesson.html"),
+            "http://localhost:8000/local-storage/lessons/teacher/1/lesson.html",
+        )
+        self.assertEqual(
+            self.storage.signed_url("lessons/teacher/1/lesson.mp4", download_name="A lesson.mp4"),
+            "http://localhost:8000/local-storage/lessons/teacher/1/lesson.mp4?download=A%20lesson.mp4",
+        )
+
+    def test_keys_escaping_the_root_are_rejected(self) -> None:
+        for object_key in ("../escaped.html", "lessons/../../escaped.html", "/etc/passwd", ""):
+            with self.subTest(object_key=object_key), self.assertRaises(AppError) as raised:
+                self.storage.object_path(object_key)
+            self.assertEqual(raised.exception.status_code, 404)
+
+    def test_deployed_environments_refuse_a_local_directory(self) -> None:
+        for app_env in ("staging", "production"):
+            with self.subTest(app_env=app_env), self.assertRaises(ValidationError):
+                Settings(app_env=app_env, local_storage_dir=self.directory.name)
+
+
+class LocalStorageRouteTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.app = create_app(
+            Settings(app_env="test", database_url="sqlite://", local_storage_dir=self.directory.name)
+        )
+        self.client = TestClient(self.app)
+        lesson = Path(self.directory.name) / "lessons/teacher/1/lesson.html"
+        lesson.parent.mkdir(parents=True)
+        lesson.write_text("<html></html>", encoding="utf-8")
+
+    def test_object_is_served_inline_or_as_a_download(self) -> None:
+        response = self.client.get("/local-storage/lessons/teacher/1/lesson.html")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "<html></html>")
+        self.assertTrue(response.headers["content-type"].startswith("text/html"))
+        self.assertNotIn("content-disposition", response.headers)
+
+        download = self.client.get(
+            "/local-storage/lessons/teacher/1/lesson.html?download=Fractions.html"
+        )
+
+        self.assertEqual(download.headers["content-disposition"], 'attachment; filename="Fractions.html"')
+
+    def test_traversal_and_missing_objects_are_not_found(self) -> None:
+        # Percent-encoded so the client cannot normalize the escape away first.
+        for path in (
+            "/local-storage/%2e%2e%2f%2e%2e%2fenv.local",
+            "/local-storage/lessons/teacher/2/lesson.html",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 404)
+
+    def test_route_is_absent_without_a_local_directory(self) -> None:
+        client = TestClient(create_app(Settings(app_env="test", database_url="sqlite://")))
+
+        self.assertEqual(client.get("/local-storage/lessons/teacher/1/lesson.html").status_code, 404)
 
 
 class ApplicationTests(unittest.TestCase):

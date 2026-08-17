@@ -5,7 +5,6 @@ import google.auth
 from google.auth import impersonated_credentials
 from google.cloud import storage
 from google.api_core.exceptions import NotFound
-from fastapi import Request
 
 from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
@@ -66,9 +65,3 @@ class GCSStorage:
             response_disposition=disposition,
             credentials=credentials,
         )
-
-
-def get_storage(request: Request) -> GCSStorage:
-    if not hasattr(request.app.state, "storage"):
-        request.app.state.storage = GCSStorage(request.app.state.settings)
-    return request.app.state.storage

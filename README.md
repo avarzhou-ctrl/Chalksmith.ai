@@ -232,10 +232,10 @@ The database password is generated on the spot and never printed. The Clerk serv
 Starts the Cloud SQL Auth Proxy against the staging instance and the three local processes; `shutdown` stops those four and leaves the instance running for the next session. Requires [`cloud-sql-proxy`](https://cloud.google.com/sql/docs/postgres/sql-proxy) and `.env/env.local`, created from `bin/env.local.template` ([GCP.md](doc/GCP.md#312-configure-local-runtime)).
 
 ```bash
-./bin/debug.sh start|shutdown
+./bin/debug.sh start [--local] | shutdown
 ```
 
-Logs and PIDs are written to the ignored `.env/run/` directory.
+`--local` keeps lessons in `.env/storage` and their rows in SQLite instead of the staging bucket and database, for working on a poor network; the proxy is skipped and Clerk sign-in is unaffected. Logs and PIDs are written to the ignored `.env/run/` directory.
 
 ### 5. Deploy an environment
 

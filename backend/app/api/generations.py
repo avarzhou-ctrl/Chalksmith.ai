@@ -16,7 +16,7 @@ from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.llm import get_llm_provider
 from backend.app.integrations.llm.base import LLMProvider
-from backend.app.integrations.storage import GCSStorage, get_storage
+from backend.app.integrations.storage import Storage, get_storage
 from backend.app.lessons.generation import GenerationService
 from backend.app.lessons.render.base import Renderer
 from backend.app.lessons.sources import extract_sources
@@ -37,7 +37,7 @@ async def generate_lesson(
     session: Session = Depends(get_session, scope="request"),
     settings: Settings = Depends(get_request_settings),
     llm: LLMProvider = Depends(get_llm_provider),
-    storage: GCSStorage = Depends(get_storage),
+    storage: Storage = Depends(get_storage),
     renderers: dict[str, Renderer] = Depends(get_renderers),
 ) -> StreamingResponse:
     if base_lesson_id and not edit_instruction:

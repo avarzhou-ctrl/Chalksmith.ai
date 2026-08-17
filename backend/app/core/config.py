@@ -54,6 +54,9 @@ class Settings(BaseModel):
     gcs_bucket: str | None = None
     gcs_signer_service_account: str | None = None
     signed_url_ttl_seconds: int = Field(default=900, gt=0)
+    # Local debugging only: the API stores and serves artifacts itself.
+    local_storage_dir: str | None = None
+    local_storage_base_url: str = "http://localhost:8000"
 
     generation_timeout_seconds: int = Field(default=900, gt=0)
     manim_timeout_seconds: int = Field(default=600, gt=0)
@@ -90,8 +93,18 @@ class Settings(BaseModel):
             raise ValueError("CLERK_AUTHORIZED_PARTIES must contain absolute HTTP(S) origins")
         return tuple(dict.fromkeys(parties))
 
+    @field_validator("local_storage_base_url")
+    @classmethod
+    def normalize_local_storage_base_url(cls, base_url: str) -> str:
+        if not base_url.startswith(("http://", "https://")):
+            raise ValueError("LOCAL_STORAGE_BASE_URL must be an absolute HTTP(S) origin")
+        return base_url.rstrip("/")
+
     @model_validator(mode="after")
     def validate_production_configuration(self) -> "Settings":
+        # A deployed disk is ephemeral: artifacts would vanish without any error.
+        if self.local_storage_dir and self.app_env in {"staging", "production"}:
+            raise ValueError("LOCAL_STORAGE_DIR must not be set outside local development")
         if self.app_env != "production" or self.app_role == "renderer":
             return self
         required = {
@@ -163,6 +176,13 @@ class Settings(BaseModel):
             gcs_bucket=os.getenv("GCS_BUCKET"),
             gcs_signer_service_account=os.getenv("GCS_SIGNER_SERVICE_ACCOUNT"),
             signed_url_ttl_seconds=os.getenv("SIGNED_URL_TTL_SECONDS", "900"),
+            local_storage_dir=os.getenv("LOCAL_STORAGE_DIR"),
+            # The browser fetches artifacts from the API, so reuse its base URL.
+            local_storage_base_url=(
+                os.getenv("LOCAL_STORAGE_BASE_URL")
+                or os.getenv("NEXT_PUBLIC_API_URL")
+                or "http://localhost:8000"
+            ),
             generation_timeout_seconds=os.getenv("GENERATION_TIMEOUT_SECONDS", "900"),
             manim_timeout_seconds=os.getenv("MANIM_TIMEOUT_SECONDS", "600"),
             max_render_bytes=os.getenv("MAX_RENDER_BYTES", "100000000"),

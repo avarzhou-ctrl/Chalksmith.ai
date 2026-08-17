@@ -37,6 +37,7 @@ backend/
 │   │   ├── generations.py       # POST /v2/generations SSE endpoint
 │   │   ├── health.py            # Health check
 │   │   ├── lessons.py           # Lesson CRUD, versions, and access URLs
+│   │   ├── local_storage.py     # Local-only artifact route, mounted conditionally
 │   │   └── schemas.py           # API Pydantic models, not ORM models
 │   ├── core/
 │   │   ├── config.py            # Frozen Settings, env loading, validation
@@ -48,7 +49,11 @@ backend/
 │   │   └── session.py           # Engine, sessions, schema creation, additive migration
 │   ├── integrations/
 │   │   ├── auth.py              # Clerk JWT verification and AuthUser
-│   │   ├── storage.py           # GCS upload, delete, and signed URLs
+│   │   ├── storage/
+│   │   │   ├── base.py          # Storage protocol shared by both backends
+│   │   │   ├── factory.py       # Backend selection
+│   │   │   ├── gcp.py           # GCS upload, delete, and signed URLs
+│   │   │   └── local.py         # Filesystem artifacts for local debugging
 │   │   └── llm/
 │   │       ├── base.py          # Provider protocol, result, stream chunk, errors
 │   │       ├── factory.py       # Provider selection
@@ -216,6 +221,14 @@ Database URL resolution: explicit `DATABASE_URL` → Cloud SQL unix socket
 (`postgresql+psycopg://…?host=/cloudsql/…`) → `sqlite:///./.env/chalksmith.local.db` for
 `local`/`test` → `AppError` otherwise.
 
+Storage backend resolution: `LOCAL_STORAGE_DIR` selects `LocalStorage`, otherwise `GCSStorage`.
+`LocalStorage` writes object keys as paths under that directory and returns
+`{LOCAL_STORAGE_BASE_URL}/local-storage/{key}` where GCS returns a signed URL, which
+`api/local_storage.py` serves — a route `main.py` mounts only when the setting is present.
+`Settings` rejects the setting when `APP_ENV` is `staging` or `production`, since a deployed
+disk is ephemeral. `./bin/debug.sh start --local` exports it alongside a SQLite `DATABASE_URL`
+so a poor network stops mattering; Clerk and the LLM provider are unaffected.
+
 **There is no Alembic.** `create_db_and_tables()` runs `SQLModel.metadata.create_all()` plus the
 hand-written additive step `_migrate_lesson_versions()`. A new column on `Lesson` also needs an
 entry there, or existing local and deployed databases will not gain it.
@@ -263,9 +276,10 @@ response carries `X-Request-Id`, which matches the `request_id` field in the str
 - Layering: routers validate and serialize, `lessons/` owns the workflow and format behavior,
   `db/` owns queries, and `integrations/` owns vendor boundaries. Do not query the database from a
   router body or call GCS from `db/`.
-- `integrations/llm/base.py` and `lessons/render/base.py` are `Protocol`s. A new provider or renderer
-  implements the protocol and is wired in `llm/factory.py` or `api/dependencies.py`; nothing else
-  should need to change.
+- `integrations/llm/base.py`, `integrations/storage/base.py`, and `lessons/render/base.py` are
+  `Protocol`s. A new provider, storage backend, or renderer implements the protocol and is wired in
+  `llm/factory.py`, `storage/factory.py`, or `api/dependencies.py`; nothing else should need to
+  change. Depend on `Storage`, never on a concrete backend.
 - Adding a lesson format means: add the `LessonFormat` literal in `api/schemas.py`, colocate its
   strategy and prompt under `lessons/formats/<format>/`, register it in `formats/registry.py`, and
   wire its renderer in `api/dependencies.py`. Declarative formats also colocate their Spec, compiler,

@@ -26,7 +26,7 @@ from backend.app.integrations.llm.base import (
     LLMResult,
     StreamingLLMProvider,
 )
-from backend.app.integrations.storage import GCSStorage
+from backend.app.integrations.storage import Storage
 from backend.app.lessons.formats import (
     FormatRequest,
     PreparedLesson,
@@ -55,7 +55,7 @@ class GenerationService:
         *,
         session: Session,
         llm: LLMProvider,
-        storage: GCSStorage,
+        storage: Storage,
         renderers: dict[str, Renderer],
         deadline: float,
         request_id: str,
