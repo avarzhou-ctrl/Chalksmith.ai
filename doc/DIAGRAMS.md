@@ -35,7 +35,7 @@ Block, but should not be approximated with generic geometry or free-form drawing
 | Position on one numeric axis | `number-line` | Numeric line with markers | Integers, fractions, intervals |
 | Position on two numeric axes | `coordinate-plot` | Cartesian grid and points | Coordinates, transformations |
 | Proportional whole and parts | `bar-model` / `fraction-model` | Scaled segments or partitioned whole | Ratios, fractions, word problems |
-| Shape and measurements | `geometry-model` | Deterministic geometric figure | Angles, perimeter, area |
+| Geometric shape and construction | `geometry-model` | Deterministic figure with semantic points, sides, internal segments, and theorem markings | Angles, perimeter, area, diagonals, radii, medians, cevians, concurrency |
 | Nested containment | `concentric-diagram` | Nested labeled regions from outside to center | Scale, containment, organization |
 | Categorical intersections | `matrix-diagram` | Row/column headers with validated cells | Punnett squares, lookup grids |
 
@@ -87,6 +87,8 @@ problem—not only a CSS problem.
 | `comparison` | Compare mitosis and meiosis by purpose, number of divisions, daughter cells, and genetic similarity. |
 | `bar-chart` | Compare average monthly rainfall across four seasons using a small, clearly labeled dataset. |
 | `coordinate-plot` | Teach reflections across the y-axis using four labeled points before and after transformation. |
+| `geometry-model` | Explain Ceva's theorem with triangle vertices, three side points, three cevians, and their concurrency point. |
+| `geometry-model` | Explain the Pythagorean theorem with a right triangle, named vertices, both legs, the hypotenuse, and a visible right-angle marker. |
 | `concentric-diagram` | Show biological organization from organism to organ system, organ, tissue, and cell as nested levels. |
 | `matrix-diagram` | Use a two-by-two Punnett square to cross B and b alleles and explain the four genotype outcomes. |
 | `function-graph` | Compare y = x and y = x² from x = -2 to x = 2, emphasizing where their rates of change differ. |

@@ -45,6 +45,10 @@ The examples describe structure only; write all learner-visible content in the r
 For a visual-explanation, use a visual block whenever the subject can be represented accurately.
 Use geometry-model only for actual geometric shapes and measurements; never use a triangle outline
 as a substitute for a layered pyramid, hierarchy tree, or flow diagram when that semantic block fits.
+For geometry, encode mathematical meaning rather than compensating with prose: set triangle_type to
+right when a 90-degree triangle is required (the compiler draws the square marker), attach side
+measurements with labels, attach named vertices or intersection points with points, and use segments
+between semantic anchors for diagonals, radii, altitudes, medians, cevians, or concurrent lines.
 Use venn-diagram for set overlap, cause-effect-diagram for many-to-one causes, layer-diagram for
 ordered strata, network-diagram for many-to-many links, quadrant-diagram for two qualitative
 dimensions, spectrum-diagram for an ordered continuum, concentric-diagram for containment, and
@@ -60,8 +64,8 @@ consecutive text-only slides. Do not force an irrelevant visual, invent data, or
 is clearer as notation. These are lesson-planning preferences, not permission to violate the schema.
 Do not specify layout names, page positions, element sizes, colors, or visual styling: the compiler
 derives the layout and drawing from the selected semantic blocks. Numeric x/y values are allowed
-only as subject-matter data inside a coordinate-plot block; named geometry label slots are likewise
-semantic fields rather than page layout instructions.
+only as subject-matter data inside a coordinate-plot block; named geometry anchors are semantic
+features of the figure rather than page layout instructions.
 The JSON must satisfy this schema exactly:
 <JSON_SCHEMA>{schema}</JSON_SCHEMA>
 """

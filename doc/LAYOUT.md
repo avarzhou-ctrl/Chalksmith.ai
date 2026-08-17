@@ -299,6 +299,12 @@ bands. The runtime derives widths, connectors, colors, arrows, axes, and collisi
 placement. The complete capability matrix and the important semantic distinctions between Blocks
 are maintained in [DIAGRAMS.md](DIAGRAMS.md).
 
+`geometry-model` follows the same semantic boundary. The model selects a supported shape and
+triangle subtype, assigns labels to sides, assigns named points to vertices or intersections, and
+declares construction segments between those anchors. The compiler owns all coordinates and draws
+right-angle, congruence, diagonal, radius, median, cevian, and concurrency notation consistently;
+the model never supplies SVG paths or page coordinates.
+
 The Block Catalog is the compact model-facing visual contract. For every type it describes the
 teaching purpose, deterministic rendered form, appropriate use, category, and one JSON example.
 The prompt includes this catalog and the generated JSON Schema, but never runtime CSS or markup.

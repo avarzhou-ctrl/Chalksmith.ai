@@ -65,6 +65,8 @@ from backend.app.lessons.formats.slides.blocks.math import (
     FunctionSeries,
     GeometryLabel,
     GeometryModelBlock,
+    GeometryPoint,
+    GeometrySegment,
     NumberLineBlock,
     NumberLineMarker,
 )
@@ -141,6 +143,8 @@ __all__ = [
     "ForceDiagramBlock",
     "GeometryLabel",
     "GeometryModelBlock",
+    "GeometryPoint",
+    "GeometrySegment",
     "HierarchyBranch",
     "HierarchyTreeBlock",
     "LayerDiagramBlock",

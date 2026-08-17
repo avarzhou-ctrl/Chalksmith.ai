@@ -147,16 +147,89 @@ class GeometryLabel(StrictSpecModel):
     text: str = Field(min_length=1, max_length=32)
 
 
+GeometryPosition = Literal[
+    "top",
+    "top-left",
+    "top-right",
+    "right",
+    "bottom-right",
+    "bottom",
+    "bottom-left",
+    "left",
+    "center",
+]
+
+
+class GeometryPoint(StrictSpecModel):
+    position: GeometryPosition
+    label: str = Field(min_length=1, max_length=16)
+
+
+class GeometrySegment(StrictSpecModel):
+    start: GeometryPosition
+    end: GeometryPosition
+    style: Literal["solid", "dashed"] = "solid"
+    label: str | None = Field(default=None, min_length=1, max_length=24)
+
+
 class GeometryModelBlock(StrictSpecModel):
     type: Literal["geometry-model"]
     shape: Literal["triangle", "rectangle", "circle"]
+    triangle_type: Literal["scalene", "right", "isosceles", "equilateral"] | None = None
     labels: list[GeometryLabel] = Field(default_factory=list, max_length=5)
+    points: list[GeometryPoint] = Field(default_factory=list, max_length=9)
+    segments: list[GeometrySegment] = Field(default_factory=list, max_length=6)
 
     @model_validator(mode="after")
-    def validate_labels(self) -> "GeometryModelBlock":
-        positions = [label.position for label in self.labels]
-        if len(positions) != len(set(positions)):
+    def validate_geometry(self) -> "GeometryModelBlock":
+        label_positions = [label.position for label in self.labels]
+        if len(label_positions) != len(set(label_positions)):
             raise ValueError("geometry-model label positions must be unique")
+        point_positions = [point.position for point in self.points]
+        if len(point_positions) != len(set(point_positions)):
+            raise ValueError("geometry-model point positions must be unique")
+        if self.shape != "triangle" and self.triangle_type is not None:
+            raise ValueError("triangle_type is only valid for triangle geometry")
+        allowed_positions = {
+            "triangle": {
+                "top",
+                "right",
+                "bottom-right",
+                "bottom",
+                "bottom-left",
+                "left",
+                "center",
+            },
+            "rectangle": {
+                "top",
+                "top-left",
+                "top-right",
+                "right",
+                "bottom-right",
+                "bottom",
+                "bottom-left",
+                "left",
+                "center",
+            },
+            "circle": {"top", "right", "bottom", "left", "center"},
+        }[self.shape]
+        used_positions = {
+            *(point.position for point in self.points),
+            *(segment.start for segment in self.segments),
+            *(segment.end for segment in self.segments),
+        }
+        if not used_positions.issubset(allowed_positions):
+            raise ValueError(
+                f"geometry-model positions must be valid anchors for a {self.shape}"
+            )
+        segment_pairs: set[tuple[str, str]] = set()
+        for segment in self.segments:
+            if segment.start == segment.end:
+                raise ValueError("geometry-model segments require two different anchors")
+            pair = tuple(sorted((segment.start, segment.end)))
+            if pair in segment_pairs:
+                raise ValueError("geometry-model segments must be unique")
+            segment_pairs.add(pair)
         return self
 
 
@@ -338,31 +411,208 @@ def _render_function_series(
 
 
 def render_geometry(block: GeometryModelBlock) -> str:
-    shapes = {
-        "triangle": '<polygon points="320,45 115,255 525,255" />',
-        "rectangle": '<rect x="125" y="65" width="390" height="190" rx="8" />',
-        "circle": '<circle cx="320" cy="155" r="110" />',
-    }
-    label_positions = {
-        "top": (320, 28, "middle"),
-        "right": (620, 160, "end"),
-        "bottom": (320, 292, "middle"),
-        "left": (20, 160, "start"),
-        "center": (320, 162, "middle"),
+    coordinates = _geometry_coordinates(block)
+    shape = _render_geometry_shape(block, coordinates)
+    constructions = "".join(
+        _render_geometry_segment(segment, coordinates, index)
+        for index, segment in enumerate(block.segments)
+    )
+    right_angle = (
+        _render_right_angle(coordinates)
+        if block.shape == "triangle" and block.triangle_type == "right"
+        else ""
+    )
+    congruence_marks = _render_congruence_marks(block, coordinates)
+    points = "".join(
+        _render_geometry_point(point, coordinates) for point in block.points
+    )
+    label_offsets = {
+        "top": (0, -25, "middle"),
+        "right": (28, 5, "start"),
+        "bottom": (0, 34, "middle"),
+        "left": (-28, 5, "end"),
+        "center": (0, 6, "middle"),
     }
     labels = "".join(
-        f'<text class="cs-geometry__label" x="{label_positions[label.position][0]}" '
-        f'y="{label_positions[label.position][1]}" '
-        f'text-anchor="{label_positions[label.position][2]}">{escape(label.text)}</text>'
+        '<text class="cs-geometry__label" '
+        f'x="{coordinates[label.position][0] + label_offsets[label.position][0]:.1f}" '
+        f'y="{coordinates[label.position][1] + label_offsets[label.position][1]:.1f}" '
+        f'text-anchor="{label_offsets[label.position][2]}">{escape(label.text)}</text>'
         for label in block.labels
+    )
+    variant = (
+        f" {block.triangle_type} triangle" if block.triangle_type else f" {block.shape}"
     )
     return f"""
       <figure class="cs-card cs-geometry">
-        <svg viewBox="0 0 640 310" role="img" aria-label="{escape(block.shape)} geometry model">
-          <g class="cs-geometry__shape cs-geometry__shape--{block.shape}">{shapes[block.shape]}</g>
-          {labels}
+        <svg viewBox="0 0 640 350" role="img" aria-label="{escape(variant.strip())} geometry model">
+          <g class="cs-geometry__shape cs-geometry__shape--{block.shape}">{shape}</g>
+          <g class="cs-geometry__constructions">{constructions}{right_angle}{congruence_marks}</g>
+          <g class="cs-geometry__points">{points}</g>
+          <g class="cs-geometry__labels">{labels}</g>
         </svg>
       </figure>"""
+
+
+def _geometry_coordinates(
+    block: GeometryModelBlock,
+) -> dict[GeometryPosition, tuple[float, float]]:
+    if block.shape == "triangle":
+        triangle_vertices = {
+            "right": ((135.0, 45.0), (135.0, 285.0), (540.0, 285.0)),
+            "isosceles": ((320.0, 45.0), (115.0, 285.0), (525.0, 285.0)),
+            "equilateral": ((320.0, 33.9), (175.0, 285.0), (465.0, 285.0)),
+            "scalene": ((285.0, 45.0), (95.0, 285.0), (540.0, 285.0)),
+        }
+        top, bottom_left, bottom_right = triangle_vertices[
+            block.triangle_type or "scalene"
+        ]
+        left = _midpoint(top, bottom_left)
+        right = _midpoint(top, bottom_right)
+        bottom = _midpoint(bottom_left, bottom_right)
+        center = (
+            (top[0] + bottom_left[0] + bottom_right[0]) / 3,
+            (top[1] + bottom_left[1] + bottom_right[1]) / 3,
+        )
+        return {
+            "top": top,
+            "right": right,
+            "bottom-right": bottom_right,
+            "bottom": bottom,
+            "bottom-left": bottom_left,
+            "left": left,
+            "center": center,
+        }
+    if block.shape == "rectangle":
+        return {
+            "top": (320.0, 55.0),
+            "top-left": (105.0, 55.0),
+            "top-right": (535.0, 55.0),
+            "right": (535.0, 170.0),
+            "bottom-right": (535.0, 285.0),
+            "bottom": (320.0, 285.0),
+            "bottom-left": (105.0, 285.0),
+            "left": (105.0, 170.0),
+            "center": (320.0, 170.0),
+        }
+    return {
+        "top": (320.0, 45.0),
+        "right": (445.0, 170.0),
+        "bottom": (320.0, 295.0),
+        "left": (195.0, 170.0),
+        "center": (320.0, 170.0),
+    }
+
+
+def _render_geometry_shape(
+    block: GeometryModelBlock,
+    coordinates: dict[GeometryPosition, tuple[float, float]],
+) -> str:
+    if block.shape == "triangle":
+        return '<polygon points="{}" />'.format(
+            " ".join(
+                f"{coordinates[position][0]:.1f},{coordinates[position][1]:.1f}"
+                for position in ("top", "bottom-left", "bottom-right")
+            )
+        )
+    if block.shape == "rectangle":
+        return '<rect x="105" y="55" width="430" height="230" rx="8" />'
+    return '<circle cx="320" cy="170" r="125" />'
+
+
+def _render_geometry_segment(
+    segment: GeometrySegment,
+    coordinates: dict[GeometryPosition, tuple[float, float]],
+    index: int,
+) -> str:
+    start = coordinates[segment.start]
+    end = coordinates[segment.end]
+    label = ""
+    if segment.label:
+        label_offset = -12 if index % 2 == 0 else 23
+        label = (
+            '<text class="cs-geometry__segment-label" '
+            f'x="{(start[0] + end[0]) / 2:.1f}" '
+            f'y="{(start[1] + end[1]) / 2 + label_offset:.1f}">'
+            f"{escape(segment.label)}</text>"
+        )
+    return (
+        f'<g class="cs-geometry__segment cs-geometry__segment--{segment.style}">'
+        f'<line x1="{start[0]:.1f}" y1="{start[1]:.1f}" '
+        f'x2="{end[0]:.1f}" y2="{end[1]:.1f}" />{label}</g>'
+    )
+
+
+def _render_geometry_point(
+    point: GeometryPoint,
+    coordinates: dict[GeometryPosition, tuple[float, float]],
+) -> str:
+    x, y = coordinates[point.position]
+    offsets = {
+        "top": (0, -14, "middle"),
+        "top-left": (-10, -12, "end"),
+        "top-right": (10, -12, "start"),
+        "right": (14, 5, "start"),
+        "bottom-right": (10, 24, "start"),
+        "bottom": (0, 25, "middle"),
+        "bottom-left": (-10, 24, "end"),
+        "left": (-14, 5, "end"),
+        "center": (13, -11, "start"),
+    }
+    offset_x, offset_y, anchor = offsets[point.position]
+    return (
+        f'<g class="cs-geometry__point"><circle cx="{x:.1f}" cy="{y:.1f}" r="6" />'
+        f'<text x="{x + offset_x:.1f}" y="{y + offset_y:.1f}" '
+        f'text-anchor="{anchor}">{escape(point.label)}</text></g>'
+    )
+
+
+def _render_right_angle(
+    coordinates: dict[GeometryPosition, tuple[float, float]],
+) -> str:
+    x, y = coordinates["bottom-left"]
+    return (
+        f'<path class="cs-geometry__right-angle" '
+        f'd="M {x:.1f} {y - 27:.1f} H {x + 27:.1f} V {y:.1f}" />'
+    )
+
+
+def _render_congruence_marks(
+    block: GeometryModelBlock,
+    coordinates: dict[GeometryPosition, tuple[float, float]],
+) -> str:
+    if block.shape != "triangle" or block.triangle_type not in {
+        "isosceles",
+        "equilateral",
+    }:
+        return ""
+    sides = [("top", "bottom-left"), ("top", "bottom-right")]
+    if block.triangle_type == "equilateral":
+        sides.append(("bottom-left", "bottom-right"))
+    return "".join(
+        _render_congruence_mark(coordinates[start], coordinates[end])
+        for start, end in sides
+    )
+
+
+def _render_congruence_mark(
+    start: tuple[float, float], end: tuple[float, float]
+) -> str:
+    midpoint = _midpoint(start, end)
+    delta_x, delta_y = end[0] - start[0], end[1] - start[1]
+    length = (delta_x**2 + delta_y**2) ** 0.5
+    offset_x, offset_y = (-delta_y / length * 9, delta_x / length * 9)
+    return (
+        '<line class="cs-geometry__congruence" '
+        f'x1="{midpoint[0] - offset_x:.1f}" y1="{midpoint[1] - offset_y:.1f}" '
+        f'x2="{midpoint[0] + offset_x:.1f}" y2="{midpoint[1] + offset_y:.1f}" />'
+    )
+
+
+def _midpoint(
+    first: tuple[float, float], second: tuple[float, float]
+) -> tuple[float, float]:
+    return ((first[0] + second[0]) / 2, (first[1] + second[1]) / 2)
 
 
 def _format_number(value: float) -> str:
@@ -452,10 +702,10 @@ MATH_BLOCKS = (
         BlockGuide(
             "geometry-model",
             "visual",
-            "a geometric shape and named measurements or features",
-            "a platform-drawn triangle, rectangle, or circle with labels in named slots",
-            "the shape and its dimensions are central to the explanation",
-            '{"type":"geometry-model","shape":"triangle","labels":[{"position":"bottom","text":"base = 8 cm"},{"position":"right","text":"height = 5 cm"}]}',
+            "a geometric figure with meaningful sides, points, and construction lines",
+            "a platform-drawn triangle, rectangle, or circle with semantic anchors, accurate right-angle markings, and optional internal segments",
+            "the figure, its measurements, or relationships such as diagonals, radii, cevians, and concurrency are central to the explanation",
+            '{"type":"geometry-model","shape":"triangle","triangle_type":"right","labels":[{"position":"left","text":"leg b"},{"position":"bottom","text":"leg a"},{"position":"right","text":"hypotenuse c"}],"points":[{"position":"bottom-left","label":"C"}]}',
         ),
         render_geometry,
     ),

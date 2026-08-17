@@ -243,11 +243,56 @@
   stroke: var(--cs-success);
 }
 
-.cs-geometry__label {
+.cs-geometry__segment line {
+  stroke: #38bdf8;
+  stroke-linecap: round;
+  stroke-width: 3.5;
+}
+
+.cs-geometry__segment--dashed line {
+  stroke-dasharray: 10 8;
+}
+
+.cs-geometry__right-angle,
+.cs-geometry__congruence {
+  fill: none;
+  stroke: var(--cs-success);
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.cs-geometry__congruence {
+  stroke-linecap: round;
+}
+
+.cs-geometry__point circle {
+  fill: var(--cs-accent-soft);
+  stroke: var(--cs-bg);
+  stroke-width: 3;
+}
+
+.cs-geometry__label,
+.cs-geometry__point text,
+.cs-geometry__segment-label {
   fill: var(--cs-text);
   font-family: inherit;
   font-size: 17px;
   font-weight: 800;
+  paint-order: stroke;
+  stroke: var(--cs-bg);
+  stroke-linejoin: round;
+  stroke-width: 5px;
+}
+
+.cs-geometry__point text {
+  fill: var(--cs-accent-soft);
+  font-size: 18px;
+}
+
+.cs-geometry__segment-label {
+  fill: #7dd3fc;
+  font-size: 14px;
+  text-anchor: middle;
 }
 
 .cs-function-graph {

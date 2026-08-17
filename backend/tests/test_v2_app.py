@@ -630,6 +630,8 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertIn("forces acting on one object", prompt)
         self.assertIn("particle-level composition", prompt)
         self.assertIn("type-aware plant, animal, or bacterial", prompt)
+        self.assertIn("accurate right-angle markings", prompt)
+        self.assertIn("semantic anchors for diagonals, radii, altitudes", prompt)
         self.assertIn("aim for 2 to 4 slides with visual blocks", prompt)
         self.assertIn("derives the layout and drawing", prompt)
         self.assertNotIn('"template"', prompt)
@@ -841,6 +843,111 @@ class StructuredSlidesTests(unittest.TestCase):
         ):
             self.assertIn(class_name, prepared.source_code)
         self.assertIn("Cell &lt;core&gt;", prepared.source_code)
+
+    def test_geometry_model_renders_a_semantic_right_triangle(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][1] = {
+            "kind": "visual-explanation",
+            "title": "A labeled right triangle",
+            "body": [
+                {
+                    "type": "geometry-model",
+                    "shape": "triangle",
+                    "triangle_type": "right",
+                    "labels": [
+                        {"position": "left", "text": "leg b"},
+                        {"position": "bottom", "text": "leg a"},
+                        {"position": "right", "text": "hypotenuse c"},
+                    ],
+                    "points": [
+                        {"position": "top", "label": "B"},
+                        {"position": "bottom-left", "label": "C"},
+                        {"position": "bottom-right", "label": "A"},
+                    ],
+                }
+            ],
+        }
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertIn(
+            '<polygon points="135.0,45.0 135.0,285.0 540.0,285.0"',
+            prepared.source_code,
+        )
+        self.assertIn('class="cs-geometry__right-angle"', prepared.source_code)
+        self.assertIn(">hypotenuse c</text>", prepared.source_code)
+        self.assertIn(">C</text></g>", prepared.source_code)
+
+    def test_geometry_model_renders_concurrent_cevians(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][1] = {
+            "kind": "visual-explanation",
+            "title": "Cevians meet at P",
+            "body": [
+                {
+                    "type": "geometry-model",
+                    "shape": "triangle",
+                    "triangle_type": "scalene",
+                    "points": [
+                        {"position": "top", "label": "A"},
+                        {"position": "bottom-left", "label": "B"},
+                        {"position": "bottom-right", "label": "C"},
+                        {"position": "bottom", "label": "D"},
+                        {"position": "right", "label": "E"},
+                        {"position": "left", "label": "F"},
+                        {"position": "center", "label": "P"},
+                    ],
+                    "segments": [
+                        {"start": "top", "end": "bottom"},
+                        {"start": "bottom-left", "end": "right"},
+                        {"start": "bottom-right", "end": "left"},
+                    ],
+                }
+            ],
+        }
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertEqual(
+            prepared.source_code.count('<g class="cs-geometry__segment '), 3
+        )
+        self.assertEqual(
+            prepared.source_code.count('<g class="cs-geometry__point">'), 7
+        )
+        self.assertIn('cx="306.7" cy="205.0"', prepared.source_code)
+
+    def test_geometry_model_marks_congruent_triangle_sides(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][1]["body"] = [
+            {
+                "type": "geometry-model",
+                "shape": "triangle",
+                "triangle_type": "isosceles",
+            }
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertIn(
+            '<polygon points="320.0,45.0 115.0,285.0 525.0,285.0"',
+            prepared.source_code,
+        )
+        self.assertEqual(
+            prepared.source_code.count('class="cs-geometry__congruence"'), 2
+        )
+
+    def test_geometry_model_rejects_an_anchor_outside_the_shape(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][1]["body"] = [
+            {
+                "type": "geometry-model",
+                "shape": "circle",
+                "points": [{"position": "bottom-left", "label": "A"}],
+            }
+        ]
+
+        with self.assertRaisesRegex(ValueError, "valid anchors for a circle"):
+            StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
     def test_compiler_renders_the_relationship_diagram_library(self) -> None:
         lesson = json.loads(_slides_fixture())
