@@ -81,7 +81,7 @@ class SlidesLessonSpec(StrictSpecModel):
     summary: str = Field(min_length=1, max_length=600)
     title: str = Field(min_length=1, max_length=100)
     learning_goal: str = Field(min_length=1, max_length=240)
-    grade_band: Literal["elementary", "middle"]
+    grade_band: Literal["elementary", "middle", "advanced"]
     language: str = Field(pattern=r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
     payload: SlidesPayload
 
