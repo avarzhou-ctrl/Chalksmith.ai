@@ -35,6 +35,8 @@ from backend.app.lessons.formats.slides import compiler as slides_compiler
 from backend.app.lessons.formats.slides.registry import (
     BLOCK_DEFINITIONS,
     BLOCK_REGISTRY,
+    BLOCK_STYLE_GROUP_ORDER,
+    BLOCK_STYLE_GROUPS,
     BLOCK_TYPES,
 )
 from backend.app.lessons.formats.slides.spec import SlidesLessonSpec
@@ -619,6 +621,15 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertIn("The platform owns all layout", prompt)
         self.assertIn("<BLOCK_CATALOG>", prompt)
         self.assertIn("Renders as a horizontal axis", prompt)
+        self.assertIn("energy or food pyramids", prompt)
+        self.assertIn("branching pathways", prompt)
+        self.assertIn("exclusive and shared properties", prompt)
+        self.assertIn("many-to-many directed relationships", prompt)
+        self.assertIn("ordered categories along a continuous", prompt)
+        self.assertIn("nested containment", prompt)
+        self.assertIn("forces acting on one object", prompt)
+        self.assertIn("particle-level composition", prompt)
+        self.assertIn("type-aware plant, animal, or bacterial", prompt)
         self.assertIn("aim for 2 to 4 slides with visual blocks", prompt)
         self.assertIn("derives the layout and drawing", prompt)
         self.assertNotIn('"template"', prompt)
@@ -633,6 +644,10 @@ class StructuredSlidesTests(unittest.TestCase):
 
     def test_block_registry_colocates_model_guide_and_renderer(self) -> None:
         self.assertEqual(set(BLOCK_REGISTRY), BLOCK_TYPES)
+        self.assertEqual(set(BLOCK_STYLE_GROUPS), BLOCK_TYPES)
+        self.assertEqual(set(BLOCK_STYLE_GROUPS.values()), set(BLOCK_STYLE_GROUP_ORDER))
+        for group in BLOCK_STYLE_GROUP_ORDER:
+            self.assertTrue(slides_compiler._BLOCK_STYLE_PATHS[group].is_file())
         self.assertEqual(len(BLOCK_DEFINITIONS), len(BLOCK_TYPES))
         for definition in BLOCK_DEFINITIONS:
             block_type = definition.model.model_json_schema()["properties"]["type"][
@@ -650,20 +665,61 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertIn("Fractions &lt;script&gt;alert(1)&lt;/script&gt;", prepared.source_code)
         self.assertNotIn("<script>alert(1)</script>", prepared.source_code)
         self.assertIn('data-chalksmith-runtime="slides-runtime.v1.1"', prepared.source_code)
+        self.assertIn('.slides > section.present', prepared.source_code)
         self.assertEqual(prepared.spec_version, "chalksmith.slides.v1")
         self.assertNotIn("data-chalksmith-template", prepared.source_code)
 
     def test_compiler_rereads_runtime_styles_for_each_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            runtime_path = Path(directory) / "runtime.css"
-            runtime_path.write_text(".cs-callout { align-content: center; }", encoding="utf-8")
+            core_path = Path(directory) / "core.css"
+            content_path = Path(directory) / "content.css"
+            core_path.write_text(":root { color-scheme: dark; }", encoding="utf-8")
+            content_path.write_text(
+                ".cs-callout { align-content: center; }", encoding="utf-8"
+            )
 
-            with patch.object(slides_compiler, "_RUNTIME_PATH", runtime_path):
-                self.assertIn("align-content: center", slides_compiler._slides_styles())
-                runtime_path.write_text(
+            with (
+                patch.object(slides_compiler, "_CORE_STYLE_PATH", core_path),
+                patch.dict(
+                    slides_compiler._BLOCK_STYLE_PATHS,
+                    {"content": content_path},
+                ),
+            ):
+                self.assertIn(
+                    "align-content: center",
+                    slides_compiler._slides_styles(("content",)),
+                )
+                content_path.write_text(
                     ".cs-callout { align-content: start; }", encoding="utf-8"
                 )
-                self.assertIn("align-content: start", slides_compiler._slides_styles())
+                self.assertIn(
+                    "align-content: start",
+                    slides_compiler._slides_styles(("content",)),
+                )
+
+    def test_compiler_embeds_only_required_style_groups(self) -> None:
+        prepared = StructuredSlidesStrategy().prepare(_slides_fixture())
+
+        self.assertIn(
+            'data-style-groups="content,math,comprehension"', prepared.source_code
+        )
+        for group in ("Content", "Math", "Comprehension"):
+            self.assertIn(f"/* Slides {group} styles. */", prepared.source_code)
+        for group in ("Data", "Diagrams", "Physics", "Chemistry", "Biology"):
+            self.assertNotIn(f"/* Slides {group} styles. */", prepared.source_code)
+
+    def test_compiler_omits_katex_when_no_equation_block_is_used(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][2]["body"] = [
+            {"type": "statement", "text": "One half and two fourths are equal."}
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertNotIn(slides_compiler.KATEX_STYLESHEET, prepared.source_code)
+        self.assertNotIn(slides_compiler.KATEX_SCRIPT, prepared.source_code)
+        self.assertNotIn(slides_compiler.KATEX_AUTO_RENDER_SCRIPT, prepared.source_code)
+        self.assertNotIn("data-chalksmith-katex", prepared.source_code)
 
     def test_schema_allows_the_prompt_to_adapt_the_teaching_sequence(self) -> None:
         adapted = _slides_fixture().replace(
@@ -770,6 +826,9 @@ class StructuredSlidesTests(unittest.TestCase):
 
         prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
+        self.assertIn(
+            'data-style-groups="data,diagrams,math"', prepared.source_code
+        )
         for class_name in (
             "cs-number-line",
             "cs-bar-model",
@@ -782,6 +841,464 @@ class StructuredSlidesTests(unittest.TestCase):
         ):
             self.assertIn(class_name, prepared.source_code)
         self.assertIn("Cell &lt;core&gt;", prepared.source_code)
+
+    def test_compiler_renders_the_relationship_diagram_library(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        blocks = [
+            {
+                "type": "pyramid-diagram",
+                "levels": [
+                    {
+                        "label": "Tertiary consumers",
+                        "detail": "Apex predators",
+                        "value": "10 kcal",
+                    },
+                    {
+                        "label": "Primary consumers",
+                        "detail": "Herbivores",
+                        "value": "1,000 kcal",
+                    },
+                    {
+                        "label": "Producers <base>",
+                        "detail": "Plants",
+                        "value": "10,000 kcal",
+                    },
+                ],
+                "trend_label": "Available energy decreases upward",
+            },
+            {
+                "type": "hierarchy-tree",
+                "root": {"label": "Matter"},
+                "branches": [
+                    {
+                        "label": "Pure substances",
+                        "children": [{"label": "Elements"}, {"label": "Compounds"}],
+                    },
+                    {
+                        "label": "Mixtures",
+                        "children": [
+                            {"label": "Homogeneous"},
+                            {"label": "Heterogeneous"},
+                        ],
+                    },
+                ],
+            },
+            {
+                "type": "flow-diagram",
+                "stages": [
+                    {
+                        "label": "Input",
+                        "nodes": [{"label": "Sunlight"}, {"label": "Water"}],
+                    },
+                    {
+                        "label": "Process",
+                        "nodes": [
+                            {
+                                "label": "Photosynthesis",
+                                "detail": "In chloroplasts",
+                            }
+                        ],
+                    },
+                    {
+                        "label": "Output",
+                        "nodes": [{"label": "Glucose"}, {"label": "Oxygen"}],
+                    },
+                ],
+            },
+        ]
+        for slide, block in zip(lesson["payload"]["slides"], blocks):
+            slide["kind"] = "visual-explanation"
+            slide["body"] = [block]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        for class_name in ("cs-pyramid", "cs-hierarchy", "cs-flow-diagram"):
+            self.assertIn(class_name, prepared.source_code)
+        self.assertIn("Producers &lt;base&gt;", prepared.source_code)
+        self.assertIn("--cs-pyramid-width: 100.0%", prepared.source_code)
+        self.assertIn("--cs-hierarchy-columns: 2", prepared.source_code)
+        self.assertIn("--cs-flow-columns: 3", prepared.source_code)
+        self.assertIn(".cs-hierarchy .cs-hierarchy__branches", prepared.source_code)
+
+    def test_schema_rejects_duplicate_pyramid_levels(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["body"] = [
+            {
+                "type": "pyramid-diagram",
+                "levels": [
+                    {"label": "Consumers"},
+                    {"label": "consumers"},
+                    {"label": "Producers"},
+                ],
+            }
+        ]
+
+        with self.assertRaisesRegex(ValueError, "level labels must be unique"):
+            StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+    def test_compiler_renders_the_extended_relationship_diagram_library(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        blocks = [
+            {
+                "type": "venn-diagram",
+                "left_title": "Plant cells",
+                "left_items": ["Cell wall", "Chloroplasts"],
+                "right_title": "Animal cells",
+                "right_items": ["Centrioles", "Flexible shape"],
+                "overlap_title": "Both",
+                "overlap_items": ["Nucleus", "Cell membrane"],
+            },
+            {
+                "type": "cause-effect-diagram",
+                "effect_label": "Effect",
+                "effect": "Algal bloom",
+                "effect_detail": "Rapid algae growth",
+                "groups": [
+                    {
+                        "label": "Nutrients",
+                        "causes": ["Fertilizer runoff", "Sewage"],
+                    },
+                    {
+                        "label": "Conditions",
+                        "causes": ["Warm water", "Strong sunlight"],
+                    },
+                ],
+            },
+            {
+                "type": "layer-diagram",
+                "layers": [
+                    {
+                        "label": "Crust",
+                        "detail": "Thin solid surface",
+                        "property": "5–70 km",
+                    },
+                    {
+                        "label": "Mantle",
+                        "detail": "Slow-flowing rock",
+                        "property": "2,900 km",
+                    },
+                    {
+                        "label": "Outer core",
+                        "detail": "Liquid iron and nickel",
+                        "property": "Liquid",
+                    },
+                    {
+                        "label": "Inner core",
+                        "detail": "Solid metal center",
+                        "property": "Hottest",
+                    },
+                ],
+                "order_label": "Surface to center",
+            },
+            {
+                "type": "network-diagram",
+                "description": "Energy links in a grassland food web",
+                "layers": [
+                    {
+                        "label": "Producers",
+                        "nodes": [
+                            {"id": "grass", "label": "Grass"},
+                            {"id": "seeds", "label": "Seeds"},
+                        ],
+                    },
+                    {
+                        "label": "Consumers",
+                        "nodes": [
+                            {"id": "rabbit", "label": "Rabbit"},
+                            {"id": "mouse", "label": "Mouse"},
+                        ],
+                    },
+                    {
+                        "label": "Predators",
+                        "nodes": [{"id": "hawk", "label": "Hawk"}],
+                    },
+                ],
+                "edges": [
+                    {"from_id": "grass", "to_id": "rabbit"},
+                    {"from_id": "seeds", "to_id": "mouse"},
+                    {"from_id": "rabbit", "to_id": "hawk"},
+                    {"from_id": "mouse", "to_id": "hawk"},
+                ],
+            },
+            {
+                "type": "quadrant-diagram",
+                "x_low_label": "Low conductivity",
+                "x_high_label": "High conductivity",
+                "y_low_label": "Weak magnetism",
+                "y_high_label": "Strong magnetism",
+                "top_left": {
+                    "label": "Magnetic insulators",
+                    "items": ["Ferrite"],
+                },
+                "top_right": {
+                    "label": "Magnetic conductors",
+                    "items": ["Iron", "Steel"],
+                },
+                "bottom_left": {
+                    "label": "Insulators",
+                    "items": ["Rubber", "Glass"],
+                },
+                "bottom_right": {
+                    "label": "Conductors",
+                    "items": ["Copper", "Aluminum"],
+                },
+            },
+            {
+                "type": "spectrum-diagram",
+                "bands": [
+                    {"label": "Radio", "detail": "Longest wavelength"},
+                    {"label": "Microwave"},
+                    {"label": "Infrared"},
+                    {"label": "Visible"},
+                    {"label": "Ultraviolet"},
+                    {"label": "X-ray"},
+                    {"label": "Gamma", "detail": "Shortest wavelength"},
+                ],
+                "low_label": "Low frequency",
+                "high_label": "High frequency",
+                "trend_label": "Frequency increases",
+            },
+            {
+                "type": "concentric-diagram",
+                "rings": [
+                    {"label": "Organism", "detail": "One living individual"},
+                    {"label": "Organ system"},
+                    {"label": "Organ"},
+                    {"label": "Tissue"},
+                    {"label": "Cell", "detail": "Smallest living unit"},
+                ],
+                "direction_label": "Outer organization to inner structure",
+            },
+            {
+                "type": "matrix-diagram",
+                "row_axis_label": "Parent 1",
+                "column_axis_label": "Parent 2",
+                "row_headers": ["B", "b"],
+                "column_headers": ["B", "b"],
+                "cells": [["BB", "Bb"], ["Bb", "bb"]],
+            },
+        ]
+        lesson["payload"]["slides"] = [
+            {
+                "kind": "visual-explanation",
+                "title": f"Relationship {index}",
+                "body": [block],
+            }
+            for index, block in enumerate(blocks, start=1)
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        for class_name in (
+            "cs-venn",
+            "cs-cause-effect",
+            "cs-layers",
+            "cs-network",
+            "cs-quadrant",
+            "cs-spectrum",
+            "cs-concentric",
+            "cs-matrix",
+        ):
+            self.assertIn(class_name, prepared.source_code)
+        self.assertIn("<svg viewBox=\"0 0 1000 420\"", prepared.source_code)
+        self.assertIn("Plant cells", prepared.source_code)
+        self.assertNotIn("<section class=\"cs-quadrant__region", prepared.source_code)
+        self.assertIn("<div class=\"cs-quadrant__region", prepared.source_code)
+
+    def test_schema_rejects_a_backward_network_edge(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["body"] = [
+            {
+                "type": "network-diagram",
+                "description": "An invalid backward dependency",
+                "layers": [
+                    {
+                        "label": "Inputs",
+                        "nodes": [
+                            {"id": "a", "label": "A"},
+                            {"id": "b", "label": "B"},
+                        ],
+                    },
+                    {
+                        "label": "Outputs",
+                        "nodes": [{"id": "c", "label": "C"}],
+                    },
+                ],
+                "edges": [
+                    {"from_id": "a", "to_id": "c"},
+                    {"from_id": "c", "to_id": "b"},
+                ],
+            }
+        ]
+
+        with self.assertRaisesRegex(ValueError, "earlier to a later layer"):
+            StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+    def test_compiler_renders_subject_specific_diagram_blocks(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        blocks = [
+            {
+                "type": "function-graph",
+                "x_min": -2,
+                "x_max": 2,
+                "y_min": -1,
+                "y_max": 4,
+                "series": [
+                    {
+                        "label": "y = x²",
+                        "points": [
+                            {"x": -2, "y": 4},
+                            {"x": -1, "y": 1},
+                            {"x": 0, "y": 0},
+                            {"x": 1, "y": 1},
+                            {"x": 2, "y": 4},
+                        ],
+                    }
+                ],
+            },
+            {
+                "type": "force-diagram",
+                "object_label": "Book",
+                "description": "Forces on a book resting on a table",
+                "forces": [
+                    {
+                        "direction": "up",
+                        "label": "Normal force",
+                        "magnitude": "10 N",
+                    },
+                    {
+                        "direction": "down",
+                        "label": "Weight",
+                        "magnitude": "10 N",
+                    },
+                ],
+            },
+            {
+                "type": "wave-diagram",
+                "description": "Parts of a transverse wave",
+                "equilibrium_label": "Rest position",
+                "amplitude_label": "Amplitude",
+                "wavelength_label": "One wavelength",
+                "crest_label": "Crest",
+                "trough_label": "Trough",
+            },
+            {
+                "type": "particle-diagram",
+                "samples": [
+                    {
+                        "label": "Element",
+                        "species": [
+                            {"formula": "O₂", "atoms": ["O", "O"], "count": 4}
+                        ],
+                    },
+                    {
+                        "label": "Compound",
+                        "species": [
+                            {
+                                "formula": "H₂O",
+                                "atoms": ["H", "O", "H"],
+                                "count": 4,
+                            }
+                        ],
+                    },
+                    {
+                        "label": "Mixture",
+                        "species": [
+                            {"formula": "N₂", "atoms": ["N", "N"], "count": 3},
+                            {"formula": "O₂", "atoms": ["O", "O"], "count": 2},
+                        ],
+                    },
+                ],
+            },
+            {
+                "type": "reaction-diagram",
+                "reactants": [
+                    {"coefficient": 2, "formula": "H₂", "name": "Hydrogen"},
+                    {"formula": "O₂", "name": "Oxygen"},
+                ],
+                "products": [
+                    {"coefficient": 2, "formula": "H₂O", "name": "Water"}
+                ],
+                "condition": "spark",
+                "caption": "Atoms are rearranged, not created or destroyed.",
+            },
+            {
+                "type": "cell-diagram",
+                "cell_type": "plant",
+                "cell_label": "Plant cell",
+                "features": [
+                    {
+                        "feature": "cell-wall",
+                        "label": "Cell wall",
+                        "function": "Rigid support",
+                    },
+                    {
+                        "feature": "cell-membrane",
+                        "label": "Cell membrane",
+                        "function": "Controls entry and exit",
+                    },
+                    {
+                        "feature": "nucleus",
+                        "label": "Nucleus",
+                        "function": "Stores genetic information",
+                    },
+                    {
+                        "feature": "chloroplast",
+                        "label": "Chloroplast",
+                        "function": "Captures light energy",
+                    },
+                    {
+                        "feature": "vacuole",
+                        "label": "Central vacuole",
+                        "function": "Stores water",
+                    },
+                ],
+            },
+        ]
+        lesson["payload"]["slides"] = [
+            {
+                "kind": "visual-explanation",
+                "title": f"Subject visual {index}",
+                "body": [block],
+            }
+            for index, block in enumerate(blocks, start=1)
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertIn(
+            'data-style-groups="math,physics,chemistry,biology"',
+            prepared.source_code,
+        )
+        for class_name in (
+            "cs-function-graph",
+            "cs-force-diagram",
+            "cs-wave-diagram",
+            "cs-particle-diagram",
+            "cs-reaction-diagram",
+            "cs-cell-diagram",
+        ):
+            self.assertIn(class_name, prepared.source_code)
+        self.assertIn("cs-particle-diagram__atom--color-1\">O", prepared.source_code)
+        self.assertNotIn("cs-particle-diagram__atom--2", prepared.source_code)
+
+    def test_schema_rejects_an_organelle_incompatible_with_the_cell_type(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["body"] = [
+            {
+                "type": "cell-diagram",
+                "cell_type": "animal",
+                "cell_label": "Animal cell",
+                "features": [
+                    {"feature": "nucleus", "label": "Nucleus"},
+                    {"feature": "cell-membrane", "label": "Cell membrane"},
+                    {"feature": "chloroplast", "label": "Chloroplast"},
+                ],
+            }
+        ]
+
+        with self.assertRaisesRegex(ValueError, "animal cell does not support"):
+            StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
     def test_schema_rejects_visual_coordinates_outside_the_declared_range(self) -> None:
         lesson = json.loads(_slides_fixture())

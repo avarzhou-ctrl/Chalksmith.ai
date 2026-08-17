@@ -68,13 +68,18 @@ backend/
 │       │   │   ├── blocks/
 │       │   │   │   ├── base.py      # Block definition and guide contracts
 │       │   │   │   ├── content.py   # Text Block Specs, guides, renderers
-│       │   │   │   ├── math.py      # Math/model Block vertical slices
 │       │   │   │   ├── data.py      # Chart/timeline Block vertical slices
-│       │   │   │   └── diagrams.py  # Relationship Block vertical slices
+│       │   │   │   ├── diagrams.py  # Cross-subject relationship diagrams
+│       │   │   │   ├── math.py      # Numeric and mathematical visuals
+│       │   │   │   ├── physics.py   # Force and wave visuals
+│       │   │   │   ├── chemistry.py # Particle and reaction visuals
+│       │   │   │   └── biology.py   # Type-aware biological visuals
 │       │   │   ├── registry.py  # Block registry, Prompt Catalog, render dispatch
 │       │   │   ├── spec.py      # Slide and lesson-level v1 contract
 │       │   │   ├── compiler.py  # Block layout, Slide shell, Reveal document
 │       │   │   └── assets/v1/
+│       │   │       ├── core.css  # Tokens, Slide shell, shared Reveal styles
+│       │   │       └── blocks/   # Selectively embedded category CSS
 │       │   ├── interactive/
 │       │   │   ├── strategy.py  # Interactive code strategy
 │       │   │   └── prompt.py    # p5.js code-generation rules
@@ -248,6 +253,8 @@ response carries `X-Request-Id`, which matches the `request_id` field in the str
 - `sqlite://` is in-memory and pinned to `StaticPool` by `create_database_engine`, so the whole
   test app shares one connection.
 - No network, no real GCP calls, no Manim subprocess in the suite.
+- Every Slides test pass must render and visually inspect every registered Block, not only the
+  Blocks changed by the current task. Testing is incomplete until all Blocks display correctly.
 - Security-relevant behavior gets a test: sandbox rejections, tenant isolation, upload limits,
   and asset pinning all already have one — follow that precedent for new rules.
 
@@ -268,7 +275,11 @@ response carries `X-Request-Id`, which matches the `request_id` field in the str
   guide, validation, and platform HTML renderer in the same category module. Register it once in
   `slides/registry.py`, add it to the explicit discriminated union in `blocks/__init__.py`, and keep
   cross-Block arrangement and Reveal assembly in `slides/compiler.py`; do not move document-level
-  behavior or runtime CSS into a Block model.
+  behavior or runtime CSS into a Block model. Put its styles in the matching
+  `slides/assets/v1/blocks/<category>.css` group so the compiler can embed them selectively.
+- Before adding or removing a Slides Block, completely read the existing Block implementations and
+  Catalog guidance to determine whether the same or a similar capability already exists. If it
+  does, stop and ask the user to decide whether to add a new Block or modify the existing one.
 - Comments explain *why*, not *what*, and stay sparse — match the existing density.
 - Do not add dependencies without approval; `pyproject.toml` pins the API surface deliberately and
   `uv.lock` is checked in CI.

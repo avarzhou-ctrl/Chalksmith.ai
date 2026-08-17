@@ -7,8 +7,10 @@ from backend.app.lessons.formats.slides.blocks import (
     StepsBlock,
 )
 from backend.app.lessons.formats.slides.registry import (
+    BLOCK_STYLE_GROUP_ORDER,
     VISUAL_BLOCK_TYPES,
     render_block,
+    style_group_for,
 )
 from backend.app.lessons.formats.slides.spec import SlideSpec, SlidesLessonSpec
 
@@ -30,10 +32,11 @@ REVEAL_FALLBACK_SCRIPT = """<script data-chalksmith-reveal-fallback>
 window.addEventListener("load", () => {
   window.setTimeout(() => {
     const deck = document.querySelector(".reveal");
-    const firstSlide = deck?.querySelector(".slides > section");
-    if (!deck || !firstSlide) return;
-    const style = window.getComputedStyle(firstSlide);
-    const bounds = firstSlide.getBoundingClientRect();
+    const visibleSlide = deck?.querySelector(".slides > section.present") ??
+      deck?.querySelector(".slides > section");
+    if (!deck || !visibleSlide) return;
+    const style = window.getComputedStyle(visibleSlide);
+    const bounds = visibleSlide.getBoundingClientRect();
     if (!deck.classList.contains("ready") || style.display === "none" ||
         style.visibility === "hidden" || bounds.width === 0 || bounds.height === 0) {
       deck.classList.add("chalksmith-reveal-fallback");
@@ -61,14 +64,56 @@ window.addEventListener("load", () => {
   }
 }, { once: true });
 </script>"""
-_RUNTIME_PATH = Path(__file__).resolve().parent / "assets" / "v1" / "runtime.css"
+_ASSETS_PATH = Path(__file__).resolve().parent / "assets" / "v1"
+_CORE_STYLE_PATH = _ASSETS_PATH / "core.css"
+_STYLE_GROUP_ORDER = (*BLOCK_STYLE_GROUP_ORDER, "comprehension")
+_BLOCK_STYLE_PATHS = {
+    group: _ASSETS_PATH / "blocks" / f"{group}.css" for group in _STYLE_GROUP_ORDER
+}
 
 
-def _slides_styles() -> str:
-    return _RUNTIME_PATH.read_text(encoding="utf-8")
+def _slides_styles(style_groups: tuple[str, ...]) -> str:
+    unknown_groups = set(style_groups) - _BLOCK_STYLE_PATHS.keys()
+    if unknown_groups:
+        names = ", ".join(sorted(unknown_groups))
+        raise RuntimeError(f"Unknown Slides style groups: {names}")
+    paths = (
+        _CORE_STYLE_PATH,
+        *(
+            _BLOCK_STYLE_PATHS[group]
+            for group in _STYLE_GROUP_ORDER
+            if group in style_groups
+        ),
+    )
+    return "\n".join(path.read_text(encoding="utf-8") for path in paths)
+
+
+def _required_assets(spec: SlidesLessonSpec) -> tuple[tuple[str, ...], bool]:
+    style_groups: set[str] = set()
+    uses_katex = False
+    for slide in spec.payload.slides:
+        if slide.kind == "comprehension-check":
+            style_groups.add("comprehension")
+            continue
+        for block in slide.body:
+            style_groups.add(style_group_for(block))
+            uses_katex = uses_katex or isinstance(block, EquationBlock)
+    ordered_groups = tuple(
+        group for group in _STYLE_GROUP_ORDER if group in style_groups
+    )
+    return ordered_groups, uses_katex
 
 
 def compile_slides(spec: SlidesLessonSpec) -> str:
+    style_groups, uses_katex = _required_assets(spec)
+    katex_head = (
+        f'  <link rel="stylesheet" href="{KATEX_STYLESHEET}">\n'
+        f'  <script defer src="{KATEX_SCRIPT}"></script>\n'
+        f'  <script defer src="{KATEX_AUTO_RENDER_SCRIPT}"></script>\n'
+        if uses_katex
+        else ""
+    )
+    katex_typeset = KATEX_TYPESET_SCRIPT if uses_katex else ""
     slides = "".join(
         _render_slide(slide, index + 1, len(spec.payload.slides), spec.grade_band)
         for index, slide in enumerate(spec.payload.slides)
@@ -81,10 +126,7 @@ def compile_slides(spec: SlidesLessonSpec) -> str:
   <title>{escape(spec.title)}</title>
   <link rel="stylesheet" href="{REVEAL_CORE_STYLESHEET}">
   <link rel="stylesheet" href="{REVEAL_THEME_STYLESHEET}">
-  <link rel="stylesheet" href="{KATEX_STYLESHEET}">
-  <script defer src="{KATEX_SCRIPT}"></script>
-  <script defer src="{KATEX_AUTO_RENDER_SCRIPT}"></script>
-  <style data-chalksmith-runtime="{SLIDES_RUNTIME_VERSION}">{_slides_styles()}</style>
+{katex_head}  <style data-chalksmith-runtime="{SLIDES_RUNTIME_VERSION}" data-style-groups="{','.join(style_groups)}">{_slides_styles(style_groups)}</style>
 </head>
 <body>
   <main class="reveal" aria-label="{escape(spec.title)}">
@@ -105,7 +147,7 @@ def compile_slides(spec: SlidesLessonSpec) -> str:
       maxScale: 2
     }});
   </script>
-  {KATEX_TYPESET_SCRIPT}
+  {katex_typeset}
   {REVEAL_FALLBACK_SCRIPT}
 </body>
 </html>"""

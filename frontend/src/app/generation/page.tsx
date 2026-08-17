@@ -79,7 +79,7 @@ export default function GenerationPage() {
                   {lesson && <Button onClick={() => setShowCode((current) => !current)} className="absolute right-4 top-4 z-10 flex items-center gap-2 text-xs">{showCode ? <Eye size={14} /> : <Code size={14} />}{showCode ? 'View Material' : 'View Code'}</Button>}
                   {lesson ? (
                     showCode
-                      ? <SyntaxHighlighter language={format === 'video' ? 'python' : 'html'} style={vscDarkPlus} customStyle={{ background: 'transparent', margin: 0, padding: '4rem 2rem 2rem', minHeight: '100%' }}>{lesson.source_code || ''}</SyntaxHighlighter>
+                      ? <SyntaxHighlighter language={format === 'video' ? 'python' : 'html'} style={vscDarkPlus} customStyle={{ background: 'transparent', margin: 0, padding: '4rem 2rem 2rem', minHeight: '100%' }} codeTagProps={{ className: 'whitespace-pre-wrap break-words' }} wrapLongLines>{lesson.source_code || ''}</SyntaxHighlighter>
                       : previewUrl
                         ? <LessonViewport>
                             {format === 'video'

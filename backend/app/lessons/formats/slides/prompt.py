@@ -43,6 +43,15 @@ Available block capabilities:
 
 The examples describe structure only; write all learner-visible content in the requested language.
 For a visual-explanation, use a visual block whenever the subject can be represented accurately.
+Use geometry-model only for actual geometric shapes and measurements; never use a triangle outline
+as a substitute for a layered pyramid, hierarchy tree, or flow diagram when that semantic block fits.
+Use venn-diagram for set overlap, cause-effect-diagram for many-to-one causes, layer-diagram for
+ordered strata, network-diagram for many-to-many links, quadrant-diagram for two qualitative
+dimensions, spectrum-diagram for an ordered continuum, concentric-diagram for containment, and
+matrix-diagram for categorical intersections. Use subject-specific Blocks when scientific notation
+or rules matter: function-graph for connected mathematical series; force-diagram or wave-diagram
+for physics; particle-diagram or reaction-diagram for chemistry; and cell-diagram for cell biology.
+Do not approximate these relationships with bullets or generic geometry when a semantic Block fits.
 For a worked-example, prefer steps plus equation or a concise explanation paired with a visual model.
 For a concept slide, prefer one visual representation plus at most one concise explanatory block.
 For a recap, prefer a meaningful comparison, process, timeline, or short callout over repeated prose.

@@ -1,0 +1,164 @@
+/* Slides Chemistry styles. */
+
+.cs-particle-diagram {
+  display: grid;
+  padding: 1rem 1.5rem;
+}
+
+.cs-particle-diagram > ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  min-width: 0;
+  min-height: 0;
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.cs-particle-diagram > ol > li {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.reveal .cs-particle-diagram h3 {
+  color: var(--cs-accent-soft);
+  font-size: 1rem;
+  text-align: center;
+}
+
+.cs-particle-diagram__chamber {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 0.12rem solid var(--cs-border);
+  border-radius: 1rem;
+  background: rgb(12 10 9 / 45%);
+}
+
+.cs-particle-diagram__particle {
+  display: inline-flex;
+  align-items: center;
+  filter: drop-shadow(0 0.3rem 0.3rem rgb(0 0 0 / 30%));
+}
+
+.cs-particle-diagram__atom {
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  place-items: center;
+  margin-left: -0.35rem;
+  border: 0.08rem solid rgb(255 255 255 / 45%);
+  border-radius: 999rem;
+  background: #0369a1;
+  color: white;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.cs-particle-diagram__atom:first-child {
+  margin-left: 0;
+}
+
+.cs-particle-diagram__atom--color-2 {
+  background: #b91c1c;
+}
+
+.cs-particle-diagram__atom--color-3 {
+  background: #15803d;
+}
+
+.cs-particle-diagram__atom--color-4 {
+  background: #7e22ce;
+}
+
+.cs-particle-diagram__atom--color-5 {
+  background: #b45309;
+}
+
+.cs-particle-diagram__atom--color-6 {
+  background: #0f766e;
+}
+
+.cs-particle-diagram__particle--2 .cs-particle-diagram__atom {
+  outline: 0.12rem solid rgb(251 191 36 / 70%);
+}
+
+.cs-particle-diagram__particle--3 .cs-particle-diagram__atom {
+  outline: 0.12rem solid rgb(56 189 248 / 70%);
+}
+
+.cs-reaction-diagram {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7rem minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+}
+
+.cs-reaction-diagram > div {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+}
+
+.cs-reaction-diagram__term {
+  display: grid;
+  min-width: 7rem;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 1rem;
+  border: 0.1rem solid var(--cs-border);
+  border-radius: 0.8rem;
+  background: var(--cs-surface-raised);
+}
+
+.reveal .cs-reaction-diagram__term strong {
+  color: var(--cs-text);
+  font-size: 1.5rem;
+}
+
+.reveal .cs-reaction-diagram__term small {
+  color: var(--cs-muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.cs-reaction-diagram > div > b {
+  color: var(--cs-accent-soft);
+  font-size: 1.5rem;
+}
+
+.cs-reaction-diagram__arrow {
+  display: grid;
+  justify-items: center;
+  color: var(--cs-accent-soft);
+  font-size: 3.5rem;
+  font-weight: 700;
+}
+
+.reveal .cs-reaction-diagram__arrow small {
+  color: var(--cs-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.reveal .cs-reaction-diagram figcaption {
+  grid-column: 1 / -1;
+  color: var(--cs-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}

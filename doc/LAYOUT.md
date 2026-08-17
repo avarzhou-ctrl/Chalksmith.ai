@@ -32,7 +32,11 @@ Implemented through 2026-08-17:
 - a deterministic Slides compiler with versioned embedded runtime CSS;
 - initial statement, bullets, callout, equation, steps, comparison, fraction, and process blocks;
 - an LLM-facing Block Catalog plus number-line, bar-model, bar-chart, coordinate-plot,
-  geometry-model, labeled-diagram, cycle, and timeline visual primitives;
+  geometry-model, labeled-diagram, cycle, timeline, pyramid-diagram, hierarchy-tree, and
+  flow-diagram visual primitives;
+- general Venn, cause/effect, strata, network, quadrant, spectrum, containment, and matrix diagrams,
+  plus subject-owned math, physics, chemistry, and biology visual primitives, with reusable
+  generation and visual-QA topics documented in [DIAGRAMS.md](DIAGRAMS.md);
 - version metadata and canonical specification persistence with additive database migration;
 - bounded specification repair and specification-based lesson edits;
 - a shared 16:9 frontend preview viewport;
@@ -207,14 +211,27 @@ Runtime assets live with the format that consumes them:
 
 ```text
 backend/app/lessons/formats/
-├── slides/assets/v1/runtime.css
+├── slides/assets/v1/
+│   ├── core.css
+│   └── blocks/
+│       ├── content.css
+│       ├── data.css
+│       ├── diagrams.css
+│       ├── math.css
+│       ├── physics.css
+│       ├── chemistry.css
+│       ├── biology.css
+│       └── comprehension.css
 ├── interactive/assets/             # Added with the structured Interactive compiler
 └── video/assets/                   # Added only when the Video compiler needs owned assets
 ```
 
-The compiler inlines these assets into the saved HTML. This works with the existing CSP, avoids a
-new public CDN dependency, and makes exported artifacts reproducible. The model receives only a
-compact description of available blocks, fields, and behavior APIs.
+The Slides compiler always inlines `core.css`, then adds only the deterministic Block style groups
+required by the validated Spec. Group order is fixed by the compiler, so identical Specs produce
+identical asset order regardless of Block order. KaTeX CSS and scripts are added only when an
+`equation` Block is present. This works with the existing CSP, avoids a new public CDN dependency,
+keeps saved artifacts smaller, and makes exports reproducible. The model receives only a compact
+description of available blocks, fields, and behavior APIs—not CSS.
 
 ## 7. Slides output scheme
 
@@ -262,12 +279,25 @@ The v1 slide block vocabulary currently covers:
 - text and symbolic teaching: `statement`, `bullets`, `callout`, `equation`, and `steps`;
 - visual quantities and plots: `fraction-model`, `number-line`, `bar-model`, `bar-chart`, and
   `coordinate-plot`;
-- visual models and relationships: `geometry-model`, `labeled-diagram`, `cycle`, and `timeline`;
+- visual models and relationships: `geometry-model`, `labeled-diagram`, `cycle`, `timeline`,
+  `pyramid-diagram`, `hierarchy-tree`, `flow-diagram`, `venn-diagram`, `cause-effect-diagram`,
+  `layer-diagram`, `network-diagram`, `quadrant-diagram`, and `spectrum-diagram`;
+- nested and categorical relationships: `concentric-diagram` and `matrix-diagram`;
+- subject-specific visuals: `function-graph`, `force-diagram`, `wave-diagram`, `particle-diagram`,
+  `reaction-diagram`, and `cell-diagram`;
 - structured relationships: `comparison` and `process`.
 
 There is no raw HTML, CSS, JavaScript, or SVG field. Visual blocks use normalized semantic data and
 are rendered by platform components. When a new recurring visualization cannot be expressed, add a
 new typed block rather than opening an arbitrary markup escape hatch.
+
+Relationship diagrams use bounded semantic structures rather than model-authored coordinates:
+`pyramid-diagram` receives top-to-bottom levels, `hierarchy-tree` receives a root and grouped
+branches, `flow-diagram` receives connected stages, and the additional relationship Blocks receive
+bounded sets, cause groups, strata, semantic network layers, quadrant regions, or ordered spectrum
+bands. The runtime derives widths, connectors, colors, arrows, axes, and collision-resistant
+placement. The complete capability matrix and the important semantic distinctions between Blocks
+are maintained in [DIAGRAMS.md](DIAGRAMS.md).
 
 The Block Catalog is the compact model-facing visual contract. For every type it describes the
 teaching purpose, deterministic rendered form, appropriate use, category, and one JSON example.
@@ -278,8 +308,8 @@ planning guidance rather than validator gates.
 ### 7.3 Block vertical slices
 
 Block behavior is organized by teaching domain rather than spread across growing Spec, Catalog,
-and compiler layers. The modules under `slides/blocks/` group content, math/model, data, and
-relationship-diagram Blocks. Each category owns its Pydantic Block models and validation,
+and compiler layers. The modules under `slides/blocks/` group content, data, cross-subject diagrams,
+and subject-specific math, physics, chemistry, and biology Blocks. Each category owns its Pydantic Block models and validation,
 model-facing `BlockGuide` entries, and deterministic platform HTML renderers. The Block models
 remain pure data; rendering is implemented by adjacent module-level functions rather than model
 methods.
@@ -292,7 +322,10 @@ contracts and validators.
 
 Responsibilities that depend on more than one Block remain above the slices: `compiler.py` owns
 compact cross-Block composition rules together with the Slide shell and standalone Reveal document,
-and `assets/v1/runtime.css` owns the shared visual system. This keeps a new Block mostly local
+and the versioned files under `assets/v1/` own the visual system. `core.css` provides the Slide shell,
+tokens, shared cards, accessibility, and Reveal overrides; `assets/v1/blocks/*.css` mirrors the
+Registry's Block categories. The Registry derives each Block's style group from its category module,
+and the compiler embeds only the groups used by that lesson. This keeps a new Block mostly local
 without coupling semantic data models to one export target or duplicating global layout policy
 inside individual Blocks.
 
@@ -311,9 +344,13 @@ one internal layout from the validated block combination:
 | Two blocks containing exactly one visual block | `visual-split`, with the visual given more width |
 | A spatially dense block | Full-width block with its own internal deterministic layout |
 
-`comparison`, `process`, `bar-chart`, `labeled-diagram`, `cycle`, and `timeline` are too spatially
-dense to share a slide body with another block, so the validator rejects those combinations before
-compilation. Slide kinds remain teaching semantics; except for the specialized
+`comparison`, `process`, `bar-chart`, `labeled-diagram`, `cycle`, `timeline`, `pyramid-diagram`,
+`hierarchy-tree`, `flow-diagram`, `venn-diagram`, `cause-effect-diagram`, `layer-diagram`,
+`network-diagram`, `quadrant-diagram`, `spectrum-diagram`, `concentric-diagram`, `matrix-diagram`,
+`function-graph`, `force-diagram`, `wave-diagram`, `particle-diagram`, `reaction-diagram`, and
+`cell-diagram` are too spatially dense to share a slide body with another block, so the validator
+rejects those combinations before compilation.
+Slide kinds remain teaching semantics; except for the specialized
 `comprehension-check`, they do not directly choose CSS layouts.
 
 ### 7.5 Slides compilation and validation

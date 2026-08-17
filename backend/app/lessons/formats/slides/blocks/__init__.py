@@ -2,6 +2,17 @@ from typing import Annotated
 
 from pydantic import Field
 
+from backend.app.lessons.formats.slides.blocks.biology import (
+    CellDiagramBlock,
+    CellFeature,
+)
+from backend.app.lessons.formats.slides.blocks.chemistry import (
+    ParticleDiagramBlock,
+    ParticleSample,
+    ParticleSpecies,
+    ReactionDiagramBlock,
+    ReactionTerm,
+)
 from backend.app.lessons.formats.slides.blocks.content import (
     BulletsBlock,
     CalloutBlock,
@@ -15,10 +26,33 @@ from backend.app.lessons.formats.slides.blocks.data import (
     TimelineEvent,
 )
 from backend.app.lessons.formats.slides.blocks.diagrams import (
+    CauseEffectDiagramBlock,
+    CauseGroup,
     ComparisonBlock,
+    ConcentricDiagramBlock,
+    ConcentricRing,
     CycleBlock,
+    DiagramLayer,
+    DiagramNode,
+    FlowDiagramBlock,
+    FlowStage,
+    HierarchyBranch,
+    HierarchyTreeBlock,
     LabeledDiagramBlock,
+    LayerDiagramBlock,
+    MatrixDiagramBlock,
+    NetworkDiagramBlock,
+    NetworkEdge,
+    NetworkLayer,
+    NetworkNode,
     ProcessBlock,
+    PyramidDiagramBlock,
+    PyramidLevel,
+    QuadrantDiagramBlock,
+    QuadrantRegion,
+    SpectrumBand,
+    SpectrumDiagramBlock,
+    VennDiagramBlock,
 )
 from backend.app.lessons.formats.slides.blocks.math import (
     BarModelBlock,
@@ -27,12 +61,18 @@ from backend.app.lessons.formats.slides.blocks.math import (
     CoordinatePoint,
     EquationBlock,
     FractionModelBlock,
+    FunctionGraphBlock,
+    FunctionSeries,
     GeometryLabel,
     GeometryModelBlock,
     NumberLineBlock,
     NumberLineMarker,
 )
-
+from backend.app.lessons.formats.slides.blocks.physics import (
+    ForceArrow,
+    ForceDiagramBlock,
+    WaveDiagramBlock,
+)
 
 SlideBlock = Annotated[
     StatementBlock
@@ -50,7 +90,24 @@ SlideBlock = Annotated[
     | ComparisonBlock
     | ProcessBlock
     | LabeledDiagramBlock
-    | CycleBlock,
+    | CycleBlock
+    | PyramidDiagramBlock
+    | HierarchyTreeBlock
+    | FlowDiagramBlock
+    | VennDiagramBlock
+    | CauseEffectDiagramBlock
+    | LayerDiagramBlock
+    | NetworkDiagramBlock
+    | QuadrantDiagramBlock
+    | SpectrumDiagramBlock
+    | ConcentricDiagramBlock
+    | MatrixDiagramBlock
+    | FunctionGraphBlock
+    | ForceDiagramBlock
+    | WaveDiagramBlock
+    | ParticleDiagramBlock
+    | ReactionDiagramBlock
+    | CellDiagramBlock,
     Field(discriminator="type"),
 ]
 
@@ -62,21 +119,56 @@ __all__ = [
     "BarModelPart",
     "BulletsBlock",
     "CalloutBlock",
+    "CellDiagramBlock",
+    "CellFeature",
+    "CauseEffectDiagramBlock",
+    "CauseGroup",
+    "ConcentricDiagramBlock",
+    "ConcentricRing",
     "ComparisonBlock",
     "CoordinatePlotBlock",
     "CoordinatePoint",
     "CycleBlock",
+    "DiagramNode",
+    "DiagramLayer",
     "EquationBlock",
+    "FlowDiagramBlock",
+    "FlowStage",
     "FractionModelBlock",
+    "FunctionGraphBlock",
+    "FunctionSeries",
+    "ForceArrow",
+    "ForceDiagramBlock",
     "GeometryLabel",
     "GeometryModelBlock",
+    "HierarchyBranch",
+    "HierarchyTreeBlock",
+    "LayerDiagramBlock",
     "LabeledDiagramBlock",
+    "MatrixDiagramBlock",
     "NumberLineBlock",
     "NumberLineMarker",
+    "ParticleDiagramBlock",
+    "ParticleSample",
+    "ParticleSpecies",
+    "NetworkDiagramBlock",
+    "NetworkEdge",
+    "NetworkLayer",
+    "NetworkNode",
     "ProcessBlock",
+    "PyramidDiagramBlock",
+    "PyramidLevel",
+    "QuadrantDiagramBlock",
+    "QuadrantRegion",
+    "ReactionDiagramBlock",
+    "ReactionTerm",
     "SlideBlock",
     "StatementBlock",
     "StepsBlock",
+    "SpectrumBand",
+    "SpectrumDiagramBlock",
     "TimelineBlock",
     "TimelineEvent",
+    "VennDiagramBlock",
+    "WaveDiagramBlock",
 ]

@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from html import escape
 from typing import Literal
 
@@ -99,6 +100,45 @@ class CoordinatePlotBlock(StrictSpecModel):
             for point in self.points
         ):
             raise ValueError("coordinate-plot points must stay inside its axes")
+        return self
+
+
+class FunctionSeries(StrictSpecModel):
+    label: str = Field(min_length=1, max_length=24)
+    points: list[CoordinatePoint] = Field(min_length=2, max_length=9)
+
+
+class FunctionGraphBlock(StrictSpecModel):
+    type: Literal["function-graph"]
+    x_min: float = Field(default=-10, ge=-20, le=20)
+    x_max: float = Field(default=10, ge=-20, le=20)
+    y_min: float = Field(default=-10, ge=-20, le=20)
+    y_max: float = Field(default=10, ge=-20, le=20)
+    series: list[FunctionSeries] = Field(min_length=1, max_length=3)
+    x_label: str | None = Field(default=None, min_length=1, max_length=16)
+    y_label: str | None = Field(default=None, min_length=1, max_length=16)
+
+    @model_validator(mode="after")
+    def validate_series(self) -> "FunctionGraphBlock":
+        if self.x_min >= self.x_max or self.y_min >= self.y_max:
+            raise ValueError("function-graph axis minima must be less than maxima")
+        labels = [series.label.strip().casefold() for series in self.series]
+        if len(labels) != len(set(labels)):
+            raise ValueError("function-graph series labels must be unique")
+        for series in self.series:
+            if any(
+                point.x < self.x_min
+                or point.x > self.x_max
+                or point.y < self.y_min
+                or point.y > self.y_max
+                for point in series.points
+            ):
+                raise ValueError("function-graph points must stay inside its axes")
+            x_values = [point.x for point in series.points]
+            if any(left >= right for left, right in zip(x_values, x_values[1:])):
+                raise ValueError(
+                    "function-graph points must have strictly increasing x values"
+                )
         return self
 
 
@@ -230,6 +270,73 @@ def render_coordinate_plot(block: CoordinatePlotBlock) -> str:
       </figure>"""
 
 
+def render_function_graph(block: FunctionGraphBlock) -> str:
+    left, right, top, bottom = 56.0, 604.0, 28.0, 292.0
+
+    def x_position(value: float) -> float:
+        return left + ((value - block.x_min) / (block.x_max - block.x_min)) * (
+            right - left
+        )
+
+    def y_position(value: float) -> float:
+        return bottom - ((value - block.y_min) / (block.y_max - block.y_min)) * (
+            bottom - top
+        )
+
+    vertical_grid = "".join(
+        f'<line class="cs-plot__grid" x1="{left + (right - left) * index / 5:.2f}" y1="{top}" '
+        f'x2="{left + (right - left) * index / 5:.2f}" y2="{bottom}" />'
+        for index in range(6)
+    )
+    horizontal_grid = "".join(
+        f'<line class="cs-plot__grid" x1="{left}" y1="{top + (bottom - top) * index / 5:.2f}" '
+        f'x2="{right}" y2="{top + (bottom - top) * index / 5:.2f}" />'
+        for index in range(6)
+    )
+    axis_x = y_position(0) if block.y_min <= 0 <= block.y_max else bottom
+    axis_y = x_position(0) if block.x_min <= 0 <= block.x_max else left
+    series_paths = "".join(
+        _render_function_series(series, index, x_position, y_position)
+        for index, series in enumerate(block.series, start=1)
+    )
+    legend = "".join(
+        f'<li class="cs-function-graph__legend--{index}">{escape(series.label)}</li>'
+        for index, series in enumerate(block.series, start=1)
+    )
+    return f"""
+      <figure class="cs-card cs-function-graph">
+        <svg viewBox="0 0 640 320" role="img" aria-label="Function graph">
+          {vertical_grid}{horizontal_grid}
+          <line class="cs-plot__axis" x1="{left}" y1="{axis_x:.2f}" x2="{right}" y2="{axis_x:.2f}" />
+          <line class="cs-plot__axis" x1="{axis_y:.2f}" y1="{top}" x2="{axis_y:.2f}" y2="{bottom}" />
+          <text class="cs-plot__axis-label" x="{right - 8}" y="{axis_x - 9:.2f}">{escape(block.x_label or "x")}</text>
+          <text class="cs-plot__axis-label" x="{axis_y + 10:.2f}" y="{top + 14}">{escape(block.y_label or "y")}</text>
+          {series_paths}
+        </svg>
+        <figcaption><ul>{legend}</ul></figcaption>
+      </figure>"""
+
+
+def _render_function_series(
+    series: FunctionSeries,
+    index: int,
+    x_position: Callable[[float], float],
+    y_position: Callable[[float], float],
+) -> str:
+    points = " ".join(
+        f"{x_position(point.x):.2f},{y_position(point.y):.2f}"
+        for point in series.points
+    )
+    markers = "".join(
+        f'<circle cx="{x_position(point.x):.2f}" cy="{y_position(point.y):.2f}" r="4" />'
+        for point in series.points
+    )
+    return (
+        f'<g class="cs-function-graph__series cs-function-graph__series--{index}">'
+        f'<polyline points="{points}" />{markers}</g>'
+    )
+
+
 def render_geometry(block: GeometryModelBlock) -> str:
     shapes = {
         "triangle": '<polygon points="320,45 115,255 525,255" />',
@@ -326,6 +433,19 @@ MATH_BLOCKS = (
             '{"type":"coordinate-plot","x_min":-5,"x_max":5,"y_min":-5,"y_max":5,"points":[{"x":2,"y":3,"label":"A"}]}',
         ),
         render_coordinate_plot,
+    ),
+    BlockDefinition(
+        FunctionGraphBlock,
+        BlockGuide(
+            "function-graph",
+            "visual",
+            "one to three mathematical relationships shown as connected sampled points",
+            "a bounded coordinate grid with compiler-connected series and a color legend",
+            "comparing linear, quadratic, or other functions when curve shape and rate of change matter; provide ordered sampled points and use as the only body block",
+            '{"type":"function-graph","x_min":-2,"x_max":2,"y_min":-1,"y_max":4,"series":[{"label":"y = x²","points":[{"x":-2,"y":4},{"x":-1,"y":1},{"x":0,"y":0},{"x":1,"y":1},{"x":2,"y":4}]}]}',
+            standalone=True,
+        ),
+        render_function_graph,
     ),
     BlockDefinition(
         GeometryModelBlock,
