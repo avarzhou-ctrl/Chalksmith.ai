@@ -1,6 +1,6 @@
 # Lesson Output and Layout Architecture
 
-> Last reviewed: 2026-08-16
+> Last reviewed: 2026-08-17
 > Status: implementation in progress; the first structured Slides vertical slice is active
 > Scope: newly generated Slides, Interactive, and Video lessons
 
@@ -26,11 +26,13 @@ pixel coordinates.
 
 ### 1.1 Implementation status
 
-Implemented on 2026-08-16:
+Implemented through 2026-08-17:
 
 - the strict `chalksmith.slides.v1` specification and provider-neutral JSON prompt;
 - a deterministic Slides compiler with versioned embedded runtime CSS;
 - initial statement, bullets, callout, equation, steps, comparison, fraction, and process blocks;
+- an LLM-facing Block Catalog plus number-line, bar-model, bar-chart, coordinate-plot,
+  geometry-model, labeled-diagram, cycle, and timeline visual primitives;
 - version metadata and canonical specification persistence with additive database migration;
 - bounded specification repair and specification-based lesson edits;
 - a shared 16:9 frontend preview viewport;
@@ -39,7 +41,6 @@ Implemented on 2026-08-16:
 Still pending:
 
 - per-generation browser overflow checks and block-composition screenshot regression infrastructure;
-- the remaining declarative Slides visual primitives;
 - Interactive specifications, runtime, JavaScript parser, and isolated browser validation;
 - Video storyboard specifications and the Manim compiler.
 
@@ -258,15 +259,44 @@ visuals; the platform should construct every `<section>` and initialize Reveal.
 
 The v1 slide block vocabulary currently covers:
 
-- `statement`, `bullets`, `callout`, `equation`, and `steps`;
-- `fraction-model` and `process` visuals;
-- `comparison` as a two-sided structure.
+- text and symbolic teaching: `statement`, `bullets`, `callout`, `equation`, and `steps`;
+- visual quantities and plots: `fraction-model`, `number-line`, `bar-model`, `bar-chart`, and
+  `coordinate-plot`;
+- visual models and relationships: `geometry-model`, `labeled-diagram`, `cycle`, and `timeline`;
+- structured relationships: `comparison` and `process`.
 
 There is no raw HTML, CSS, JavaScript, or SVG field. Visual blocks use normalized semantic data and
 are rendered by platform components. When a new recurring visualization cannot be expressed, add a
 new typed block rather than opening an arbitrary markup escape hatch.
 
-### 7.3 Block-driven composition
+The Block Catalog is the compact model-facing visual contract. For every type it describes the
+teaching purpose, deterministic rendered form, appropriate use, category, and one JSON example.
+The prompt includes this catalog and the generated JSON Schema, but never runtime CSS or markup.
+It also recommends visual diversity when the topic supports it; lesson-wide visual counts remain
+planning guidance rather than validator gates.
+
+### 7.3 Block vertical slices
+
+Block behavior is organized by teaching domain rather than spread across growing Spec, Catalog,
+and compiler layers. The modules under `slides/blocks/` group content, math/model, data, and
+relationship-diagram Blocks. Each category owns its Pydantic Block models and validation,
+model-facing `BlockGuide` entries, and deterministic platform HTML renderers. The Block models
+remain pure data; rendering is implemented by adjacent module-level functions rather than model
+methods.
+
+The top-level `slides/registry.py` aggregates those vertical slices into one definition registry and
+derives the model-facing Catalog, visual and standalone capabilities, Prompt text, and render
+dispatch. `blocks/__init__.py` retains an explicit Pydantic discriminated union so JSON Schema and
+static type information stay inspectable, while `spec.py` contains only Slide and lesson-level
+contracts and validators.
+
+Responsibilities that depend on more than one Block remain above the slices: `compiler.py` owns
+compact cross-Block composition rules together with the Slide shell and standalone Reveal document,
+and `assets/v1/runtime.css` owns the shared visual system. This keeps a new Block mostly local
+without coupling semantic data models to one export target or duplicating global layout policy
+inside individual Blocks.
+
+### 7.4 Block-driven composition
 
 The model selects instructional content, a `kind`, and one to three compatible blocks. It does not
 select a course template, layout name, column width, position, or coordinate. The compiler derives
@@ -278,14 +308,15 @@ one internal layout from the validated block combination:
 | Two ordinary blocks | Equal `split` |
 | Three ordinary blocks | Equal `thirds` |
 | `steps` plus `equation` | `solution-split`, with steps given more width |
-| A two-block composition containing `fraction-model` | `visual-split`, with the visual given more width |
-| `comparison` or `process` | Full-width block with its own internal deterministic layout |
+| Two blocks containing exactly one visual block | `visual-split`, with the visual given more width |
+| A spatially dense block | Full-width block with its own internal deterministic layout |
 
-`comparison` and `process` are too spatially dense to share a slide body with another block, so the
-validator rejects those combinations before compilation. Slide kinds remain teaching semantics;
-except for the specialized `comprehension-check`, they do not directly choose CSS layouts.
+`comparison`, `process`, `bar-chart`, `labeled-diagram`, `cycle`, and `timeline` are too spatially
+dense to share a slide body with another block, so the validator rejects those combinations before
+compilation. Slide kinds remain teaching semantics; except for the specialized
+`comprehension-check`, they do not directly choose CSS layouts.
 
-### 7.4 Slides compilation and validation
+### 7.5 Slides compilation and validation
 
 `SlidesCompiler`:
 
@@ -296,6 +327,11 @@ except for the specialized `comprehension-check`, they do not directly choose CS
 5. configures Reveal for the canonical stage and embedded preview;
 6. adds progress, controls, accessibility labels, and answer-reveal behavior;
 7. produces one standalone HTML document.
+
+The shared `HTMLRenderer` does not parse or repair Reveal markup. It is a format-neutral final
+boundary that verifies the document marker, rejects blocked dynamic execution and obvious
+nonterminating loops, injects CSP, and writes the artifact. Because structured Slides always come
+from the compiler, asset normalization would duplicate format policy and hide compiler defects.
 
 Hard generation gates:
 

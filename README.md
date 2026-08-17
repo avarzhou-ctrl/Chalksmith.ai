@@ -83,7 +83,7 @@ The repository contains two independent application runtimes. Node.js commands a
 │   ├── app/lessons/             # Generation, format strategies, specs, assets, and renderers
 │   ├── scripts/                 # Schema initialization and v1 migration
 │   └── tests/                   # Backend unit and API tests
-├── infra/docker/                # Web, API, and renderer images
+├── docker/                      # Web, API, and renderer images
 ├── bin/                         # Cloud Build configs and the four operations scripts
 └── doc/                         # Cloud, authentication, cost, and refactor guides
 ```

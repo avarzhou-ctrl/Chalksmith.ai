@@ -21,15 +21,16 @@ from backend.app.integrations.storage import get_storage
 from backend.app.main import create_app
 from backend.app.lessons.formats.interactive.prompt import INTERACTIVE_RULES
 from backend.app.lessons.formats.code import build_code_repair_prompt
-from backend.app.lessons.render.base import RenderError
-from backend.app.lessons.render.html import (
-    HTMLRenderer,
+from backend.app.lessons.formats.slides.compiler import (
+    KATEX_AUTO_RENDER_SCRIPT,
+    KATEX_SCRIPT,
+    KATEX_STYLESHEET,
     REVEAL_CORE_STYLESHEET,
-    REVEAL_FALLBACK_SCRIPT,
-    REVEAL_FALLBACK_STYLE,
     REVEAL_SCRIPT,
     REVEAL_THEME_STYLESHEET,
 )
+from backend.app.lessons.render.base import RenderError
+from backend.app.lessons.render.html import HTMLRenderer
 from backend.app.lessons.sources import extract_sources
 
 
@@ -213,6 +214,21 @@ class V2ApiTests(unittest.TestCase):
         )
         self.assertIn(
             ".reveal .slides > section.cs-slide.present {\n  display: grid !important;",
+            lesson["source_code"],
+        )
+        for asset_url in (
+            REVEAL_CORE_STYLESHEET,
+            REVEAL_THEME_STYLESHEET,
+            REVEAL_SCRIPT,
+            KATEX_STYLESHEET,
+            KATEX_SCRIPT,
+            KATEX_AUTO_RENDER_SCRIPT,
+        ):
+            self.assertIn(asset_url, lesson["source_code"])
+        self.assertIn("data-chalksmith-katex", lesson["source_code"])
+        self.assertIn("data-chalksmith-reveal-fallback", lesson["source_code"])
+        self.assertIn(
+            ".reveal.chalksmith-reveal-fallback .slides > section:first-child",
             lesson["source_code"],
         )
         self.assertEqual(len(llm.prompts), 1)
@@ -589,59 +605,6 @@ class V2ApiTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(Exception, "combined PDF uploads"):
             __import__("asyncio").run(extract_sources([upload], byte_settings))
-
-    def test_slide_renderer_pins_verified_reveal_assets(self) -> None:
-        generated = """<!doctype html><html><head>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/dracula.min.css">
-</head><body><div class="reveal"><div class="slides"><section>Test</section></div></div>
-<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
-<script>Reveal.initialize({embedded: true})</script></body></html>"""
-        with TemporaryDirectory() as directory:
-            asset = __import__("asyncio").run(
-                HTMLRenderer(required_marker="reveal").render(generated, Path(directory))
-            )
-            rendered = asset.path.read_text()
-
-        self.assertIn(REVEAL_CORE_STYLESHEET, rendered)
-        self.assertIn(REVEAL_THEME_STYLESHEET, rendered)
-        self.assertIn(REVEAL_SCRIPT, rendered)
-        self.assertIn(REVEAL_FALLBACK_STYLE, rendered)
-        self.assertIn(REVEAL_FALLBACK_SCRIPT, rendered)
-        self.assertNotIn("4.3.1", rendered)
-        self.assertNotIn("dracula.min.css", rendered)
-
-    def test_slide_renderer_injects_missing_reveal_assets(self) -> None:
-        generated = """<!doctype html><html><head></head><body>
-<div class="reveal"><div class="slides"><section>Test</section></div></div>
-<script>Reveal.initialize({embedded: true})</script></body></html>"""
-        with TemporaryDirectory() as directory:
-            asset = __import__("asyncio").run(
-                HTMLRenderer(required_marker="reveal").render(generated, Path(directory))
-            )
-            rendered = asset.path.read_text()
-
-        self.assertIn(REVEAL_CORE_STYLESHEET, rendered)
-        self.assertIn(REVEAL_THEME_STYLESHEET, rendered)
-        self.assertIn(REVEAL_SCRIPT, rendered)
-        self.assertIn(REVEAL_FALLBACK_STYLE, rendered)
-        self.assertIn(REVEAL_FALLBACK_SCRIPT, rendered)
-
-    def test_slide_renderer_fallback_keeps_the_first_slide_visible(self) -> None:
-        generated = """<!doctype html><html><head></head><body>
-<div class="reveal"><div class="slides"><section>Visible lesson</section></div></div>
-<script>Reveal.initialize({embedded: true})</script></body></html>"""
-        with TemporaryDirectory() as directory:
-            asset = __import__("asyncio").run(
-                HTMLRenderer(required_marker="reveal").render(generated, Path(directory))
-            )
-            rendered = asset.path.read_text()
-
-        self.assertIn("background: #191919", rendered)
-        self.assertIn(".slides > section:first-child", rendered)
-        self.assertIn('deck.classList.add("chalksmith-reveal-fallback")', rendered)
-        self.assertLess(rendered.index(REVEAL_FALLBACK_STYLE), rendered.index("</head>"))
-        self.assertLess(rendered.index(REVEAL_FALLBACK_SCRIPT), rendered.index("</body>"))
 
     def test_interactive_prompt_prevents_double_scaled_pointer_coordinates(self) -> None:
         rules = INTERACTIVE_RULES

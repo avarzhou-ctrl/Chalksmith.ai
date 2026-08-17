@@ -16,7 +16,7 @@ import (`backend.app.*`) resolves from there — never from inside `backend/`.
 | **API** | `backend/app/main.py` → `app` | public Cloud Run service | No |
 | **Renderer** | `backend/app/renderer_main.py` → `renderer_app` | private Cloud Run service, callable only by the API service account | Yes — Manim only |
 
-They share this package but not their images. `infra/docker/api.Dockerfile` installs
+They share this package but not their images. `docker/api.Dockerfile` installs
 `--no-extra video`, so **Manim is not even importable in the API container**; the renderer image
 installs `--extra video` plus Cairo/Pango/FFmpeg and sets `APP_ROLE=renderer`. This split is the
 central security property of the backend: keep generated Python execution confined to
@@ -65,9 +65,15 @@ backend/
 │       │   ├── slides/
 │       │   │   ├── strategy.py  # Validated Spec → compiled Slides result
 │       │   │   ├── prompt.py    # Kind-and-Block JSON generation prompt
-│       │   │   ├── catalog.py   # LLM-facing Block capabilities and categories
-│       │   │   ├── spec.py      # chalksmith.slides.v1 kinds, blocks, validators
-│       │   │   ├── compiler.py  # Block composition → Reveal HTML
+│       │   │   ├── blocks/
+│       │   │   │   ├── base.py      # Block definition and guide contracts
+│       │   │   │   ├── content.py   # Text Block Specs, guides, renderers
+│       │   │   │   ├── math.py      # Math/model Block vertical slices
+│       │   │   │   ├── data.py      # Chart/timeline Block vertical slices
+│       │   │   │   └── diagrams.py  # Relationship Block vertical slices
+│       │   │   ├── registry.py  # Block registry, Prompt Catalog, render dispatch
+│       │   │   ├── spec.py      # Slide and lesson-level v1 contract
+│       │   │   ├── compiler.py  # Block layout, Slide shell, Reveal document
 │       │   │   └── assets/v1/
 │       │   ├── interactive/
 │       │   │   ├── strategy.py  # Interactive code strategy
@@ -77,7 +83,7 @@ backend/
 │       │       └── prompt.py    # Manim code-generation rules
 │       └── render/
 │           ├── base.py          # Renderer protocol, asset, and RenderError
-│           ├── html.py          # HTML validation, CSP, Reveal/KaTeX pinning
+│           ├── html.py          # Format-neutral HTML validation, CSP, file output
 │           └── manim.py         # Local, remote, unavailable renderers and AST guard
 ├── scripts/
 │   ├── init_db.py               # Create the current schema
@@ -156,9 +162,10 @@ and new ones must not appear. Missing-or-not-yours is always a 404 via `_owned_o
 **Generated code is never trusted.**
 - `interactive`/`slides`: `HTMLRenderer` requires the marker (`p5` / `reveal`), rejects
   `eval(`/`document.write(`/`new Function(`, injects the CSP `<meta>` from
-  `backend/app/lessons/render/html.py`, and pins Reveal.js to the three verified CDN URLs.
+  `backend/app/lessons/render/html.py`, and rejects obvious nonterminating counter loops.
 - Structured Slides contain no model-authored HTML, CSS, JavaScript, or SVG. The model returns
-  validated semantic data and the platform compiler owns the complete document and embedded CSS.
+  validated semantic data and the platform compiler owns the complete document, pinned
+  Reveal/KaTeX assets, CDN fallback, and embedded CSS.
 - `video`: `validate_manim_code()` AST-walks the source against an import allowlist
   (`manim`, `math`, `numpy`, `random`), blocked builtins, dunder names, and blocked attributes,
   and requires a `GeneratedScene` class. The API only ever *sends* the code onward.
@@ -257,6 +264,11 @@ response carries `X-Request-Id`, which matches the `request_id` field in the str
   wire its renderer in `api/dependencies.py`. Declarative formats also colocate their Spec, compiler,
   and versioned assets there. Code formats reuse the envelope and parser in `formats/code.py`;
   shared renderer implementations stay under `lessons/render/`.
+- A Slides Block is a vertical slice under `slides/blocks/`: keep its Pydantic model, model-facing
+  guide, validation, and platform HTML renderer in the same category module. Register it once in
+  `slides/registry.py`, add it to the explicit discriminated union in `blocks/__init__.py`, and keep
+  cross-Block arrangement and Reveal assembly in `slides/compiler.py`; do not move document-level
+  behavior or runtime CSS into a Block model.
 - Comments explain *why*, not *what*, and stay sparse — match the existing density.
 - Do not add dependencies without approval; `pyproject.toml` pins the API surface deliberately and
   `uv.lock` is checked in CI.

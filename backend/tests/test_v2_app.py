@@ -31,6 +31,13 @@ from backend.app.integrations.storage import GCSStorage
 from backend.app.main import create_app
 from backend.app.lessons.formats import FormatRequest, get_lesson_format_strategy
 from backend.app.lessons.formats.code import parse_generated_lesson
+from backend.app.lessons.formats.slides import compiler as slides_compiler
+from backend.app.lessons.formats.slides.registry import (
+    BLOCK_DEFINITIONS,
+    BLOCK_REGISTRY,
+    BLOCK_TYPES,
+)
+from backend.app.lessons.formats.slides.spec import SlidesLessonSpec
 from backend.app.lessons.formats.slides.strategy import StructuredSlidesStrategy
 from backend.app.lessons.generation import GenerationService, LLMProgress
 from backend.app.lessons.render.base import RenderError
@@ -610,10 +617,29 @@ class StructuredSlidesTests(unittest.TestCase):
 
         self.assertIn('"chalksmith.slides.v1"', prompt)
         self.assertIn("The platform owns all layout", prompt)
-        self.assertIn("compiler derives layout from the selected blocks", prompt)
+        self.assertIn("<BLOCK_CATALOG>", prompt)
+        self.assertIn("Renders as a horizontal axis", prompt)
+        self.assertIn("aim for 2 to 4 slides with visual blocks", prompt)
+        self.assertIn("derives the layout and drawing", prompt)
         self.assertNotIn('"template"', prompt)
         self.assertNotIn("--cs-bg", prompt)
         self.assertNotIn("Reveal.initialize({", prompt)
+
+    def test_block_catalog_covers_every_schema_block(self) -> None:
+        schema = SlidesLessonSpec.model_json_schema()
+        body_items = schema["$defs"]["SlideSpec"]["properties"]["body"]["items"]
+
+        self.assertEqual(set(body_items["discriminator"]["mapping"]), BLOCK_TYPES)
+
+    def test_block_registry_colocates_model_guide_and_renderer(self) -> None:
+        self.assertEqual(set(BLOCK_REGISTRY), BLOCK_TYPES)
+        self.assertEqual(len(BLOCK_DEFINITIONS), len(BLOCK_TYPES))
+        for definition in BLOCK_DEFINITIONS:
+            block_type = definition.model.model_json_schema()["properties"]["type"][
+                "const"
+            ]
+            self.assertEqual(definition.guide.type, block_type)
+            self.assertTrue(callable(definition.renderer))
 
     def test_compiler_escapes_content_and_owns_the_document(self) -> None:
         response = _slides_fixture().replace(
@@ -626,6 +652,18 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertIn('data-chalksmith-runtime="slides-runtime.v1.1"', prepared.source_code)
         self.assertEqual(prepared.spec_version, "chalksmith.slides.v1")
         self.assertNotIn("data-chalksmith-template", prepared.source_code)
+
+    def test_compiler_rereads_runtime_styles_for_each_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            runtime_path = Path(directory) / "runtime.css"
+            runtime_path.write_text(".cs-callout { align-content: center; }", encoding="utf-8")
+
+            with patch.object(slides_compiler, "_RUNTIME_PATH", runtime_path):
+                self.assertIn("align-content: center", slides_compiler._slides_styles())
+                runtime_path.write_text(
+                    ".cs-callout { align-content: start; }", encoding="utf-8"
+                )
+                self.assertIn("align-content: start", slides_compiler._slides_styles())
 
     def test_schema_allows_the_prompt_to_adapt_the_teaching_sequence(self) -> None:
         adapted = _slides_fixture().replace(
@@ -666,6 +704,100 @@ class StructuredSlidesTests(unittest.TestCase):
         fraction_start = prepared.source_code.index("cs-fraction", body_start)
 
         self.assertLess(statement_start, fraction_start)
+
+    def test_compiler_renders_the_visual_block_vocabulary(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        blocks = [
+            {
+                "type": "number-line",
+                "min_value": -5,
+                "max_value": 5,
+                "markers": [{"value": -2, "label": "negative two"}, {"value": 3}],
+            },
+            {
+                "type": "bar-model",
+                "parts": [
+                    {"label": "Read", "value": 30},
+                    {"label": "Remaining", "value": 10},
+                ],
+                "total_label": "40 pages",
+            },
+            {
+                "type": "bar-chart",
+                "items": [
+                    {"label": "Monday", "value": 3},
+                    {"label": "Tuesday", "value": 7},
+                ],
+                "unit": "cm",
+            },
+            {
+                "type": "coordinate-plot",
+                "x_min": -5,
+                "x_max": 5,
+                "y_min": -5,
+                "y_max": 5,
+                "points": [{"x": 2, "y": 3, "label": "A"}],
+            },
+            {
+                "type": "geometry-model",
+                "shape": "triangle",
+                "labels": [
+                    {"position": "bottom", "text": "base = 8 cm"},
+                    {"position": "right", "text": "height = 5 cm"},
+                ],
+            },
+            {
+                "type": "labeled-diagram",
+                "subject": "Cell <core>",
+                "labels": ["Membrane", "Nucleus", "Cytoplasm"],
+            },
+            {
+                "type": "cycle",
+                "steps": ["Evaporation", "Condensation", "Precipitation"],
+            },
+            {
+                "type": "timeline",
+                "events": [
+                    {"label": "1609", "text": "Galileo studies the sky"},
+                    {"label": "1969", "text": "Humans reach the Moon"},
+                ],
+            },
+        ]
+        lesson["payload"]["slides"] = [
+            {"kind": "visual-explanation", "title": f"Visual {index}", "body": [block]}
+            for index, block in enumerate(blocks, start=1)
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        for class_name in (
+            "cs-number-line",
+            "cs-bar-model",
+            "cs-bar-chart",
+            "cs-coordinate-plot",
+            "cs-geometry",
+            "cs-labeled-diagram",
+            "cs-cycle",
+            "cs-timeline",
+        ):
+            self.assertIn(class_name, prepared.source_code)
+        self.assertIn("Cell &lt;core&gt;", prepared.source_code)
+
+    def test_schema_rejects_visual_coordinates_outside_the_declared_range(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["body"] = [
+            {
+                "type": "coordinate-plot",
+                "x_min": -5,
+                "x_max": 5,
+                "y_min": -5,
+                "y_max": 5,
+                "points": [{"x": 8, "y": 1}],
+            }
+        ]
+
+        with self.assertRaisesRegex(ValueError, "points must stay inside its axes"):
+            StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
 
 def _slides_fixture() -> str:

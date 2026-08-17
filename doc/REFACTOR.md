@@ -180,9 +180,8 @@ One `GenerationService` owns the full deadline and state transition:
 │   ├── tests/
 │   ├── pyproject.toml
 │   └── uv.lock
-├── infra/
-│   ├── docker/                     # Web, API, renderer images
-│   └── gcloud/                     # Cloud Build and deployment automation
+├── docker/                         # Web, API, renderer images
+├── bin/                            # Cloud Build and deployment automation
 ├── doc/
 │   ├── CLERK.md
 │   ├── COST.md

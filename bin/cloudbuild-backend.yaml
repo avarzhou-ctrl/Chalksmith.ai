@@ -1,9 +1,9 @@
 steps:
   # Quoted because a plain scalar in a YAML flow sequence cannot contain '{'.
   - name: gcr.io/cloud-builders/docker
-    args: ["build", "-f", "infra/docker/api.Dockerfile", "-t", "${_API_IMAGE}", "."]
+    args: ["build", "-f", "docker/api.Dockerfile", "-t", "${_API_IMAGE}", "."]
   - name: gcr.io/cloud-builders/docker
-    args: ["build", "-f", "infra/docker/renderer.Dockerfile", "-t", "${_RENDERER_IMAGE}", "."]
+    args: ["build", "-f", "docker/renderer.Dockerfile", "-t", "${_RENDERER_IMAGE}", "."]
 images:
   - ${_API_IMAGE}
   - ${_RENDERER_IMAGE}

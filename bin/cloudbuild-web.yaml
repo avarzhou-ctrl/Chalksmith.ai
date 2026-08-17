@@ -3,7 +3,7 @@ steps:
     args:
       - build
       - -f
-      - infra/docker/web.Dockerfile
+      - docker/web.Dockerfile
       - -t
       - ${_WEB_IMAGE}
       - --build-arg
