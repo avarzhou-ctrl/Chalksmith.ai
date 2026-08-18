@@ -1,17 +1,19 @@
 # Slides Diagram Block Library
 
-> Last reviewed: 2026-08-17
+> Last reviewed: 2026-08-18
 
 Slides diagrams are organized by the relationship the learner must see, not by a decorative
 template name. The LLM selects a semantic Block and supplies bounded teaching data; validation
 checks capacity and references; the compiler calculates structure and positions; the versioned
 `assets/v1/core.css` and `assets/v1/blocks/*.css` files own every visual style. The compiler embeds
-only the style categories used by the lesson. No Block accepts arbitrary HTML, CSS, SVG, or page
-coordinates.
+only the style categories used by the lesson. Semantic diagram Blocks do not accept arbitrary HTML,
+CSS, SVG, or page coordinates. The separate `custom-html` escape hatch is reserved for teaching
+representations absent from this library and must not duplicate one of the relationships below.
 
 “Complete” here means that the library covers the recurring relationship grammars needed for
 elementary and middle-school STEM. A specialized scientific illustration can still justify a new
-Block, but should not be approximated with generic geometry or free-form drawing code.
+Block. A one-off representation may use the bounded `custom-html` Block, but recurring or
+subject-specific grammar should graduate to a typed Block instead of being repeatedly redrawn.
 
 ## Capability matrix
 

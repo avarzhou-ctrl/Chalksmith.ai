@@ -2,10 +2,12 @@ from html import escape
 from pathlib import Path
 
 from backend.app.lessons.formats.slides.blocks import (
+    CustomHtmlBlock,
     EquationBlock,
     SlideBlock,
     StepsBlock,
 )
+from backend.app.lessons.formats.slides.blocks.custom import custom_html_uses_math
 from backend.app.lessons.formats.slides.registry import (
     BLOCK_STYLE_GROUP_ORDER,
     VISUAL_BLOCK_TYPES,
@@ -98,6 +100,8 @@ def _required_assets(spec: SlidesLessonSpec) -> tuple[tuple[str, ...], bool]:
         for block in slide.body:
             style_groups.add(style_group_for(block))
             uses_katex = uses_katex or isinstance(block, EquationBlock)
+            if isinstance(block, CustomHtmlBlock):
+                uses_katex = uses_katex or custom_html_uses_math(block)
     ordered_groups = tuple(
         group for group in _STYLE_GROUP_ORDER if group in style_groups
     )

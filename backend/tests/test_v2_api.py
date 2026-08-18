@@ -232,7 +232,7 @@ class V2ApiTests(unittest.TestCase):
             lesson["source_code"],
         )
         self.assertEqual(len(llm.prompts), 1)
-        self.assertIn("The platform owns all layout", llm.prompts[0])
+        self.assertIn("The platform owns page layout everywhere", llm.prompts[0])
         self.assertNotIn('"template"', llm.prompts[0])
         artifact = next(iter(self.storage.objects.values())).decode()
         self.assertIn("Content-Security-Policy", artifact)

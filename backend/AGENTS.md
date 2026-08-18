@@ -70,6 +70,7 @@ backend/
 │       │   ├── slides/
 │       │   │   ├── strategy.py  # Validated Spec → compiled Slides result
 │       │   │   ├── prompt.py    # Kind-and-Block JSON generation prompt
+│       │   │   ├── sanitizer.py # Custom HTML/CSS/SVG allowlist and scoping
 │       │   │   ├── blocks/
 │       │   │   │   ├── base.py      # Block definition and guide contracts
 │       │   │   │   ├── content.py   # Text Block Specs, guides, renderers
@@ -78,7 +79,8 @@ backend/
 │       │   │   │   ├── math.py      # Numeric and mathematical visuals
 │       │   │   │   ├── physics.py   # Force and wave visuals
 │       │   │   │   ├── chemistry.py # Particle and reaction visuals
-│       │   │   │   └── biology.py   # Type-aware biological visuals
+│       │   │   │   ├── biology.py   # Type-aware biological visuals
+│       │   │   │   └── custom.py    # Bounded custom-html escape hatch
 │       │   │   ├── registry.py  # Block registry, Prompt Catalog, render dispatch
 │       │   │   ├── spec.py      # Slide and lesson-level v1 contract
 │       │   │   ├── compiler.py  # Block layout, Slide shell, Reveal document
@@ -173,9 +175,13 @@ and new ones must not appear. Missing-or-not-yours is always a 404 via `_owned_o
 - `interactive`/`slides`: `HTMLRenderer` requires the marker (`p5` / `reveal`), rejects
   `eval(`/`document.write(`/`new Function(`, injects the CSP `<meta>` from
   `backend/app/lessons/render/html.py`, and rejects obvious nonterminating counter loops.
-- Structured Slides contain no model-authored HTML, CSS, JavaScript, or SVG. The model returns
-  validated semantic data and the platform compiler owns the complete document, pinned
-  Reveal/KaTeX assets, CDN fallback, and embedded CSS.
+- Structured Slides use validated semantic Blocks by default. Their only model-authored markup is
+  the `custom-html` escape hatch: it must occupy a slide body alone, may appear on at most five
+  slides per lesson, and passes through the tag, attribute, CSS-property, URL, node, depth, and
+  length allowlists in `slides/sanitizer.py`. The sanitizer scopes classes, ids, selectors, and
+  local SVG references to that Block. JavaScript, event handlers, external resources, global CSS,
+  Reveal configuration, and page-level positioning remain forbidden. The compiler still owns the
+  complete document, pinned Reveal/KaTeX assets, CDN fallback, and all page composition.
 - `video`: `validate_manim_code()` AST-walks the source against an import allowlist
   (`manim`, `math`, `numpy`, `random`), blocked builtins, dunder names, and blocked attributes,
   and requires a `GeneratedScene` class. The API only ever *sends* the code onward.

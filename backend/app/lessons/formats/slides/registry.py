@@ -3,6 +3,7 @@ from backend.app.lessons.formats.slides.blocks.base import BlockDefinition
 from backend.app.lessons.formats.slides.blocks.biology import BIOLOGY_BLOCKS
 from backend.app.lessons.formats.slides.blocks.chemistry import CHEMISTRY_BLOCKS
 from backend.app.lessons.formats.slides.blocks.content import CONTENT_BLOCKS
+from backend.app.lessons.formats.slides.blocks.custom import CUSTOM_BLOCKS
 from backend.app.lessons.formats.slides.blocks.data import DATA_BLOCKS
 from backend.app.lessons.formats.slides.blocks.diagrams import DIAGRAM_BLOCKS
 from backend.app.lessons.formats.slides.blocks.math import MATH_BLOCKS
@@ -17,6 +18,7 @@ BLOCK_GROUPS: tuple[tuple[str, tuple[BlockDefinition, ...]], ...] = (
     ("physics", PHYSICS_BLOCKS),
     ("chemistry", CHEMISTRY_BLOCKS),
     ("biology", BIOLOGY_BLOCKS),
+    ("custom", CUSTOM_BLOCKS),
 )
 BLOCK_STYLE_GROUP_ORDER = (
     "content",
@@ -26,6 +28,7 @@ BLOCK_STYLE_GROUP_ORDER = (
     "physics",
     "chemistry",
     "biology",
+    "custom",
 )
 BLOCK_DEFINITIONS = tuple(
     definition for _, definitions in BLOCK_GROUPS for definition in definitions

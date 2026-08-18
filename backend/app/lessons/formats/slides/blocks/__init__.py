@@ -19,6 +19,9 @@ from backend.app.lessons.formats.slides.blocks.content import (
     StatementBlock,
     StepsBlock,
 )
+from backend.app.lessons.formats.slides.blocks.custom import (
+    CustomHtmlBlock,
+)
 from backend.app.lessons.formats.slides.blocks.data import (
     BarChartBlock,
     BarChartItem,
@@ -109,7 +112,8 @@ SlideBlock = Annotated[
     | WaveDiagramBlock
     | ParticleDiagramBlock
     | ReactionDiagramBlock
-    | CellDiagramBlock,
+    | CellDiagramBlock
+    | CustomHtmlBlock,
     Field(discriminator="type"),
 ]
 
@@ -130,6 +134,7 @@ __all__ = [
     "ComparisonBlock",
     "CoordinatePlotBlock",
     "CoordinatePoint",
+    "CustomHtmlBlock",
     "CycleBlock",
     "DiagramNode",
     "DiagramLayer",

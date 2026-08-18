@@ -3,9 +3,12 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from backend.app.lessons.formats.contracts import StrictSpecModel
-from backend.app.lessons.formats.slides.blocks import SlideBlock
+from backend.app.lessons.formats.slides.blocks import CustomHtmlBlock, SlideBlock
+from backend.app.lessons.formats.slides.blocks.custom import custom_html_visible_length
 from backend.app.lessons.formats.slides.registry import STANDALONE_BLOCK_TYPES
 
+
+MAX_CUSTOM_HTML_BLOCKS = 5
 
 SlideKind = Literal[
     "learning-goal",
@@ -60,7 +63,7 @@ class SlideSpec(StrictSpecModel):
             raise ValueError(
                 "question fields are only valid on comprehension-check slides"
             )
-        elif sum(_visible_text_length(block.model_dump()) for block in self.body) > 520:
+        elif sum(_block_text_length(block) for block in self.body) > 520:
             raise ValueError(f"{self.kind} content exceeds the slide capacity")
         elif len(self.body) > 1 and any(
             block.type in STANDALONE_BLOCK_TYPES for block in self.body
@@ -74,6 +77,20 @@ class SlideSpec(StrictSpecModel):
 class SlidesPayload(StrictSpecModel):
     slides: list[SlideSpec] = Field(min_length=5, max_length=9)
 
+    @model_validator(mode="after")
+    def validate_custom_html_budget(self) -> "SlidesPayload":
+        # Free-form markup is an escape hatch; a deck built from it loses every guarantee.
+        authored = sum(
+            any(isinstance(block, CustomHtmlBlock) for block in slide.body)
+            for slide in self.slides
+        )
+        if authored > MAX_CUSTOM_HTML_BLOCKS:
+            raise ValueError(
+                f"at most {MAX_CUSTOM_HTML_BLOCKS} slides may use custom-html; "
+                f"{authored} did. Use semantic blocks for the rest."
+            )
+        return self
+
 
 class SlidesLessonSpec(StrictSpecModel):
     schema_version: Literal["chalksmith.slides.v1"]
@@ -84,6 +101,13 @@ class SlidesLessonSpec(StrictSpecModel):
     grade_band: Literal["elementary", "middle", "advanced"]
     language: str = Field(pattern=r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
     payload: SlidesPayload
+
+
+def _block_text_length(block: SlideBlock) -> int:
+    # Author markup is not learner-visible, so it must not consume slide capacity.
+    if isinstance(block, CustomHtmlBlock):
+        return custom_html_visible_length(block)
+    return _visible_text_length(block.model_dump())
 
 
 def _visible_text_length(value: object) -> int:

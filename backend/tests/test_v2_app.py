@@ -42,7 +42,11 @@ from backend.app.lessons.formats.slides.registry import (
     BLOCK_STYLE_GROUPS,
     BLOCK_TYPES,
 )
-from backend.app.lessons.formats.slides.spec import SlidesLessonSpec
+from backend.app.lessons.formats.slides.sanitizer import sanitize_slide_html
+from backend.app.lessons.formats.slides.spec import (
+    MAX_CUSTOM_HTML_BLOCKS,
+    SlidesLessonSpec,
+)
 from backend.app.lessons.formats.slides.strategy import StructuredSlidesStrategy
 from backend.app.lessons.generation import GenerationService, LLMProgress
 from backend.app.lessons.render.base import RenderError
@@ -718,7 +722,7 @@ class StructuredSlidesTests(unittest.TestCase):
         )
 
         self.assertIn('"chalksmith.slides.v1"', prompt)
-        self.assertIn("The platform owns all layout", prompt)
+        self.assertIn("The platform owns page layout everywhere", prompt)
         self.assertIn("<BLOCK_CATALOG>", prompt)
         self.assertIn("Renders as a horizontal axis", prompt)
         self.assertIn("energy or food pyramids", prompt)
@@ -731,12 +735,147 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertIn("particle-level composition", prompt)
         self.assertIn("type-aware plant, animal, or bacterial", prompt)
         self.assertIn("accurate right-angle markings", prompt)
-        self.assertIn("semantic anchors for diagonals, radii, altitudes", prompt)
-        self.assertIn("aim for 2 to 4 slides with visual blocks", prompt)
-        self.assertIn("derives the layout and drawing", prompt)
+        self.assertIn("Use a catalog block whenever one expresses", prompt)
+        self.assertIn("never leave more than two consecutive text-only slides", prompt)
+        self.assertIn("derives layout and drawing", prompt)
         self.assertNotIn('"template"', prompt)
         self.assertNotIn("--cs-bg", prompt)
         self.assertNotIn("Reveal.initialize({", prompt)
+
+    def test_prompt_scopes_authored_markup_to_the_custom_html_block(self) -> None:
+        prompt = StructuredSlidesStrategy().build_prompt(
+            FormatRequest(topic="DNA base pairing", lesson_format="slides")
+        )
+
+        self.assertIn(
+            "HTML, CSS, and SVG are allowed only inside the html field of a custom-html "
+            "block",
+            prompt,
+        )
+        self.assertIn("<CUSTOM_HTML_RULES>", prompt)
+        self.assertIn("Inline SVG for drawings: circle, clipPath", prompt)
+        self.assertIn("Never use: a, animate", prompt)
+        self.assertIn(
+            f"At most {MAX_CUSTOM_HTML_BLOCKS} slides may use custom-html", prompt
+        )
+        # The catalog owns per-Block guidance; the planning notes must not restate it.
+        planning_notes = prompt.split("</BLOCK_CATALOG>")[1]
+        self.assertNotIn("Use venn-diagram for set overlap", planning_notes)
+
+    def test_custom_html_scopes_author_styles_and_identifiers(self) -> None:
+        prepared = StructuredSlidesStrategy().prepare(_custom_html_fixture())
+
+        self.assertIn(
+            'data-style-groups="content,math,custom,comprehension"', prepared.source_code
+        )
+        self.assertRegex(
+            prepared.source_code, r'class="cs-card cs-custom csx-[0-9a-f]{10}"'
+        )
+        self.assertRegex(
+            prepared.source_code,
+            r"\.csx-[0-9a-f]{10} \.csx-[0-9a-f]{10}-base\{",
+        )
+        self.assertNotIn('class="progress"', prepared.source_code)
+        self.assertRegex(prepared.source_code, r'id="csx-[0-9a-f]{10}-bond"')
+        self.assertRegex(prepared.source_code, r'stroke="url\(#csx-[0-9a-f]{10}-bond\)"')
+        self.assertIn('aria-label="Complementary DNA strands"', prepared.source_code)
+        persisted = json.loads(prepared.lesson_spec)["payload"]["slides"][2]["body"][0]
+        self.assertIn("__CS_SCOPE__", persisted["html"])
+        self.assertNotIn("__CS_SCOPE__", prepared.source_code)
+
+    def test_custom_html_rejects_executable_and_remote_markup(self) -> None:
+        for markup in (
+            "<div><script>alert(1)</script></div>",
+            '<div onclick="steal()">x</div>',
+            '<a href="https://example.com">x</a>',
+            '<img src="https://example.com/x.png">',
+            "<iframe></iframe>",
+            "<style>@import url(https://example.com/x.css);</style><p>x</p>",
+            "<style>body { display: none; }</style><p>x</p>",
+            '<div style="background:url(https://example.com/x.png)">x</div>',
+        ):
+            with self.subTest(markup=markup):
+                with self.assertRaises(ValueError):
+                    sanitize_slide_html(markup)
+
+    def test_custom_html_strips_unsupported_styling_without_failing(self) -> None:
+        self.assertEqual(
+            sanitize_slide_html('<div style="position:fixed;top:0;color:red">x</div>'),
+            '<div style="color:red">x</div>',
+        )
+        self.assertEqual(
+            sanitize_slide_html('<marquee><p class="cs-card reveal keep">y</p></marquee>'),
+            '<p class="__CS_SCOPE__-keep">y</p>',
+        )
+        self.assertEqual(
+            sanitize_slide_html(
+                '<svg viewBox="0 0 4 4"><rect x="1" bogus="2"></rect></svg>'
+            ),
+            '<svg viewBox="0 0 4 4"><rect x="1"></rect></svg>',
+        )
+
+    def test_custom_html_capacity_counts_learner_visible_text(self) -> None:
+        lesson = json.loads(_custom_html_fixture())
+        block = lesson["payload"]["slides"][2]["body"][0]
+        block["html"] = f'<div style="{"color:#fff;" * 200}">{"A" * 40}</div>'
+
+        StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        block["html"] = f"<p>{'A' * 600}</p>"
+        with self.assertRaisesRegex(ValueError, "exceeds the slide capacity"):
+            StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+    def test_deck_limits_how_many_slides_may_author_markup(self) -> None:
+        lesson = json.loads(_custom_html_fixture())
+        authored = lesson["payload"]["slides"][2]
+        lesson["payload"]["slides"] = [
+            dict(authored, title=f"Slide {index}")
+            for index in range(MAX_CUSTOM_HTML_BLOCKS + 1)
+        ]
+
+        with self.assertRaisesRegex(
+            ValueError,
+            f"at most {MAX_CUSTOM_HTML_BLOCKS} slides may use custom-html",
+        ):
+            StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+    def test_deck_allows_five_custom_html_slides(self) -> None:
+        lesson = json.loads(_custom_html_fixture())
+        authored = lesson["payload"]["slides"][2]
+        lesson["payload"]["slides"] = [
+            dict(authored, title=f"Slide {index}")
+            for index in range(MAX_CUSTOM_HTML_BLOCKS)
+        ]
+
+        StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+    def test_custom_html_namespaces_reveal_classes_and_unwraps_sections(self) -> None:
+        sanitized = sanitize_slide_html(
+            '<section><div class="progress fragment keep">Visible</div></section>'
+            '<style>.progress,.fragment,.keep{color:red}</style>'
+        )
+
+        self.assertNotIn("<section", sanitized)
+        self.assertIn(
+            'class="__CS_SCOPE__-progress __CS_SCOPE__-fragment '
+            '__CS_SCOPE__-keep"',
+            sanitized,
+        )
+        self.assertIn(".__CS_SCOPE__-progress", sanitized)
+        self.assertIn(".__CS_SCOPE__-fragment", sanitized)
+        self.assertNotIn(".progress,", sanitized)
+
+        # Sanitized markup is canonical lesson data and must survive a later edit unchanged.
+        self.assertEqual(sanitize_slide_html(sanitized), sanitized)
+
+    def test_custom_html_must_occupy_the_slide_body_alone(self) -> None:
+        lesson = json.loads(_custom_html_fixture())
+        lesson["payload"]["slides"][2]["body"].append(
+            {"type": "statement", "text": "Pairing is always A with T."}
+        )
+
+        with self.assertRaisesRegex(ValueError, "must occupy a slide body by themselves"):
+            StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
     def test_block_catalog_covers_every_schema_block(self) -> None:
         schema = SlidesLessonSpec.model_json_schema()
@@ -768,6 +907,8 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertNotIn("<script>alert(1)</script>", prepared.source_code)
         self.assertIn('data-chalksmith-runtime="slides-runtime.v1.1"', prepared.source_code)
         self.assertIn('.slides > section.present', prepared.source_code)
+        self.assertIn(".cs-list ul {\n  gap: 0.35rem;", prepared.source_code)
+        self.assertIn(".cs-steps ol {\n  gap: 1rem;", prepared.source_code)
         self.assertEqual(prepared.spec_version, "chalksmith.slides.v1")
         self.assertNotIn("data-chalksmith-template", prepared.source_code)
 
@@ -1522,6 +1663,31 @@ class StructuredSlidesTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "points must stay inside its axes"):
             StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+
+def _custom_html_fixture() -> str:
+    """A deck whose worked example is author-written markup instead of a Block."""
+    lesson = json.loads(_slides_fixture())
+    lesson["payload"]["slides"][2] = {
+        "kind": "worked-example",
+        "title": "Building strand 2",
+        "body": [
+            {
+                "type": "custom-html",
+                "description": "Complementary DNA strands",
+                "html": (
+                    "<style>.base{padding:.25rem .7rem;border-radius:.4rem}"
+                    ".a{background:#ef4444;color:#fff}</style>"
+                    '<div><span class="base a">A</span></div>'
+                    '<svg viewBox="0 0 40 8"><defs><linearGradient id="bond">'
+                    '<stop offset="0%" stop-color="#22c55e"></stop></linearGradient>'
+                    '</defs><line x1="0" y1="4" x2="36" y2="4" '
+                    'stroke="url(#bond)"></line></svg>'
+                ),
+            }
+        ],
+    }
+    return json.dumps(lesson)
 
 
 def _slides_fixture() -> str:
