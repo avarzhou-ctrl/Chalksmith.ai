@@ -1,6 +1,7 @@
 import ast
 import asyncio
 import json
+import logging
 import os
 import signal
 import tempfile
@@ -21,6 +22,7 @@ from sqlmodel import create_engine
 
 from backend.app.core.config import LOCAL_CLERK_FILE, LOCAL_ENV_FILE, REPOSITORY_DIR, Settings
 from backend.app.core.errors import AppError
+from backend.app.core.logging import JsonFormatter
 from backend.app.db.session import create_db_and_tables
 from backend.app.integrations.auth import _decode_clerk_token, get_current_user
 from backend.app.integrations.llm.base import LLMResult
@@ -42,13 +44,15 @@ from backend.app.lessons.formats.slides.registry import (
     BLOCK_STYLE_GROUPS,
     BLOCK_TYPES,
 )
-from backend.app.lessons.formats.slides.sanitizer import sanitize_slide_html
+from backend.app.lessons.formats.slides.blocks.custom import sanitize_slide_html
 from backend.app.lessons.formats.slides.spec import (
     MAX_CUSTOM_HTML_BLOCKS,
+    SLIDE_CAPACITY,
     SlidesLessonSpec,
+    _block_text_length,
 )
 from backend.app.lessons.formats.slides.strategy import StructuredSlidesStrategy
-from backend.app.lessons.generation import GenerationService, LLMProgress
+from backend.app.lessons.generation import GenerationService, LLMProgress, _public_error
 from backend.app.lessons.render.base import RenderError
 from backend.app.lessons.render.manim import (
     LocalManimRenderer,
@@ -488,6 +492,36 @@ class ApplicationTests(unittest.TestCase):
         self.assertEqual(response.headers["X-Request-Id"], "error-request")
         self.assertEqual(response.headers["Access-Control-Allow-Origin"], "http://localhost:3000")
 
+    def test_json_formatter_includes_generation_retry_error(self) -> None:
+        record = logging.LogRecord(
+            name="backend.app.lessons.generation",
+            level=logging.WARNING,
+            pathname=__file__,
+            lineno=1,
+            msg="lesson_generation_retry",
+            args=(),
+            exc_info=None,
+        )
+        record.lesson_id = "c72da3d5-0606-4649-afe1-9308df5b9bcb"
+        record.stage = "rendering"
+        record.error = "custom-html exceeds 6000 characters (7124 given)"
+
+        payload = json.loads(JsonFormatter().format(record))
+
+        self.assertEqual(payload["message"], "lesson_generation_retry")
+        self.assertEqual(payload["lesson_id"], record.lesson_id)
+        self.assertEqual(payload["stage"], "rendering")
+        self.assertEqual(payload["error"], record.error)
+
+    def test_provider_error_visibility_uses_the_injected_app_environment(self) -> None:
+        error = LLMProviderError("private upstream diagnostic")
+
+        production_message = _public_error(error, app_env="production")
+        local_message = _public_error(error, app_env="local")
+
+        self.assertNotIn("private upstream diagnostic", production_message)
+        self.assertIn("private upstream diagnostic", local_message)
+
 
 class RendererSecurityTests(unittest.TestCase):
     def test_manim_allows_expected_scene_imports(self) -> None:
@@ -535,6 +569,7 @@ class GenerationDeadlineTests(unittest.IsolatedAsyncioTestCase):
             renderers={},
             deadline=monotonic() + 0.001,
             request_id="deadline-test",
+            app_env="test",
         )
 
         with self.assertRaises(TimeoutError):
@@ -553,6 +588,7 @@ class GenerationDeadlineTests(unittest.IsolatedAsyncioTestCase):
             renderers={},
             deadline=monotonic() + 1,
             request_id="heartbeat-test",
+            app_env="test",
         )
 
         with patch("backend.app.lessons.generation.LLM_HEARTBEAT_SECONDS", 0.001):
@@ -584,6 +620,7 @@ class GenerationDeadlineTests(unittest.IsolatedAsyncioTestCase):
             renderers={},
             deadline=monotonic() + 1,
             request_id="cleanup-test",
+            app_env="test",
         )
         lesson_id = uuid4()
 
@@ -722,7 +759,12 @@ class StructuredSlidesTests(unittest.TestCase):
         )
 
         self.assertIn('"chalksmith.slides.v1"', prompt)
-        self.assertIn("The platform owns page layout everywhere", prompt)
+        self.assertIn("<OUTPUT_CONTRACT>", prompt)
+        self.assertIn("<LESSON_REQUIREMENTS>", prompt)
+        self.assertIn("<BLOCK_SELECTION>", prompt)
+        self.assertIn("<SLIDE_COMPOSITION>", prompt)
+        self.assertIn("<LAYOUT_OWNERSHIP>", prompt)
+        self.assertEqual(prompt.count("The platform owns all slide composition"), 1)
         self.assertIn("<BLOCK_CATALOG>", prompt)
         self.assertIn("Renders as a horizontal axis", prompt)
         self.assertIn("energy or food pyramids", prompt)
@@ -735,9 +777,10 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertIn("particle-level composition", prompt)
         self.assertIn("type-aware plant, animal, or bacterial", prompt)
         self.assertIn("accurate right-angle markings", prompt)
-        self.assertIn("Use a catalog block whenever one expresses", prompt)
-        self.assertIn("never leave more than two consecutive text-only slides", prompt)
-        self.assertIn("derives layout and drawing", prompt)
+        self.assertIn("Use a semantic Catalog Block whenever one accurately expresses", prompt)
+        self.assertIn("avoid more than two", prompt)
+        self.assertIn("consecutive text-only slides", prompt)
+        self.assertIn("The compiler draws coordinates and mathematical markings", prompt)
         self.assertNotIn('"template"', prompt)
         self.assertNotIn("--cs-bg", prompt)
         self.assertNotIn("Reveal.initialize({", prompt)
@@ -747,20 +790,127 @@ class StructuredSlidesTests(unittest.TestCase):
             FormatRequest(topic="DNA base pairing", lesson_format="slides")
         )
 
-        self.assertIn(
-            "HTML, CSS, and SVG are allowed only inside the html field of a custom-html "
-            "block",
-            prompt,
-        )
+        self.assertIn("Every field is plain text except the html field", prompt)
         self.assertIn("<CUSTOM_HTML_RULES>", prompt)
         self.assertIn("Inline SVG for drawings: circle, clipPath", prompt)
         self.assertIn("Never use: a, animate", prompt)
         self.assertIn(
-            f"At most {MAX_CUSTOM_HTML_BLOCKS} slides may use custom-html", prompt
+            f"on no more than\n{MAX_CUSTOM_HTML_BLOCKS} slides", prompt
         )
         # The catalog owns per-Block guidance; the planning notes must not restate it.
         planning_notes = prompt.split("</BLOCK_CATALOG>")[1]
         self.assertNotIn("Use venn-diagram for set overlap", planning_notes)
+
+    def test_parser_recovers_unescaped_quotes_inside_custom_html(self) -> None:
+        lesson = json.loads(_custom_html_fixture())
+        lesson["payload"]["slides"][2]["body"][0]["html"] = (
+            '<div class="row"><span class="base a">A</span></div>'
+        )
+        raw = json.dumps(lesson).replace('\\"', '"')
+
+        with self.assertRaises(json.JSONDecodeError):
+            json.loads(raw)
+        prepared = StructuredSlidesStrategy().prepare(raw)
+
+        self.assertIn("Complementary DNA strands", prepared.source_code)
+        self.assertIn("class=", prepared.source_code)
+
+    def test_parser_escapes_every_illegal_json_string_control(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        encoded = json.dumps(lesson)
+        raw = encoded.replace(
+            json.dumps("\\frac{1}{2} \\times \\frac{2}{2} = \\frac{2}{4}")[1:-1],
+            '\\frac{1}{2}\n\\times 2',
+        )
+
+        with self.assertRaises(json.JSONDecodeError):
+            json.loads(raw)
+        prepared = StructuredSlidesStrategy().prepare(raw)
+        spec = json.loads(prepared.lesson_spec)
+
+        self.assertEqual(
+            spec["payload"]["slides"][2]["body"][1]["expression"],
+            "\\frac{1}{2}\n\\times 2",
+        )
+
+    def test_parser_recovers_an_unescaped_quote_before_prose_punctuation(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        value = 'He said "go", then left'
+        lesson["payload"]["slides"][1]["body"][0]["label"] = value
+        raw = json.dumps(lesson).replace(json.dumps(value)[1:-1], value)
+
+        with self.assertRaises(json.JSONDecodeError):
+            json.loads(raw)
+        prepared = StructuredSlidesStrategy().prepare(raw)
+        spec = json.loads(prepared.lesson_spec)
+
+        self.assertEqual(spec["payload"]["slides"][1]["body"][0]["label"], value)
+
+    def test_parser_recovers_trailing_commas_and_extra_fields(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["speaker_notes"] = "drop me"
+        lesson["payload"]["slides"][0]["layout"] = "title-only"
+        lesson["payload"]["slides"][1]["body"][0]["decorative_color"] = "amber"
+        lesson["payload"]["slides"][0]["question"] = ""
+        lesson["payload"]["slides"][0]["body"] = lesson["payload"]["slides"][0]["body"][0]
+        raw = json.dumps(lesson).replace("}", ",}", 1)
+
+        prepared = StructuredSlidesStrategy().prepare(raw)
+        spec = json.loads(prepared.lesson_spec)
+
+        self.assertNotIn("speaker_notes", spec)
+        self.assertNotIn("layout", spec["payload"]["slides"][0])
+        self.assertNotIn("decorative_color", spec["payload"]["slides"][1]["body"][0])
+        self.assertIsNone(spec["payload"]["slides"][0]["question"])
+        self.assertIsInstance(spec["payload"]["slides"][0]["body"], list)
+
+    def test_parser_does_not_repair_truncated_json_locally(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Invalid JSON"):
+            StructuredSlidesStrategy().prepare(
+                '{"schema_version":"chalksmith.slides.v1","format":}'
+            )
+
+    def test_invalid_json_can_use_the_bounded_model_repair_fallback(self) -> None:
+        self.assertTrue(
+            StructuredSlidesStrategy().can_repair(
+                ValueError("Invalid JSON at line 1, column 12: Expecting ',' delimiter")
+            )
+        )
+        self.assertTrue(
+            StructuredSlidesStrategy().can_repair(
+                ValueError("The model response did not contain a JSON object.")
+            )
+        )
+        self.assertTrue(
+            StructuredSlidesStrategy().can_repair(
+                ValueError("Invalid Slides specification: payload.slides: Field required")
+            )
+        )
+
+    def test_prompt_requires_json_escaping_inside_custom_html(self) -> None:
+        prompt = StructuredSlidesStrategy().build_prompt(
+            FormatRequest(topic="The rock cycle", lesson_format="slides")
+        )
+
+        self.assertIn("In that JSON string", prompt)
+        self.assertIn('escape every double quote as \\"', prompt)
+        self.assertIn(str(SLIDE_CAPACITY), prompt)
+
+    def test_prompt_keeps_dynamic_context_separate_from_its_instructions(self) -> None:
+        prompt = StructuredSlidesStrategy().build_prompt(
+            FormatRequest(
+                topic="Fractions",
+                lesson_format="slides",
+                sources="Teacher source",
+                previous_spec='{"title":"Previous"}',
+                edit_instruction="Add an example.",
+            )
+        )
+
+        self.assertEqual(prompt.count("use them as the factual basis"), 1)
+        self.assertEqual(prompt.count("preserve working teaching content"), 1)
+        self.assertIn("<SOURCES>Teacher source</SOURCES>", prompt)
+        self.assertIn("<EDIT_INSTRUCTION>Add an example.</EDIT_INSTRUCTION>", prompt)
 
     def test_custom_html_scopes_author_styles_and_identifiers(self) -> None:
         prepared = StructuredSlidesStrategy().prepare(_custom_html_fixture())
@@ -821,9 +971,42 @@ class StructuredSlidesTests(unittest.TestCase):
 
         StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
-        block["html"] = f"<p>{'A' * 600}</p>"
+        block["html"] = f"<p>{'A' * (SLIDE_CAPACITY + 1)}</p>"
         with self.assertRaisesRegex(ValueError, "exceeds the slide capacity"):
             StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+    def test_slide_capacity_counts_decoded_on_slide_text_only(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][2]["body"] = [
+            {
+                "type": "custom-html",
+                "description": "A" * 120,
+                "html": "<p>Heat &amp; Pressure</p>",
+            }
+        ]
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        spec = SlidesLessonSpec.model_validate_json(prepared.lesson_spec)
+        self.assertEqual(_block_text_length(spec.payload.slides[2].body[0]), 15)
+
+        lesson["payload"]["slides"][2]["body"] = [
+            {
+                "type": "hierarchy-tree",
+                "root": {"label": "Rocks", "detail": "Origin"},
+                "branches": [
+                    {
+                        "label": "Igneous",
+                        "children": [{"label": "Granite", "detail": "Slow cooling"}],
+                    },
+                    {
+                        "label": "Sedimentary",
+                        "children": [{"label": "Sandstone", "detail": "Cemented grains"}],
+                    },
+                ],
+            }
+        ]
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        spec = SlidesLessonSpec.model_validate_json(prepared.lesson_spec)
+        self.assertEqual(_block_text_length(spec.payload.slides[2].body[0]), 72)
 
     def test_deck_limits_how_many_slides_may_author_markup(self) -> None:
         lesson = json.loads(_custom_html_fixture())
@@ -907,10 +1090,33 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertNotIn("<script>alert(1)</script>", prepared.source_code)
         self.assertIn('data-chalksmith-runtime="slides-runtime.v1.1"', prepared.source_code)
         self.assertIn('.slides > section.present', prepared.source_code)
-        self.assertIn(".cs-list ul {\n  gap: 0.35rem;", prepared.source_code)
-        self.assertIn(".cs-steps ol {\n  gap: 1rem;", prepared.source_code)
+        self.assertIn(
+            ".reveal .cs-card ul,\n.reveal .cs-card ol {\n  margin: 0;",
+            prepared.source_code,
+        )
+        self.assertIn(".cs-list ul,\n.cs-steps ol {\n  display: grid;", prepared.source_code)
         self.assertEqual(prepared.spec_version, "chalksmith.slides.v1")
         self.assertNotIn("data-chalksmith-template", prepared.source_code)
+
+    def test_comparison_list_rows_align_at_the_start(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["body"] = [
+            {
+                "type": "comparison",
+                "left_title": "Before",
+                "left_items": ["One", "Two"],
+                "right_title": "After",
+                "right_items": ["Three", "Four"],
+            }
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertIn('class="cs-comparison"', prepared.source_code)
+        self.assertIn(
+            ".cs-comparison ul {\n  display: grid;\n  align-content: start;",
+            prepared.source_code,
+        )
 
     def test_compiler_rereads_runtime_styles_for_each_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1709,6 +1915,12 @@ class LessonSchemaMigrationTests(unittest.TestCase):
                         ")"
                     )
                 )
+                connection.execute(
+                    text(
+                        "INSERT INTO lessons (id, owner_id) VALUES "
+                        "('11111111111111111111111111111111', 'teacher-a')"
+                    )
+                )
 
             create_db_and_tables(engine)
 
@@ -1719,8 +1931,21 @@ class LessonSchemaMigrationTests(unittest.TestCase):
                     "spec_version",
                     "runtime_version",
                     "compiler_version",
+                    "first_error",
+                    "raw_model_output",
+                    "final_lesson_id",
                 }.issubset(columns)
             )
+            indexes = {index["name"]: index for index in inspect(engine).get_indexes("lessons")}
+            self.assertTrue(indexes["uq_lessons_owner_root_version"]["unique"])
+            with engine.connect() as connection:
+                row = connection.execute(
+                    text(
+                        "SELECT root_lesson_id, final_lesson_id FROM lessons "
+                        "WHERE owner_id = 'teacher-a'"
+                    )
+                ).one()
+            self.assertEqual(row.root_lesson_id, row.final_lesson_id)
 
 
 if __name__ == "__main__":

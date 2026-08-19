@@ -2,17 +2,19 @@ import unittest
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from uuid import UUID
 
 from fastapi import UploadFile
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy import event
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session
 from starlette.datastructures import Headers
 
 from backend.app.api.dependencies import get_renderers
 from backend.app.core.config import Settings
-from backend.app.db.lessons import create_lesson, save_lesson
+from backend.app.db.lessons import create_lesson, get_owned_lesson, save_lesson
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.llm.base import LLMResult, LLMStreamChunk
@@ -120,6 +122,16 @@ def _completed_lesson_id(stream: str) -> str:
         if line.startswith("data: ")
     )
     return __import__("json").loads(completed_line[6:])["lesson_id"]
+
+
+def _failed_lesson_id(stream: str) -> str:
+    error_line = next(
+        line for block in stream.split("\n\n")
+        if "event: error" in block
+        for line in block.splitlines()
+        if line.startswith("data: ")
+    )
+    return __import__("json").loads(error_line[6:])["lesson_id"]
 
 
 class V2ApiTests(unittest.TestCase):
@@ -232,7 +244,7 @@ class V2ApiTests(unittest.TestCase):
             lesson["source_code"],
         )
         self.assertEqual(len(llm.prompts), 1)
-        self.assertIn("The platform owns page layout everywhere", llm.prompts[0])
+        self.assertIn("The platform owns all slide composition", llm.prompts[0])
         self.assertNotIn('"template"', llm.prompts[0])
         artifact = next(iter(self.storage.objects.values())).decode()
         self.assertIn("Content-Security-Policy", artifact)
@@ -251,6 +263,67 @@ class V2ApiTests(unittest.TestCase):
         self.assertIn("event: complete", response.text)
         self.assertEqual(len(llm.prompts), 2)
         self.assertIn("Repair the specification, not the layout system", llm.prompts[1])
+        lesson = self.client.get(f"/v2/lessons/{_completed_lesson_id(response.text)}").json()
+        self.assertEqual(lesson["status"], "ready")
+        self.assertIsNone(lesson["error_message"])
+        self.assertNotIn("first_error", lesson)
+        with Session(self.app.state.engine) as session:
+            stored = get_owned_lesson(
+                session,
+                UUID(_completed_lesson_id(response.text)),
+                "teacher-a",
+            )
+            self.assertIn("Invalid Slides specification", stored.first_error)
+
+    def test_unescaped_custom_html_compiles_without_a_model_repair(self) -> None:
+        lesson = __import__("json").loads(_slides_response())
+        lesson["payload"]["slides"][2]["body"] = [
+            {
+                "type": "custom-html",
+                "description": "Igneous to sedimentary",
+                "html": '<div class="cycle"><span class="igneous">Igneous</span></div>',
+            }
+        ]
+        raw = __import__("json").dumps(lesson).replace('\\"', '"')
+        llm = FakeSlidesLLM(raw)
+        self.app.dependency_overrides[get_llm_provider] = lambda: llm
+
+        response = self.client.post(
+            "/v2/generations",
+            data={"topic": "The rock cycle", "format": "slides"},
+        )
+
+        self.assertIn("event: complete", response.text)
+        self.assertNotIn('"stage": "repairing"', response.text)
+        self.assertEqual(len(llm.prompts), 1)
+        compiled = self.client.get(f"/v2/lessons/{_completed_lesson_id(response.text)}").json()
+        self.assertEqual(compiled["status"], "ready")
+        self.assertIn("Igneous", compiled["source_code"])
+
+    def test_unrecoverable_slides_json_uses_one_repair_and_keeps_private_output(self) -> None:
+        broken = '{"schema_version":"chalksmith.slides.v1","format":}'
+        llm = FakeSlidesLLM(broken, broken)
+        self.app.dependency_overrides[get_llm_provider] = lambda: llm
+
+        response = self.client.post(
+            "/v2/generations",
+            data={"topic": "The rock cycle", "format": "slides"},
+        )
+
+        self.assertIn("event: error", response.text)
+        self.assertIn('"stage": "repairing"', response.text)
+        self.assertEqual(len(llm.prompts), 2)
+        lesson_id = _failed_lesson_id(response.text)
+        lesson = self.client.get(f"/v2/lessons/{lesson_id}").json()
+        self.assertEqual(lesson["status"], "failed")
+        self.assertIsNone(lesson["source_code"])
+        self.assertNotIn("raw_model_output", lesson)
+        self.assertNotIn("first_error", lesson)
+        self.assertIn("Invalid JSON", lesson["error_message"])
+        with Session(self.app.state.engine) as session:
+            stored = get_owned_lesson(session, UUID(lesson_id), "teacher-a")
+            self.assertEqual(stored.raw_model_output, broken)
+            self.assertIn("Invalid JSON", stored.first_error)
 
     def test_structured_slides_edit_uses_the_previous_specification(self) -> None:
         llm = FakeSlidesLLM(_slides_response(), _slides_response())
@@ -318,10 +391,86 @@ class V2ApiTests(unittest.TestCase):
             },
         )
         self.assertEqual(format_change_response.status_code, 409)
-        self.assertEqual(
-            format_change_response.json()["error"]["code"],
-            "legacy_lesson_read_only",
+        self.assertEqual(format_change_response.json()["error"]["code"], "lesson_format_mismatch")
+
+    def test_revision_format_must_match_its_parent(self) -> None:
+        first = self.client.post(
+            "/v2/generations",
+            data={"topic": "Fractions", "format": "interactive"},
         )
+        first_id = _completed_lesson_id(first.text)
+
+        response = self.client.post(
+            "/v2/generations",
+            data={
+                "topic": "Fractions",
+                "format": "slides",
+                "base_lesson_id": first_id,
+                "edit_instruction": "Convert it.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["error"]["code"], "lesson_format_mismatch")
+
+    def test_ready_version_can_be_selected_as_the_dashboard_final(self) -> None:
+        first = self.client.post(
+            "/v2/generations",
+            data={"topic": "Fractions", "format": "interactive"},
+        )
+        first_id = _completed_lesson_id(first.text)
+        edited = self.client.post(
+            "/v2/generations",
+            data={
+                "topic": "Fractions",
+                "format": "interactive",
+                "base_lesson_id": first_id,
+                "edit_instruction": "Add a visual example.",
+            },
+        )
+        edited_id = _completed_lesson_id(edited.text)
+
+        versions = self.client.get(f"/v2/lessons/{first_id}/versions").json()
+        self.assertEqual([version["is_final"] for version in versions], [True, False])
+        self.assertEqual(self.client.get("/v2/lessons").json()[0]["id"], first_id)
+
+        selected = self.client.put(f"/v2/lessons/{edited_id}/final")
+
+        self.assertEqual(selected.status_code, 200)
+        self.assertEqual(selected.json()["final_lesson_id"], edited_id)
+        versions = self.client.get(f"/v2/lessons/{edited_id}/versions").json()
+        self.assertEqual([version["is_final"] for version in versions], [False, True])
+        dashboard = self.client.get("/v2/lessons").json()
+        self.assertEqual(dashboard[0]["id"], edited_id)
+        self.assertEqual(dashboard[0]["version_count"], 2)
+
+    def test_version_numbers_are_unique_within_a_lesson(self) -> None:
+        with Session(self.app.state.engine) as session:
+            root = create_lesson(
+                session,
+                owner_id="teacher-a",
+                topic="Fractions",
+                lesson_format="interactive",
+            )
+            create_lesson(
+                session,
+                owner_id="teacher-a",
+                topic="Fractions",
+                lesson_format="interactive",
+                root_lesson_id=root.id,
+                parent_lesson_id=root.id,
+                version_number=2,
+            )
+            with self.assertRaises(IntegrityError):
+                create_lesson(
+                    session,
+                    owner_id="teacher-a",
+                    topic="Fractions",
+                    lesson_format="interactive",
+                    root_lesson_id=root.id,
+                    parent_lesson_id=root.id,
+                    version_number=2,
+                )
 
     def test_database_sessions_match_response_lifetimes(self) -> None:
         routes = [route for route in self.app.routes if isinstance(route, APIRoute)]

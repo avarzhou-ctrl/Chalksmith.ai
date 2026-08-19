@@ -8,6 +8,7 @@ from sqlmodel import Session
 from backend.app.api.dependencies import get_request_settings
 from backend.app.api.schemas import (
     AccessURLResponse,
+    FinalLessonResponse,
     LessonFormat,
     LessonListItem,
     LessonResponse,
@@ -24,6 +25,7 @@ from backend.app.db.lessons import (
     list_lesson_versions,
     list_owned_lessons,
     save_lessons,
+    set_final_lesson,
 )
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
@@ -77,6 +79,26 @@ def get_lesson_versions(
 ):
     lesson = _owned_or_404(session, lesson_id, user.uid)
     return list_lesson_version_summaries(session, lesson)
+
+
+@router.put("/{lesson_id}/final", response_model=FinalLessonResponse)
+def select_final_lesson(
+    lesson_id: UUID,
+    user: AuthUser = Depends(get_current_user),
+    session: Session = Depends(get_session, scope="function"),
+) -> FinalLessonResponse:
+    lesson = _owned_or_404(session, lesson_id, user.uid)
+    if lesson.status != "ready":
+        raise AppError(
+            code="lesson_not_ready",
+            message="Only a ready lesson version can be selected as final.",
+            status_code=409,
+        )
+    root = set_final_lesson(session, lesson)
+    return FinalLessonResponse(
+        root_lesson_id=root.id,
+        final_lesson_id=lesson.id,
+    )
 
 
 @router.patch("/{lesson_id}", response_model=LessonResponse)

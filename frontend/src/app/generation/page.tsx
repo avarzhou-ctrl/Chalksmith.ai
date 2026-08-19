@@ -37,6 +37,7 @@ export default function GenerationPage() {
     messages,
     loadLesson,
     selectLessonVersion,
+    selectFinalVersion,
     stopGeneration,
     startNewLesson,
     generateLesson,
@@ -110,6 +111,7 @@ export default function GenerationPage() {
               messages={messages}
               selectedLessonId={lesson?.id ?? null}
               onSelectVersion={(lessonId) => void selectLessonVersion(lessonId)}
+              onSelectFinalVersion={(lessonId) => void selectFinalVersion(lessonId)}
               loading={loading}
               format={format}
               topic={topic}

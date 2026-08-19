@@ -15,9 +15,10 @@ from google.cloud import storage
 from backend.scripts.migrate_v1_users import all_users, primary_email
 
 COLUMNS = (
-    "id", "owner_id", "root_lesson_id", "parent_lesson_id", "version_number", "topic",
+    "id", "owner_id", "root_lesson_id", "parent_lesson_id", "final_lesson_id",
+    "version_number", "topic",
     "format", "status", "summary", "source_code", "object_key", "error_message",
-    "edit_instruction", "created_at", "updated_at",
+    "first_error", "raw_model_output", "edit_instruction", "created_at", "updated_at",
 )
 # owner_id and object_key are rewritten per environment, so they are compared separately.
 COMPARED = tuple(name for name in COLUMNS if name not in {"owner_id", "object_key"})

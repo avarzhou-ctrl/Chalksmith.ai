@@ -50,9 +50,20 @@ async def generate_lesson(
         raise AppError(code="topic_required", message="A lesson topic is required.", status_code=422)
     if base_lesson_id:
         base_lesson = get_owned_lesson(session, base_lesson_id, user.uid)
+        if base_lesson is None:
+            raise AppError(
+                code="lesson_not_found",
+                message="Lesson not found.",
+                status_code=404,
+            )
+        if base_lesson.format != format:
+            raise AppError(
+                code="lesson_format_mismatch",
+                message="A lesson revision must keep the original format.",
+                status_code=409,
+            )
         if (
-            base_lesson
-            and base_lesson.format == "slides"
+            base_lesson.format == "slides"
             and base_lesson.lesson_spec is None
         ):
             raise AppError(
@@ -79,6 +90,7 @@ async def generate_lesson(
         renderers=renderers,
         deadline=deadline,
         request_id=request.state.request_id,
+        app_env=settings.app_env,
     )
     return StreamingResponse(
         service.stream(

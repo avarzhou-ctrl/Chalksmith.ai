@@ -1,5 +1,12 @@
 import type { ApiClient } from '@/lib/api/client';
-import type { AccessUrl, Lesson, LessonFormat, LessonListItem, LessonVersion } from '@/lib/types/api';
+import type {
+  AccessUrl,
+  FinalLessonSelection,
+  Lesson,
+  LessonFormat,
+  LessonListItem,
+  LessonVersion,
+} from '@/lib/types/api';
 
 export function listLessons(
   client: ApiClient,
@@ -30,6 +37,12 @@ export function renameLesson(client: ApiClient, lessonId: string, topic: string)
 
 export function deleteLesson(client: ApiClient, lessonId: string) {
   return client.request<void>(`/v2/lessons/${lessonId}`, { method: 'DELETE' });
+}
+
+export function selectFinalLesson(client: ApiClient, lessonId: string) {
+  return client.request<FinalLessonSelection>(`/v2/lessons/${lessonId}/final`, {
+    method: 'PUT',
+  });
 }
 
 export function getLessonAccessUrl(

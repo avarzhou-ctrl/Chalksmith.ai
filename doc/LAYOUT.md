@@ -328,10 +328,16 @@ gates, except for the five-slide custom-html limit.
 Block behavior is organized by teaching domain rather than spread across growing Spec, Catalog,
 and compiler layers. The modules under `slides/blocks/` group content, data, cross-subject diagrams,
 and subject-specific math, physics, chemistry, and biology Blocks. The custom category owns the
-bounded markup Block, while `slides/sanitizer.py` owns its shared validation and scoping boundary.
-Each category owns its Pydantic Block models and validation, model-facing `BlockGuide` entries, and
-platform HTML renderers. The Block models remain pure data; rendering is implemented by adjacent
-module-level functions rather than model methods.
+entire bounded markup slice in `slides/blocks/custom.py`: its Pydantic contract, Prompt allowlist,
+HTML/CSS/SVG sanitizer, capacity helpers, scope resolution, and renderer. Each category owns its
+Pydantic Block models and validation, model-facing `BlockGuide` entries, and platform HTML
+renderers. The Block models remain pure data; rendering is implemented by adjacent module-level
+functions rather than model methods.
+
+Model-response recovery is a separate ingestion concern. `slides/response.py` extracts the JSON
+object, applies bounded local syntax and shape recovery, validates `SlidesLessonSpec`, and builds
+the bounded second-pass repair Prompt. `slides/strategy.py` only adapts that pipeline to the shared
+format strategy contract and invokes the compiler.
 
 The top-level `slides/registry.py` aggregates those vertical slices into one definition registry and
 derives the model-facing Catalog, visual and standalone capabilities, Prompt text, and render

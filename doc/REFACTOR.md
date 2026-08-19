@@ -204,9 +204,10 @@ Authenticated application routes:
 
 ```text
 POST   /v2/generations
-GET    /v2/lessons                                  # one row per lesson root + version_count
+GET    /v2/lessons                                  # selected final revision per root + version_count
 GET    /v2/lessons/{lesson_id}
 GET    /v2/lessons/{lesson_id}/versions             # edit lineage, oldest first
+PUT    /v2/lessons/{lesson_id}/final                # select this ready revision as the final
 PATCH  /v2/lessons/{lesson_id}                      # topic only, applied to every version
 DELETE /v2/lessons/{lesson_id}                      # deletes the whole lineage
 POST   /v2/lessons/{lesson_id}/access-url?download= # short-lived signed URL
@@ -242,7 +243,11 @@ SSE emits `started`, `progress`, `complete`, and `error` events, with `stage` as
 
 ## 8. Data and storage
 
-`lessons` stores metadata, source code, status, stable `object_key`, and `owner_id`; it never stores expiring signed URLs. Each row is one immutable version: `root_lesson_id` is shared by the lineage, `parent_lesson_id` and `edit_instruction` record where the edit came from, and `version_number` is 1-based. The first version is its own root (`id == root_lesson_id`), and the dashboard lists those root rows with a grouped `version_count`. Renames and deletes apply to the whole lineage.
+`lessons` stores metadata, source code, status, stable `object_key`, and `owner_id`; it never stores expiring signed URLs. Each row is one immutable version: `root_lesson_id` is shared by the lineage, `parent_lesson_id` and `edit_instruction` record where the edit came from, and `version_number` is 1-based and unique per owner/root. Revisions cannot change format. The first version is its own root (`id == root_lesson_id`) and initially selects itself through the root's `final_lesson_id`; later ready revisions become final only when the user explicitly selects them. The dashboard returns each root's selected final revision with a grouped `version_count`. Renames and deletes apply to the whole lineage.
+
+`first_error` and `raw_model_output` are private generation diagnostics. They are intentionally
+excluded from public lesson responses; `source_code` remains reserved for accepted compiler or
+legacy source rather than rejected model output.
 
 Object keys are namespaced:
 

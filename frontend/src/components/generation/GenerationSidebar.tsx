@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react';
-import { PanelRight, Flame, Loader2 } from "lucide-react";
+import { PanelRight, Flame, Loader2, Star } from "lucide-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import InputForm from "./InputForm";
 import FormatOutput from "@/components/ui/FormatOutput";
@@ -15,6 +15,7 @@ interface GenerationSidebarProps {
   messages: GenerationMessage[];
   selectedLessonId: string | null;
   onSelectVersion: (lessonId: string) => void;
+  onSelectFinalVersion: (lessonId: string) => void;
   loading: boolean;
   format: LessonFormat | '';
   topic: string;
@@ -35,6 +36,7 @@ export default function GenerationSidebar({
   messages,
   selectedLessonId,
   onSelectVersion,
+  onSelectFinalVersion,
   loading,
   format,
   topic,
@@ -133,22 +135,45 @@ export default function GenerationSidebar({
                   } : undefined}
                   className={`flex scroll-mt-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}
                 >
-                  <button
-                    type="button"
-                    disabled={!msg.lessonId || loading}
-                    onClick={() => msg.lessonId && selectVersion(msg.lessonId)}
+                  <div
                     className={`max-w-[90%] p-4 rounded-2xl text-left text-sm transition-colors ${
                     msg.role === 'user' 
                       ? 'bg-accent text-primary-text rounded-tr-none shadow-lg shadow-accent/10' 
                       : 'bg-surface/50 text-primary-text rounded-tl-none border border-border/50'
                   } ${msg.lessonId ? 'cursor-pointer hover:ring-1 hover:ring-accent/70 focus:outline-none focus:ring-2 focus:ring-accent' : 'cursor-default'} ${msg.lessonId === selectedLessonId ? 'ring-2 ring-accent' : ''}`}>
-                    {msg.versionNumber && <span className={`mb-1 block text-xs font-medium ${msg.role === 'user' ? 'text-primary-text' : 'text-secondary-text'}`}>Version {msg.versionNumber}</span>}
-                    {msg.role === 'assistant' && typeof msg.content === 'string' ? (
-                      <FormatOutput rawContent={msg.content} />
-                    ) : (
-                      msg.content
+                    {msg.versionNumber && (
+                      <span className="mb-1 flex items-center gap-1.5">
+                        <span className={`block text-xs font-medium ${msg.role === 'user' ? 'text-primary-text' : 'text-secondary-text'}`}>
+                          Version {msg.versionNumber}
+                        </span>
+                        {msg.role === 'user' && msg.lessonId && (
+                          <button
+                            type="button"
+                            disabled={loading || !msg.canFinalize || msg.isFinal}
+                            onClick={() => onSelectFinalVersion(msg.lessonId!)}
+                            className="grid size-6 place-items-center rounded-md text-primary-text transition-colors hover:bg-black/15 disabled:cursor-default disabled:opacity-70"
+                            title={msg.isFinal ? 'Final version' : 'Set as final version'}
+                            aria-label={msg.isFinal ? `Version ${msg.versionNumber} is final` : `Set version ${msg.versionNumber} as final`}
+                            aria-pressed={Boolean(msg.isFinal)}
+                          >
+                            <Star className={msg.isFinal ? 'size-4 fill-amber-300 text-amber-300' : 'size-4'} />
+                          </button>
+                        )}
+                      </span>
                     )}
-                  </button>
+                    <button
+                      type="button"
+                      disabled={!msg.lessonId || loading}
+                      onClick={() => msg.lessonId && selectVersion(msg.lessonId)}
+                      className="block w-full text-left disabled:cursor-default"
+                    >
+                      {msg.role === 'assistant' && typeof msg.content === 'string' ? (
+                        <FormatOutput rawContent={msg.content} />
+                      ) : (
+                        msg.content
+                      )}
+                    </button>
+                  </div>
                 </div>
                 );
               })}

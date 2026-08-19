@@ -1,3 +1,4 @@
+from html import unescape
 from typing import Literal
 
 from pydantic import Field, model_validator
@@ -9,6 +10,26 @@ from backend.app.lessons.formats.slides.registry import STANDALONE_BLOCK_TYPES
 
 
 MAX_CUSTOM_HTML_BLOCKS = 5
+# Learner-visible characters on one 16:9 slide, excluding structural keys.
+SLIDE_CAPACITY = 640
+_STRUCTURAL_CAPACITY_KEYS = frozenset(
+    {
+        "type",
+        "id",
+        "from_id",
+        "to_id",
+        "shape",
+        "triangle_type",
+        "style",
+        "position",
+        "start",
+        "end",
+        "direction",
+        "cell_type",
+        "feature",
+        "description",
+    }
+)
 
 SlideKind = Literal[
     "learning-goal",
@@ -45,7 +66,7 @@ class SlideSpec(StrictSpecModel):
                 for value in [self.question, *self.choices, self.explanation]
                 if value
             )
-            if visible_characters > 520:
+            if visible_characters > SLIDE_CAPACITY:
                 raise ValueError(
                     "comprehension-check content exceeds the slide capacity"
                 )
@@ -63,7 +84,7 @@ class SlideSpec(StrictSpecModel):
             raise ValueError(
                 "question fields are only valid on comprehension-check slides"
             )
-        elif sum(_block_text_length(block) for block in self.body) > 520:
+        elif sum(_block_text_length(block) for block in self.body) > SLIDE_CAPACITY:
             raise ValueError(f"{self.kind} content exceeds the slide capacity")
         elif len(self.body) > 1 and any(
             block.type in STANDALONE_BLOCK_TYPES for block in self.body
@@ -104,7 +125,7 @@ class SlidesLessonSpec(StrictSpecModel):
 
 
 def _block_text_length(block: SlideBlock) -> int:
-    # Author markup is not learner-visible, so it must not consume slide capacity.
+    # Author markup and structural keys are not on-slide text.
     if isinstance(block, CustomHtmlBlock):
         return custom_html_visible_length(block)
     return _visible_text_length(block.model_dump())
@@ -112,9 +133,13 @@ def _block_text_length(block: SlideBlock) -> int:
 
 def _visible_text_length(value: object) -> int:
     if isinstance(value, str):
-        return len(value)
+        return len(unescape(value))
     if isinstance(value, dict):
-        return sum(_visible_text_length(item) for item in value.values())
+        return sum(
+            _visible_text_length(item)
+            for key, item in value.items()
+            if key not in _STRUCTURAL_CAPACITY_KEYS
+        )
     if isinstance(value, list):
         return sum(_visible_text_length(item) for item in value)
     return 0

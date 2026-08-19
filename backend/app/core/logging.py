@@ -33,6 +33,7 @@ class JsonFormatter(logging.Formatter):
             "http_method",
             "http_path",
             "http_status",
+            "error",
         ):
             value = getattr(record, field, None)
             if value is not None:

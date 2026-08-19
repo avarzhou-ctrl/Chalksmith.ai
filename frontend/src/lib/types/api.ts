@@ -44,6 +44,7 @@ export interface LessonVersion {
   status: Lesson['status'];
   summary: string | null;
   edit_instruction: string | null;
+  is_final: boolean;
 }
 
 export type LessonListItem = Pick<
@@ -77,4 +78,9 @@ export type GenerationEvent =
 export interface AccessUrl {
   url: string;
   expires_in: number;
+}
+
+export interface FinalLessonSelection {
+  root_lesson_id: string;
+  final_lesson_id: string;
 }

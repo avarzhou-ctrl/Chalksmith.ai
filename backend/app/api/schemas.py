@@ -38,6 +38,7 @@ class LessonVersionResponse(BaseModel):
     status: Literal["generating", "ready", "failed", "deleting"]
     summary: str | None
     edit_instruction: str | None
+    is_final: bool
 
 
 class LessonListItem(BaseModel):
@@ -61,3 +62,8 @@ class LessonUpdate(BaseModel):
 class AccessURLResponse(BaseModel):
     url: str
     expires_in: int
+
+
+class FinalLessonResponse(BaseModel):
+    root_lesson_id: UUID
+    final_lesson_id: UUID

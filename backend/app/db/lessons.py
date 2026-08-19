@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from sqlalchemy import func
+from sqlalchemy.orm import aliased
 from sqlmodel import Session, col, select
 
 from backend.app.db.models import Lesson, utc_now
@@ -16,6 +17,7 @@ class LessonVersionSummary:
     status: str
     summary: str | None
     edit_instruction: str | None
+    is_final: bool
 
 
 def create_lesson(
@@ -35,6 +37,7 @@ def create_lesson(
         owner_id=owner_id,
         root_lesson_id=root_lesson_id or lesson_id,
         parent_lesson_id=parent_lesson_id,
+        final_lesson_id=lesson_id if root_lesson_id is None else None,
         version_number=version_number,
         topic=topic,
         format=lesson_format,
@@ -61,9 +64,11 @@ def list_owned_lessons(
     query: str | None = None,
     lesson_format: str | None = None,
 ) -> list[Lesson]:
-    statement = select(Lesson).where(
+    root = aliased(Lesson)
+    statement = select(Lesson).join(root, Lesson.id == root.final_lesson_id).where(
+        root.owner_id == owner_id,
+        root.id == root.root_lesson_id,
         Lesson.owner_id == owner_id,
-        Lesson.id == Lesson.root_lesson_id,
     )
     if query:
         statement = statement.where(col(Lesson.topic).ilike(f"%{query.strip()}%"))
@@ -91,6 +96,8 @@ def list_lesson_version_summaries(
     session: Session,
     lesson: Lesson,
 ) -> list[LessonVersionSummary]:
+    root = get_lesson_root(session, lesson)
+    final_lesson_id = root.final_lesson_id if root else lesson.root_lesson_id
     rows = session.exec(
         select(
             Lesson.id,
@@ -104,7 +111,10 @@ def list_lesson_version_summaries(
         .where(Lesson.owner_id == lesson.owner_id, Lesson.root_lesson_id == lesson.root_lesson_id)
         .order_by(col(Lesson.version_number))
     ).all()
-    return [LessonVersionSummary(*row) for row in rows]
+    return [
+        LessonVersionSummary(*row, is_final=row.id == final_lesson_id)
+        for row in rows
+    ]
 
 
 def count_lesson_versions(
@@ -126,6 +136,16 @@ def count_lesson_versions(
 
 
 def next_version_number(session: Session, root_lesson_id: UUID, owner_id: str) -> int:
+    # PostgreSQL holds this row lock through create_lesson()'s commit, making
+    # MAX+1 allocation serial per lineage. The unique index remains the backstop.
+    session.exec(
+        select(Lesson.id)
+        .where(
+            Lesson.id == root_lesson_id,
+            Lesson.owner_id == owner_id,
+        )
+        .with_for_update()
+    ).one()
     latest_version = session.exec(
         select(func.max(Lesson.version_number)).where(
             Lesson.owner_id == owner_id,
@@ -133,6 +153,14 @@ def next_version_number(session: Session, root_lesson_id: UUID, owner_id: str) -
         )
     ).one()
     return (latest_version or 0) + 1
+
+
+def set_final_lesson(session: Session, lesson: Lesson) -> Lesson:
+    root = get_lesson_root(session, lesson)
+    if root is None:
+        raise ValueError("Lesson root was not found.")
+    root.final_lesson_id = lesson.id
+    return save_lesson(session, root)
 
 
 def save_lesson(session: Session, lesson: Lesson) -> Lesson:

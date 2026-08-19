@@ -74,12 +74,15 @@ def _migrate_lesson_versions(engine) -> None:
     additions = {
         "root_lesson_id": "UUID" if dialect == "postgresql" else "CHAR(32)",
         "parent_lesson_id": "UUID" if dialect == "postgresql" else "CHAR(32)",
+        "final_lesson_id": "UUID" if dialect == "postgresql" else "CHAR(32)",
         "version_number": "INTEGER NOT NULL DEFAULT 1",
         "edit_instruction": "TEXT",
         "lesson_spec": "TEXT",
         "spec_version": "VARCHAR(64)",
         "runtime_version": "VARCHAR(64)",
         "compiler_version": "VARCHAR(64)",
+        "first_error": "TEXT",
+        "raw_model_output": "TEXT",
     }
     with engine.begin() as connection:
         for name, definition in additions.items():
@@ -88,8 +91,20 @@ def _migrate_lesson_versions(engine) -> None:
         connection.execute(text("UPDATE lessons SET root_lesson_id = id WHERE root_lesson_id IS NULL"))
         connection.execute(
             text(
+                "UPDATE lessons SET final_lesson_id = id "
+                "WHERE id = root_lesson_id AND final_lesson_id IS NULL"
+            )
+        )
+        connection.execute(
+            text(
                 "CREATE INDEX IF NOT EXISTS ix_lessons_owner_root "
                 "ON lessons (owner_id, root_lesson_id)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_lessons_owner_root_version "
+                "ON lessons (owner_id, root_lesson_id, version_number)"
             )
         )
 
