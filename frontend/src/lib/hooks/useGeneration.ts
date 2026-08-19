@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { streamGeneration } from '@/lib/api/generation-stream';
-import { getLesson, getLessonAccessUrl, getLessonVersions, renameLesson } from '@/lib/api/lessons';
+import {
+  getLesson,
+  getLessonAccessUrl,
+  getLessonVersions,
+  renameLesson,
+  selectFinalLesson,
+} from '@/lib/api/lessons';
 import type { ApiClient } from '@/lib/api/client';
 import type { Lesson, LessonFormat, LessonVersion } from '@/lib/types/api';
 
@@ -20,6 +26,15 @@ export interface GenerationMessage {
   content: string;
   lessonId?: string;
   versionNumber?: number;
+  isFinal?: boolean;
+  canFinalize?: boolean;
+}
+
+function assistantMessageForVersion(version: LessonVersion): string {
+  if (version.summary) return version.summary;
+  if (version.status === 'failed') return 'Generation failed.';
+  if (version.status === 'ready') return `Version ${version.version_number} is ready.`;
+  return `Version ${version.version_number} is still being generated.`;
 }
 
 function messagesForVersions(versions: LessonVersion[]): GenerationMessage[] {
@@ -28,6 +43,8 @@ function messagesForVersions(versions: LessonVersion[]): GenerationMessage[] {
       role: 'user' as const,
       lessonId: version.id,
       versionNumber: version.version_number,
+      isFinal: version.is_final,
+      canFinalize: version.status === 'ready',
       content: version.edit_instruction
         || (version.version_number === 1
           ? `Create a lesson about “${version.topic}”.`
@@ -37,7 +54,9 @@ function messagesForVersions(versions: LessonVersion[]): GenerationMessage[] {
       role: 'assistant' as const,
       lessonId: version.id,
       versionNumber: version.version_number,
-      content: version.summary || `Version ${version.version_number} is still being generated.`,
+      isFinal: version.is_final,
+      canFinalize: version.status === 'ready',
+      content: assistantMessageForVersion(version),
     },
   ]);
 }
@@ -127,6 +146,18 @@ export function useGeneration(api: ApiClient) {
       window.history.replaceState({}, '', `?lessonId=${lessonId}`);
     }
   }, [loadLesson]);
+
+  const selectFinalVersion = useCallback(async (lessonId: string) => {
+    try {
+      await selectFinalLesson(api, lessonId);
+      setMessages((current) => current.map((message) => ({
+        ...message,
+        isFinal: Boolean(message.lessonId && message.lessonId === lessonId),
+      })));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to select the final version.');
+    }
+  }, [api]);
 
   const stopGeneration = useCallback(() => {
     abortRef.current?.abort();
@@ -260,6 +291,7 @@ export function useGeneration(api: ApiClient) {
     messages,
     loadLesson,
     selectLessonVersion,
+    selectFinalVersion,
     stopGeneration,
     startNewLesson,
     generateLesson,

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from sqlalchemy import Column, DateTime, Text
+from sqlalchemy import Column, DateTime, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -11,12 +11,22 @@ def utc_now() -> datetime:
 
 class Lesson(SQLModel, table=True):
     __tablename__ = "lessons"
+    __table_args__ = (
+        UniqueConstraint(
+            "owner_id",
+            "root_lesson_id",
+            "version_number",
+            name="uq_lessons_owner_root_version",
+        ),
+    )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     owner_id: str = Field(index=True, max_length=128)
     # All revisions in a lesson share a root; parent preserves the edit lineage.
     root_lesson_id: UUID = Field(index=True)
     parent_lesson_id: UUID | None = Field(default=None, index=True)
+    # Meaningful on the root row: the revision selected for dashboard and sharing.
+    final_lesson_id: UUID | None = Field(default=None, index=True)
     version_number: int = Field(default=1, ge=1)
     topic: str = Field(max_length=500)
     format: str = Field(index=True, max_length=32)
@@ -29,6 +39,10 @@ class Lesson(SQLModel, table=True):
     compiler_version: str | None = Field(default=None, max_length=64)
     object_key: str | None = Field(default=None, max_length=1024)
     error_message: str | None = Field(default=None, sa_column=Column(Text))
+    # First prepare/render failure that triggered a bounded repair; kept after success.
+    first_error: str | None = Field(default=None, sa_column=Column(Text))
+    # Private debugging payload; never serialized by an API response model.
+    raw_model_output: str | None = Field(default=None, sa_column=Column(Text))
     edit_instruction: str | None = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(
         default_factory=utc_now,

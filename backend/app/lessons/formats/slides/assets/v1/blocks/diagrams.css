@@ -16,6 +16,7 @@
 
 .cs-comparison ul {
   display: grid;
+  align-content: start;
   gap: 1rem;
   padding-left: 1.7rem;
 }

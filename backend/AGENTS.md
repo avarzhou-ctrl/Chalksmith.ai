@@ -68,9 +68,9 @@ backend/
 │       │   ├── code.py          # Code response parsing, prompts, shared code strategy
 │       │   ├── registry.py      # Format-to-strategy selection
 │       │   ├── slides/
-│       │   │   ├── strategy.py  # Validated Spec → compiled Slides result
+│       │   │   ├── strategy.py  # Thin Slides strategy adapter
+│       │   │   ├── response.py  # Model-response extraction, recovery, validation
 │       │   │   ├── prompt.py    # Kind-and-Block JSON generation prompt
-│       │   │   ├── sanitizer.py # Custom HTML/CSS/SVG allowlist and scoping
 │       │   │   ├── blocks/
 │       │   │   │   ├── base.py      # Block definition and guide contracts
 │       │   │   │   ├── content.py   # Text Block Specs, guides, renderers
@@ -80,7 +80,7 @@ backend/
 │       │   │   │   ├── physics.py   # Force and wave visuals
 │       │   │   │   ├── chemistry.py # Particle and reaction visuals
 │       │   │   │   ├── biology.py   # Type-aware biological visuals
-│       │   │   │   └── custom.py    # Bounded custom-html escape hatch
+│       │   │   │   └── custom.py    # Custom HTML contract, policy, sanitizer, renderer
 │       │   │   ├── registry.py  # Block registry, Prompt Catalog, render dispatch
 │       │   │   ├── spec.py      # Slide and lesson-level v1 contract
 │       │   │   ├── compiler.py  # Block layout, Slide shell, Reveal document
@@ -151,16 +151,24 @@ disconnects (`CancelledError`/`GeneratedExit`) are recorded as `failed` too, not
 One table, `lessons`. An edit is a **new row**, not an update. Structured lessons store canonical
 `lesson_spec` JSON plus `spec_version`, `runtime_version`, and `compiler_version`;
 `source_code` is compiler output for those rows and remains the canonical legacy input otherwise.
+`first_error` and `raw_model_output` are private diagnostics: they may be persisted and logged in
+bounded form, but must not appear in public API schemas.
 
 - `root_lesson_id` — shared by every revision; a first-generation row points at itself.
 - `parent_lesson_id` — the row that was edited.
-- `version_number` — from `next_version_number()`, per root.
+- `version_number` — from `next_version_number()`, unique per owner and root.
+- `final_lesson_id` — stored on the root row and points to the ready revision selected by the user.
+  A first version selects itself; later revisions do not replace it automatically.
 
 Consequences to respect:
 
-- The dashboard list (`list_owned_lessons`) returns only rows where `id == root_lesson_id`.
-  Version counts come from the single grouped query in `count_lesson_versions()` — do not
-  reintroduce a per-lesson count loop.
+- The dashboard list (`list_owned_lessons`) joins each root to its selected final revision and
+  returns that revision. Version counts still come from a grouped query — do not reintroduce a
+  per-lesson count loop.
+- Every revision in one lineage has the root's format. Reject a format mismatch before opening
+  the generation stream.
+- Revision allocation locks the root while selecting `MAX(version_number) + 1`; the database
+  uniqueness constraint is the final defense against duplicates.
 - Rename (`PATCH`) rewrites `topic` on **all** versions of the root.
 - Delete marks every version `deleting`, removes the source prefix and object from GCS, and only
   then deletes the rows — a ready row must never point at a missing file.
@@ -178,10 +186,11 @@ and new ones must not appear. Missing-or-not-yours is always a 404 via `_owned_o
 - Structured Slides use validated semantic Blocks by default. Their only model-authored markup is
   the `custom-html` escape hatch: it must occupy a slide body alone, may appear on at most five
   slides per lesson, and passes through the tag, attribute, CSS-property, URL, node, depth, and
-  length allowlists in `slides/sanitizer.py`. The sanitizer scopes classes, ids, selectors, and
-  local SVG references to that Block. JavaScript, event handlers, external resources, global CSS,
-  Reveal configuration, and page-level positioning remain forbidden. The compiler still owns the
-  complete document, pinned Reveal/KaTeX assets, CDN fallback, and all page composition.
+  length allowlists colocated with its contract and renderer in `slides/blocks/custom.py`. That
+  sanitizer scopes classes, ids, selectors, and local SVG references to the Block. JavaScript,
+  event handlers, external resources, global CSS, Reveal configuration, and page-level positioning
+  remain forbidden. The compiler still owns the complete document, pinned Reveal/KaTeX assets,
+  CDN fallback, and all page composition.
 - `video`: `validate_manim_code()` AST-walks the source against an import allowlist
   (`manim`, `math`, `numpy`, `random`), blocked builtins, dunder names, and blocked attributes,
   and requires a `GeneratedScene` class. The API only ever *sends* the code onward.

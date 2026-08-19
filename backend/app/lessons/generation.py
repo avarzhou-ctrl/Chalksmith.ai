@@ -13,7 +13,6 @@ from uuid import UUID
 
 from sqlmodel import Session
 
-from backend.app.core.config import get_settings
 from backend.app.db.lessons import (
     create_lesson,
     get_owned_lesson,
@@ -59,6 +58,7 @@ class GenerationService:
         renderers: dict[str, Renderer],
         deadline: float,
         request_id: str,
+        app_env: str,
     ) -> None:
         self.session = session
         self.llm = llm
@@ -66,6 +66,7 @@ class GenerationService:
         self.renderers = renderers
         self.deadline = deadline
         self.request_id = request_id
+        self.app_env = app_env
 
     async def _await(self, operation: Awaitable[T]) -> T:
         remaining = self.deadline - monotonic()
@@ -251,6 +252,8 @@ class GenerationService:
             base_lesson = get_owned_lesson(self.session, base_lesson_id, owner_id)
             if not base_lesson:
                 raise ValueError("The lesson to edit was not found.")
+            if base_lesson.format != lesson_format:
+                raise ValueError("A lesson revision must keep the original format.")
             previous_code = base_lesson.source_code
             previous_spec = base_lesson.lesson_spec
             if base_lesson.format == "slides" and previous_spec is None:
@@ -272,6 +275,7 @@ class GenerationService:
             edit_instruction=edit_instruction,
         )
         source_prefix = f"sources/{owner_id}/{lesson.id}/" if sources else None
+        last_model_text: str | None = None
         yield _event("started", {"lesson_id": str(lesson.id)})
 
         try:
@@ -312,6 +316,7 @@ class GenerationService:
                     yield _event("progress", _progress_data(llm_event))
             if result is None:
                 raise RuntimeError("The AI provider returned no final result.")
+            last_model_text = result.text
             yield _event("progress", {"stage": "validating", "message": "Checking the generated lesson…"})
             renderer = self.renderers[lesson_format]
 
@@ -326,12 +331,16 @@ class GenerationService:
                 except Exception as first_error:
                     if not strategy.can_repair(first_error):
                         raise
+                    first_error_text = str(first_error)[:4000]
+                    lesson.first_error = first_error_text
+                    save_lesson(self.session, lesson)
                     logger.warning(
                         "lesson_generation_retry",
                         extra={
                             "lesson_id": str(lesson.id),
                             "owner_id_hash": owner_hash,
                             "stage": "rendering",
+                            "error": first_error_text[:500],
                             "duration_ms": round((monotonic() - render_started) * 1000),
                             "request_id": self.request_id,
                         },
@@ -354,6 +363,7 @@ class GenerationService:
                             yield _event("progress", _progress_data(llm_event))
                     if repair is None:
                         raise RuntimeError("The AI provider returned no repair result.")
+                    last_model_text = repair.text
                     generated = strategy.prepare(repair.text)
                     render_started = monotonic()
                     render_stage = "repairing"
@@ -441,15 +451,17 @@ class GenerationService:
                 source_prefix=source_prefix,
             )
             lesson.status = "failed"
-            lesson.error_message = _public_error(error)
-            # Keep the rejected code: without it a render failure can only be
-            # diagnosed by reproducing the prompt against the model.
+            lesson.error_message = _public_error(error, app_env=self.app_env)
+            # Keep the rejected output: a prepare/render failure can otherwise
+            # only be diagnosed by reproducing the prompt against the model.
             if generated:
                 lesson.source_code = generated.source_code
                 lesson.lesson_spec = generated.lesson_spec
                 lesson.spec_version = generated.spec_version
                 lesson.runtime_version = generated.runtime_version
                 lesson.compiler_version = generated.compiler_version
+            if last_model_text:
+                lesson.raw_model_output = last_model_text
             save_lesson(self.session, lesson)
             yield _event(
                 "error",
@@ -479,13 +491,13 @@ def _progress_data(progress: LLMProgress) -> dict[str, object]:
     }
 
 
-def _public_error(error: Exception) -> str:
+def _public_error(error: Exception, *, app_env: str) -> str:
     if isinstance(error, LLMProviderError):
         # The upstream text is what makes this actionable: an exhausted balance, an
         # unknown model id, and a rejected key all arrive as the same generic
         # failure otherwise. Production keeps the generic message so provider
         # internals stay out of browser-visible responses.
-        if get_settings().app_env == "production":
+        if app_env == "production":
             return "The configured AI provider could not complete this request."
         return f"The configured AI provider could not complete this request. Upstream: {error}"
     if isinstance(error, RenderError):
