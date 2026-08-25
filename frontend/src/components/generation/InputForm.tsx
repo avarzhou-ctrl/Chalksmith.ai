@@ -32,6 +32,7 @@ export default function InputForm({
     disabled,
     isEditMode
 }: InputFormProps) {
+    const canGenerate = Boolean(format && (topic.trim() || sourceFiles.length));
     const generationButton = (
         <div>
             {disabled ? (
@@ -48,7 +49,7 @@ export default function InputForm({
                     type="button"
                     title="Start Generation"
                     onClick={() => onGenerate()}
-                    disabled={!topic.trim() || !format}
+                    disabled={!canGenerate}
                     className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:opacity-40"
                 >
                     <CircleArrowUp size={20} />
@@ -68,14 +69,14 @@ export default function InputForm({
                 <Textarea 
                     placeholder={isEditMode ? "How should I edit this lesson?" : "Describe your topic..."}
                     disabled={disabled}
-                    fileUploadDisabled={disabled || !topic.trim() || !format}
+                    fileUploadDisabled={disabled}
                     value={topic}
                     maxLength={TOPIC_CHARACTER_LIMIT}
                     files={sourceFiles}
                     onFilesChange={onSourceFilesChange}
                     onChange={(e) => onTopicChange(e.target.value)}
                     onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey && topic.trim() && !disabled) {
+                        if (e.key === 'Enter' && !e.shiftKey && canGenerate && !disabled) {
                             e.preventDefault();
                             onGenerate();
                         }

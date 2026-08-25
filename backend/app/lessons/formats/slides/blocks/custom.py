@@ -13,6 +13,7 @@ from backend.app.lessons.formats.slides.blocks.base import BlockDefinition, Bloc
 
 SCOPE_PLACEHOLDER = "__CS_SCOPE__"
 MAX_HTML_LENGTH = 6000
+PROMPT_HTML_LENGTH_TARGET = 5000
 MAX_STYLE_LENGTH = 2500
 MAX_NODES = 300
 MAX_DEPTH = 12
@@ -149,7 +150,8 @@ def allowlist_prompt() -> str:
         "var(--cs-accent-soft), var(--cs-surface), var(--cs-surface-raised), "
         "var(--cs-border), and var(--cs-success); add other colors only when the color "
         "itself carries meaning, such as coding DNA bases or charge signs. Size text in rem "
-        f"and keep the markup under {MAX_HTML_LENGTH} characters."
+        f"and keep the markup under {PROMPT_HTML_LENGTH_TARGET} characters so validation has "
+        f"a safe margin below the {MAX_HTML_LENGTH}-character hard limit."
     )
 
 

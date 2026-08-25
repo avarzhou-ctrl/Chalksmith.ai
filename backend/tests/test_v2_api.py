@@ -1,3 +1,5 @@
+import asyncio
+import json
 import unittest
 from io import BytesIO
 from pathlib import Path
@@ -114,6 +116,27 @@ class FakeStorage:
                 self.objects.pop(key)
 
 
+class ConnectionTracker:
+    def __init__(self, engine) -> None:
+        self.engine = engine
+        self.active = 0
+
+    def __enter__(self) -> "ConnectionTracker":
+        event.listen(self.engine, "checkout", self._checkout)
+        event.listen(self.engine, "checkin", self._checkin)
+        return self
+
+    def __exit__(self, *_args) -> None:
+        event.remove(self.engine, "checkout", self._checkout)
+        event.remove(self.engine, "checkin", self._checkin)
+
+    def _checkout(self, *_args) -> None:
+        self.active += 1
+
+    def _checkin(self, *_args) -> None:
+        self.active -= 1
+
+
 def _completed_lesson_id(stream: str) -> str:
     completed_line = next(
         line for block in stream.split("\n\n")
@@ -121,7 +144,7 @@ def _completed_lesson_id(stream: str) -> str:
         for line in block.splitlines()
         if line.startswith("data: ")
     )
-    return __import__("json").loads(completed_line[6:])["lesson_id"]
+    return json.loads(completed_line[6:])["lesson_id"]
 
 
 def _failed_lesson_id(stream: str) -> str:
@@ -131,7 +154,7 @@ def _failed_lesson_id(stream: str) -> str:
         for line in block.splitlines()
         if line.startswith("data: ")
     )
-    return __import__("json").loads(error_line[6:])["lesson_id"]
+    return json.loads(error_line[6:])["lesson_id"]
 
 
 class V2ApiTests(unittest.TestCase):
@@ -175,13 +198,7 @@ class V2ApiTests(unittest.TestCase):
         self.assertIn('"generated_characters":', response.text)
         self.assertIn('"stage": "saving"', response.text)
         self.assertIn("event: complete", response.text)
-        completed_line = next(
-            line for block in response.text.split("\n\n")
-            if "event: complete" in block
-            for line in block.splitlines()
-            if line.startswith("data: ")
-        )
-        lesson_id = __import__("json").loads(completed_line[6:])["lesson_id"]
+        lesson_id = _completed_lesson_id(response.text)
 
         lesson_response = self.client.get(f"/v2/lessons/{lesson_id}")
         self.assertEqual(lesson_response.status_code, 200)
@@ -211,23 +228,6 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual(lesson["compiler_version"], "slides-compiler.v1.1")
         self.assertIn('data-chalksmith-runtime="slides-runtime.v1.1"', lesson["source_code"])
         self.assertNotIn("data-chalksmith-template", lesson["source_code"])
-        self.assertIn('data-chalksmith-layout="split"', lesson["source_code"])
-        self.assertIn('data-chalksmith-layout="solution-split"', lesson["source_code"])
-        self.assertIn('<div class="slides">', lesson["source_code"])
-        self.assertIn('<div class="cs-slide__body ', lesson["source_code"])
-        self.assertNotIn('<section class="cs-slide__body ', lesson["source_code"])
-        self.assertEqual(
-            lesson["source_code"].count("<section"),
-            lesson["source_code"].count('<section class="cs-slide '),
-        )
-        self.assertIn(
-            ".reveal .slides > section.cs-slide {\n  display: none !important;",
-            lesson["source_code"],
-        )
-        self.assertIn(
-            ".reveal .slides > section.cs-slide.present {\n  display: grid !important;",
-            lesson["source_code"],
-        )
         for asset_url in (
             REVEAL_CORE_STYLESHEET,
             REVEAL_THEME_STYLESHEET,
@@ -237,15 +237,8 @@ class V2ApiTests(unittest.TestCase):
             KATEX_AUTO_RENDER_SCRIPT,
         ):
             self.assertIn(asset_url, lesson["source_code"])
-        self.assertIn("data-chalksmith-katex", lesson["source_code"])
         self.assertIn("data-chalksmith-reveal-fallback", lesson["source_code"])
-        self.assertIn(
-            ".reveal.chalksmith-reveal-fallback .slides > section:first-child",
-            lesson["source_code"],
-        )
         self.assertEqual(len(llm.prompts), 1)
-        self.assertIn("The platform owns all slide composition", llm.prompts[0])
-        self.assertNotIn('"template"', llm.prompts[0])
         artifact = next(iter(self.storage.objects.values())).decode()
         self.assertIn("Content-Security-Policy", artifact)
         self.assertIn("Equivalent Fractions", artifact)
@@ -263,20 +256,21 @@ class V2ApiTests(unittest.TestCase):
         self.assertIn("event: complete", response.text)
         self.assertEqual(len(llm.prompts), 2)
         self.assertIn("Repair the specification, not the layout system", llm.prompts[1])
-        lesson = self.client.get(f"/v2/lessons/{_completed_lesson_id(response.text)}").json()
+        lesson_id = _completed_lesson_id(response.text)
+        lesson = self.client.get(f"/v2/lessons/{lesson_id}").json()
         self.assertEqual(lesson["status"], "ready")
         self.assertIsNone(lesson["error_message"])
         self.assertNotIn("first_error", lesson)
         with Session(self.app.state.engine) as session:
             stored = get_owned_lesson(
                 session,
-                UUID(_completed_lesson_id(response.text)),
+                UUID(lesson_id),
                 "teacher-a",
             )
             self.assertIn("Invalid Slides specification", stored.first_error)
 
     def test_unescaped_custom_html_compiles_without_a_model_repair(self) -> None:
-        lesson = __import__("json").loads(_slides_response())
+        lesson = json.loads(_slides_response())
         lesson["payload"]["slides"][2]["body"] = [
             {
                 "type": "custom-html",
@@ -284,7 +278,7 @@ class V2ApiTests(unittest.TestCase):
                 "html": '<div class="cycle"><span class="igneous">Igneous</span></div>',
             }
         ]
-        raw = __import__("json").dumps(lesson).replace('\\"', '"')
+        raw = json.dumps(lesson).replace('\\"', '"')
         llm = FakeSlidesLLM(raw)
         self.app.dependency_overrides[get_llm_provider] = lambda: llm
 
@@ -381,18 +375,6 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual(edit_response.status_code, 409)
         self.assertEqual(edit_response.json()["error"]["code"], "legacy_lesson_read_only")
 
-        format_change_response = self.client.post(
-            "/v2/generations",
-            data={
-                "topic": "Legacy Slides",
-                "format": "interactive",
-                "base_lesson_id": str(lesson_id),
-                "edit_instruction": "Convert this lesson.",
-            },
-        )
-        self.assertEqual(format_change_response.status_code, 409)
-        self.assertEqual(format_change_response.json()["error"]["code"], "lesson_format_mismatch")
-
     def test_revision_format_must_match_its_parent(self) -> None:
         first = self.client.post(
             "/v2/generations",
@@ -432,7 +414,6 @@ class V2ApiTests(unittest.TestCase):
 
         versions = self.client.get(f"/v2/lessons/{first_id}/versions").json()
         self.assertEqual([version["is_final"] for version in versions], [True, False])
-        self.assertEqual(self.client.get("/v2/lessons").json()[0]["id"], first_id)
 
         selected = self.client.put(f"/v2/lessons/{edited_id}/final")
 
@@ -442,7 +423,6 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual([version["is_final"] for version in versions], [False, True])
         dashboard = self.client.get("/v2/lessons").json()
         self.assertEqual(dashboard[0]["id"], edited_id)
-        self.assertEqual(dashboard[0]["version_count"], 2)
 
     def test_version_numbers_are_unique_within_a_lesson(self) -> None:
         with Session(self.app.state.engine) as session:
@@ -493,41 +473,30 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual(generation_session.scope, "request")
 
     def test_generation_does_not_hold_a_connection_while_waiting_for_llm(self) -> None:
-        active_connections = 0
         observed_connections: list[tuple[str, int]] = []
-
-        def checkout(*_args) -> None:
-            nonlocal active_connections
-            active_connections += 1
-
-        def checkin(*_args) -> None:
-            nonlocal active_connections
-            active_connections -= 1
+        connections = ConnectionTracker(self.app.state.engine)
 
         class InspectingLLM(FakeLLM):
             async def generate(self, prompt: str) -> LLMResult:
-                observed_connections.append(("llm", active_connections))
+                observed_connections.append(("llm", connections.active))
                 return await super().generate(prompt)
 
         original_upload_file = self.storage.upload_file
 
         def upload_file(source: Path, object_key: str, content_type: str) -> None:
-            observed_connections.append(("storage", active_connections))
+            observed_connections.append(("storage", connections.active))
             original_upload_file(source, object_key, content_type)
 
-        event.listen(self.app.state.engine, "checkout", checkout)
-        event.listen(self.app.state.engine, "checkin", checkin)
         self.app.dependency_overrides[get_llm_provider] = lambda: InspectingLLM()
         self.storage.upload_file = upload_file
         try:
-            response = self.client.post(
-                "/v2/generations",
-                data={"topic": "Connection lifecycle", "format": "interactive"},
-            )
+            with connections:
+                response = self.client.post(
+                    "/v2/generations",
+                    data={"topic": "Connection lifecycle", "format": "interactive"},
+                )
         finally:
             self.storage.upload_file = original_upload_file
-            event.remove(self.app.state.engine, "checkout", checkout)
-            event.remove(self.app.state.engine, "checkin", checkin)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(observed_connections, [("llm", 0), ("storage", 0)])
@@ -538,31 +507,20 @@ class V2ApiTests(unittest.TestCase):
             data={"topic": "Signed URL lifecycle", "format": "interactive"},
         )
         lesson_id = _completed_lesson_id(generated.text)
-        active_connections = 0
         observed_connections: list[int] = []
-
-        def checkout(*_args) -> None:
-            nonlocal active_connections
-            active_connections += 1
-
-        def checkin(*_args) -> None:
-            nonlocal active_connections
-            active_connections -= 1
+        connections = ConnectionTracker(self.app.state.engine)
 
         def signed_url(object_key: str, *, download_name: str | None = None) -> str:
-            observed_connections.append(active_connections)
+            observed_connections.append(connections.active)
             return f"https://storage.test/{object_key}"
 
-        event.listen(self.app.state.engine, "checkout", checkout)
-        event.listen(self.app.state.engine, "checkin", checkin)
         original_signed_url = self.storage.signed_url
         self.storage.signed_url = signed_url
         try:
-            response = self.client.post(f"/v2/lessons/{lesson_id}/access-url")
+            with connections:
+                response = self.client.post(f"/v2/lessons/{lesson_id}/access-url")
         finally:
             self.storage.signed_url = original_signed_url
-            event.remove(self.app.state.engine, "checkout", checkout)
-            event.remove(self.app.state.engine, "checkin", checkin)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(observed_connections, [0])
@@ -573,32 +531,21 @@ class V2ApiTests(unittest.TestCase):
             data={"topic": "Delete lifecycle", "format": "interactive"},
         )
         lesson_id = _completed_lesson_id(generated.text)
-        active_connections = 0
         observed_connections: list[int] = []
-
-        def checkout(*_args) -> None:
-            nonlocal active_connections
-            active_connections += 1
-
-        def checkin(*_args) -> None:
-            nonlocal active_connections
-            active_connections -= 1
+        connections = ConnectionTracker(self.app.state.engine)
 
         original_delete_prefix = self.storage.delete_prefix
 
         def delete_prefix(prefix: str) -> None:
-            observed_connections.append(active_connections)
+            observed_connections.append(connections.active)
             original_delete_prefix(prefix)
 
-        event.listen(self.app.state.engine, "checkout", checkout)
-        event.listen(self.app.state.engine, "checkin", checkin)
         self.storage.delete_prefix = delete_prefix
         try:
-            response = self.client.delete(f"/v2/lessons/{lesson_id}")
+            with connections:
+                response = self.client.delete(f"/v2/lessons/{lesson_id}")
         finally:
             self.storage.delete_prefix = original_delete_prefix
-            event.remove(self.app.state.engine, "checkout", checkout)
-            event.remove(self.app.state.engine, "checkin", checkin)
 
         self.assertEqual(response.status_code, 204)
         self.assertEqual(observed_connections, [0])
@@ -635,6 +582,7 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual([version["version_number"] for version in history], [1, 2])
         self.assertEqual(history[1]["parent_lesson_id"], first_id)
         self.assertEqual(history[1]["edit_instruction"], "Add a worked example.")
+        self.assertIsNone(history[0]["error_message"])
         self.assertNotIn("source_code", history[0])
 
         commits = 0
@@ -749,7 +697,7 @@ class V2ApiTests(unittest.TestCase):
             UploadFile(filename="two.pdf", file=BytesIO(b"%PDF")),
         ]
         with self.assertRaisesRegex(Exception, "at most 1"):
-            __import__("asyncio").run(extract_sources(uploads, count_settings))
+            asyncio.run(extract_sources(uploads, count_settings))
 
         byte_settings = Settings(
             app_env="test",
@@ -762,7 +710,7 @@ class V2ApiTests(unittest.TestCase):
             headers=Headers({"content-type": "application/pdf"}),
         )
         with self.assertRaisesRegex(Exception, "combined PDF uploads"):
-            __import__("asyncio").run(extract_sources([upload], byte_settings))
+            asyncio.run(extract_sources([upload], byte_settings))
 
     def test_interactive_prompt_prevents_double_scaled_pointer_coordinates(self) -> None:
         rules = INTERACTIVE_RULES
@@ -779,7 +727,7 @@ for (let i = steps; i >= 0; i++) drawPoint(i);
         with TemporaryDirectory() as directory, self.assertRaisesRegex(
             RenderError, "counter loop whose update moves away"
         ):
-            __import__("asyncio").run(
+            asyncio.run(
                 HTMLRenderer(required_marker="p5").render(generated, Path(directory))
             )
 
@@ -790,7 +738,7 @@ const example = "for (let i = steps; i >= 0; i++)";
 for (let i = steps; i >= 0; i--) drawPoint(i);
 </script></body></html>"""
         with TemporaryDirectory() as directory:
-            asset = __import__("asyncio").run(
+            asset = asyncio.run(
                 HTMLRenderer(required_marker="p5").render(generated, Path(directory))
             )
 

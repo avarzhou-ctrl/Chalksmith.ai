@@ -29,6 +29,7 @@ class LessonVersionSummary:
     topic: str
     status: str
     summary: str | None
+    error_message: str | None
     edit_instruction: str | None
     is_final: bool
 
@@ -132,6 +133,7 @@ def list_lesson_version_summaries(
             Lesson.topic,
             Lesson.status,
             Lesson.summary,
+            Lesson.error_message,
             Lesson.edit_instruction,
         )
         .where(Lesson.owner_id == lesson.owner_id, Lesson.root_lesson_id == lesson.root_lesson_id)

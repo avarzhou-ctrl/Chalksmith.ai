@@ -37,6 +37,7 @@ class LessonVersionResponse(BaseModel):
     topic: str
     status: Literal["generating", "ready", "failed", "deleting"]
     summary: str | None
+    error_message: str | None
     edit_instruction: str | None
     is_final: bool
 

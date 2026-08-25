@@ -25,7 +25,6 @@ interface GenerationSidebarProps {
   onStopGenerate: () => void;
   sourceFiles: File[];
   onSourceFilesChange: (files: File[]) => void;
-  error: string | null;
   generationStatus: string | null;
 }
 
@@ -46,7 +45,6 @@ export default function GenerationSidebar({
   onStopGenerate,
   sourceFiles,
   onSourceFilesChange,
-  error,
   generationStatus
 }: GenerationSidebarProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -137,8 +135,10 @@ export default function GenerationSidebar({
                 >
                   <div
                     className={`max-w-[90%] p-4 rounded-2xl text-left text-sm transition-colors ${
-                    msg.role === 'user' 
+                    msg.role === 'user'
                       ? 'bg-accent text-primary-text rounded-tr-none shadow-lg shadow-accent/10' 
+                      : msg.isError
+                        ? 'bg-red-500/10 text-red-400 rounded-tl-none border border-red-500/30'
                       : 'bg-surface/50 text-primary-text rounded-tl-none border border-border/50'
                   } ${msg.lessonId ? 'cursor-pointer hover:ring-1 hover:ring-accent/70 focus:outline-none focus:ring-2 focus:ring-accent' : 'cursor-default'} ${msg.lessonId === selectedLessonId ? 'ring-2 ring-accent' : ''}`}>
                     {msg.versionNumber && (
@@ -167,7 +167,7 @@ export default function GenerationSidebar({
                       onClick={() => msg.lessonId && selectVersion(msg.lessonId)}
                       className="block w-full text-left disabled:cursor-default"
                     >
-                      {msg.role === 'assistant' && typeof msg.content === 'string' ? (
+                      {msg.role === 'assistant' && !msg.isError && typeof msg.content === 'string' ? (
                         <FormatOutput rawContent={msg.content} />
                       ) : (
                         msg.content
@@ -195,11 +195,6 @@ export default function GenerationSidebar({
           <Panel minSize="20%" maxSize="50" defaultSize="35%">
             {/* pb-8 matches the preview card's bottom offset so both boxes end on the same line */}
             <div className="h-full px-6 pt-6 pb-8 bg-primary-bg/50 border-t border-border flex flex-col gap-4 backdrop-blur-lg overflow-y-auto">
-              {error && (
-                <p className="shrink-0 text-xs text-red-500 bg-red-500/10 p-2 rounded border border-red-500/20 text-center animate-in fade-in">
-                  {error}
-                </p>
-              )}
               <InputForm
                 format={format}
                 topic={topic}

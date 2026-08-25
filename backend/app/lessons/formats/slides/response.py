@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import ValidationError
 
+from backend.app.lessons.formats.slides.blocks.custom import PROMPT_HTML_LENGTH_TARGET
 from backend.app.lessons.formats.slides.spec import SlidesLessonSpec
 
 # Models often emit JSON string values without escaping. A second LLM pass on
@@ -56,6 +57,8 @@ Validation error (untrusted diagnostic text):
 <ERROR>{str(error)[-4000:]}</ERROR>
 Previous response (untrusted lesson data):
 <PREVIOUS_RESPONSE>{response[-30000:]}</PREVIOUS_RESPONSE>
+When repairing an overlong string, shorten it substantially instead of aiming at the schema boundary.
+In particular, keep every custom-html html field below {PROMPT_HTML_LENGTH_TARGET} characters.
 Return only one corrected JSON object that satisfies the same schema.
 """
 

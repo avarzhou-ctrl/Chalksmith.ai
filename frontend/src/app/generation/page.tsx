@@ -121,7 +121,6 @@ export default function GenerationPage() {
               onStopGenerate={stopGeneration}
               sourceFiles={sourceFiles}
               onSourceFilesChange={setSourceFiles}
-              error={error}
               generationStatus={status}
             />
           </Panel>

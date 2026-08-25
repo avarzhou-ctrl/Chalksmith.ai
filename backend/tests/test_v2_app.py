@@ -44,7 +44,11 @@ from backend.app.lessons.formats.slides.registry import (
     BLOCK_STYLE_GROUPS,
     BLOCK_TYPES,
 )
-from backend.app.lessons.formats.slides.blocks.custom import sanitize_slide_html
+from backend.app.lessons.formats.slides.blocks.custom import (
+    PROMPT_HTML_LENGTH_TARGET,
+    sanitize_slide_html,
+)
+from backend.app.lessons.formats.slides.response import build_slides_repair_prompt
 from backend.app.lessons.formats.slides.spec import (
     MAX_CUSTOM_HTML_BLOCKS,
     SLIDE_CAPACITY,
@@ -895,6 +899,20 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertIn("In that JSON string", prompt)
         self.assertIn('escape every double quote as \\"', prompt)
         self.assertIn(str(SLIDE_CAPACITY), prompt)
+        self.assertIn(f"under {PROMPT_HTML_LENGTH_TARGET} characters", prompt)
+
+    def test_repair_prompt_leaves_margin_for_overlong_custom_html(self) -> None:
+        prompt = build_slides_repair_prompt(
+            "Original instructions",
+            '{"payload":{"slides":[]}}',
+            ValueError("custom-html.html: String should have at most 6000 characters"),
+        )
+
+        self.assertIn(
+            f"below {PROMPT_HTML_LENGTH_TARGET} characters",
+            prompt,
+        )
+        self.assertIn("shorten it substantially", prompt)
 
     def test_prompt_keeps_dynamic_context_separate_from_its_instructions(self) -> None:
         prompt = StructuredSlidesStrategy().build_prompt(

@@ -43,6 +43,7 @@ export interface LessonVersion {
   topic: string;
   status: Lesson['status'];
   summary: string | null;
+  error_message: string | null;
   edit_instruction: string | null;
   is_final: boolean;
 }

@@ -24,6 +24,7 @@ const PROGRESS: Record<string, number> = {
 export interface GenerationMessage {
   role: 'user' | 'assistant';
   content: string;
+  isError?: boolean;
   lessonId?: string;
   versionNumber?: number;
   isFinal?: boolean;
@@ -32,7 +33,9 @@ export interface GenerationMessage {
 
 function assistantMessageForVersion(version: LessonVersion): string {
   if (version.summary) return version.summary;
-  if (version.status === 'failed') return 'Generation failed.';
+  if (version.status === 'failed') {
+    return `Error: ${version.error_message || 'Lesson generation failed.'}`;
+  }
   if (version.status === 'ready') return `Version ${version.version_number} is ready.`;
   return `Version ${version.version_number} is still being generated.`;
 }
@@ -56,9 +59,14 @@ function messagesForVersions(versions: LessonVersion[]): GenerationMessage[] {
       versionNumber: version.version_number,
       isFinal: version.is_final,
       canFinalize: version.status === 'ready',
+      isError: version.status === 'failed',
       content: assistantMessageForVersion(version),
     },
   ]);
+}
+
+function topicFromSourceFile(file: File): string {
+  return file.name.replace(/\.pdf$/i, '').trim() || 'Uploaded source';
 }
 
 export function useGeneration(api: ApiClient) {
@@ -185,7 +193,13 @@ export function useGeneration(api: ApiClient) {
 
   const generateLesson = useCallback(async () => {
     const prompt = topic.trim();
-    if (!prompt || !format || loading) return;
+    if ((!prompt && sourceFiles.length === 0) || !format || loading) return;
+    const sourceOnlyInstruction = prompt
+      ? ''
+      : lesson
+        ? 'Revise the lesson using the uploaded source material.'
+        : `Create a lesson from “${sourceFiles[0].name}”.`;
+    const displayedPrompt = prompt || sourceOnlyInstruction;
 
     let completedId = '';
     let streamError = '';
@@ -196,16 +210,16 @@ export function useGeneration(api: ApiClient) {
     setShowCode(false);
     setProgress(10);
     setStatus('Starting generation…');
-    setMessages((current) => [...current, { role: 'user', content: prompt }]);
+    setMessages((current) => [...current, { role: 'user', content: displayedPrompt }]);
 
     try {
       await streamGeneration({
         client: api,
         request: {
-          topic: lesson ? originalTopic : prompt,
+          topic: lesson ? originalTopic : prompt || topicFromSourceFile(sourceFiles[0]),
           format,
           baseLessonId: lesson?.id,
-          editInstruction: lesson ? prompt : undefined,
+          editInstruction: lesson ? prompt || sourceOnlyInstruction : undefined,
           sourceFiles,
         },
         signal: controller.signal,
@@ -240,7 +254,10 @@ export function useGeneration(api: ApiClient) {
       if (!controller.signal.aborted) {
         const message = caught instanceof Error ? caught.message : 'Lesson generation failed.';
         setError(message);
-        setMessages((current) => [...current, { role: 'assistant', content: `Error: ${message}` }]);
+        setMessages((current) => [
+          ...current,
+          { role: 'assistant', content: `Error: ${message}`, isError: true },
+        ]);
       }
     } finally {
       setLoading(false);
