@@ -74,7 +74,9 @@ visually. Never force an irrelevant visual, invent data, or replace content clea
 Catalog examples demonstrate structure only; write all learner-visible content for this lesson.
 </BLOCK_SELECTION>
 
-<BLOCK_CATALOG>{block_catalog}</BLOCK_CATALOG>
+<BLOCK_CATALOG>
+{block_catalog}
+</BLOCK_CATALOG>
 
 <GEOMETRY_RULES>
 Use geometry-model only for actual geometric shapes, measurements, and geometric relationships;
