@@ -691,6 +691,15 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual([row["version_count"] for row in response.json()], [2, 2, 2])
         self.assertEqual(len(select_statements), 2)
+        dashboard_select = select_statements[0]
+        for private_or_heavy_field in (
+            "source_code",
+            "lesson_spec",
+            "raw_model_output",
+            "first_error",
+            "object_key",
+        ):
+            self.assertNotIn(private_or_heavy_field, dashboard_select)
 
     def test_lesson_queries_are_tenant_isolated(self) -> None:
         with Session(self.app.state.engine) as session:

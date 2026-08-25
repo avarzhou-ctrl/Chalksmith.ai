@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import func
@@ -6,6 +7,18 @@ from sqlalchemy.orm import aliased
 from sqlmodel import Session, col, select
 
 from backend.app.db.models import Lesson, utc_now
+
+
+@dataclass(frozen=True)
+class LessonListSummary:
+    id: UUID
+    root_lesson_id: UUID
+    topic: str
+    format: str
+    status: str
+    summary: str | None
+    created_at: datetime
+    updated_at: datetime
 
 
 @dataclass(frozen=True)
@@ -63,19 +76,32 @@ def list_owned_lessons(
     *,
     query: str | None = None,
     lesson_format: str | None = None,
-) -> list[Lesson]:
+) -> list[LessonListSummary]:
     root = aliased(Lesson)
-    statement = select(Lesson).join(root, Lesson.id == root.final_lesson_id).where(
-        root.owner_id == owner_id,
-        root.id == root.root_lesson_id,
-        Lesson.owner_id == owner_id,
+    statement = (
+        select(
+            Lesson.id,
+            Lesson.root_lesson_id,
+            Lesson.topic,
+            Lesson.format,
+            Lesson.status,
+            Lesson.summary,
+            Lesson.created_at,
+            Lesson.updated_at,
+        )
+        .join(root, Lesson.id == root.final_lesson_id)
+        .where(
+            root.owner_id == owner_id,
+            root.id == root.root_lesson_id,
+            Lesson.owner_id == owner_id,
+        )
     )
     if query:
         statement = statement.where(col(Lesson.topic).ilike(f"%{query.strip()}%"))
     if lesson_format:
         statement = statement.where(Lesson.format == lesson_format)
     statement = statement.order_by(col(Lesson.updated_at).desc())
-    return list(session.exec(statement).all())
+    return [LessonListSummary(*row) for row in session.exec(statement).all()]
 
 
 def get_lesson_root(session: Session, lesson: Lesson) -> Lesson | None:
