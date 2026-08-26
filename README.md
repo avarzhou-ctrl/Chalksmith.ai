@@ -147,7 +147,10 @@ Install the following tools:
 
 - Git, Node.js 24+, and npm.
 - [uv](https://docs.astral.sh/uv/); uv installs the pinned Python 3.12 runtime and manages `backend/.venv`.
-- Manim's operating-system dependencies for video generation. The renderer image installs Cairo, Pango, FFmpeg, build tools, and `pkg-config`; see the [Manim installation guide](https://docs.manim.community/en/stable/installation.html) for the equivalent host setup.
+- Manim's operating-system dependencies for video generation. The renderer image installs Cairo,
+  Pango, FFmpeg, Inter and Noto CJK fonts, a LaTeX/`dvisvgm` toolchain, build tools, and `pkg-config`;
+  see the [Manim installation guide](https://docs.manim.community/en/stable/installation.html) for
+  the equivalent host setup.
 
 Clone and install
 

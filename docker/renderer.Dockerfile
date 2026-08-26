@@ -3,7 +3,18 @@ FROM python:3.12-slim
 
 ENV DEBIAN_FRONTEND=noninteractive PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential ffmpeg libcairo2-dev libpango1.0-dev pkg-config \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        dvisvgm \
+        ffmpeg \
+        fonts-inter \
+        fonts-noto-cjk \
+        libcairo2-dev \
+        libpango1.0-dev \
+        pkg-config \
+        texlive-fonts-recommended \
+        texlive-latex-base \
+        texlive-latex-extra \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

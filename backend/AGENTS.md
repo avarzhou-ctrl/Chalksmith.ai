@@ -91,8 +91,9 @@ backend/
 │       │   │   ├── strategy.py  # Interactive code strategy
 │       │   │   └── prompt.py    # p5.js code-generation rules
 │       │   └── video/
-│       │       ├── strategy.py  # Video code and repair strategy
-│       │       └── prompt.py    # Manim code-generation rules
+│       │       ├── strategy.py  # Video code, style compilation, and repair strategy
+│       │       ├── compiler.py  # Platform typography, color, and MathTex runtime
+│       │       └── prompt.py    # Manim code-generation and helper-use rules
 │       └── render/
 │           ├── base.py          # Renderer protocol, asset, and RenderError
 │           ├── html.py          # Format-neutral HTML validation, CSP, file output

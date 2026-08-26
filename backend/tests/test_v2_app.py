@@ -56,6 +56,15 @@ from backend.app.lessons.formats.slides.spec import (
     _block_text_length,
 )
 from backend.app.lessons.formats.slides.strategy import StructuredSlidesStrategy
+from backend.app.lessons.formats.video.compiler import (
+    VIDEO_COMPILER_VERSION,
+    VIDEO_RUNTIME_END,
+    VIDEO_RUNTIME_START,
+    VIDEO_RUNTIME_VERSION,
+    compile_video,
+)
+from backend.app.lessons.formats.video.prompt import VIDEO_RULES
+from backend.app.lessons.formats.video.strategy import VideoStrategy
 from backend.app.lessons.generation import GenerationService, LLMProgress, _public_error
 from backend.app.lessons.render.base import RenderError
 from backend.app.lessons.render.manim import (
@@ -784,6 +793,114 @@ class CodeGenerationPromptTests(unittest.TestCase):
         self.assertIn("---CODE_START--- on its own line", prompt)
         self.assertIn("Never use Markdown fences", prompt)
         self.assertIn("write no closing separator, fence, or commentary", prompt)
+
+
+class VideoGenerationTests(unittest.TestCase):
+    def test_prompt_requires_platform_typography_and_latex_helpers(self) -> None:
+        for section in (
+            "<DELIVERABLE>",
+            "<TEACHING_SEQUENCE>",
+            "<PLATFORM_STYLE>",
+            "<MATH_RENDERING>",
+            "<LAYOUT_AND_SAFETY>",
+        ):
+            self.assertIn(section, VIDEO_RULES)
+
+        normalized_rules = " ".join(VIDEO_RULES.split())
+        self.assertIn("Use `cs_text(value, role, color)`", normalized_rules)
+        self.assertIn("Use `cs_math(r\"...\", role, color)`", normalized_rules)
+        self.assertIn("The platform selects Inter or Noto Sans CJK SC", normalized_rules)
+        self.assertIn("Never call Text, MarkupText, Paragraph, Title", normalized_rules)
+        self.assertIn("Never call Tex or MathTex directly", normalized_rules)
+        self.assertIn("Never represent a fraction with a slash", normalized_rules)
+        self.assertIn("share one base font size", normalized_rules)
+        self.assertIn("split a long equality chain", normalized_rules)
+        self.assertNotIn("Use Text and Unicode symbols instead of Tex", normalized_rules)
+
+    def test_strategy_injects_the_platform_runtime_and_metadata(self) -> None:
+        response = r'''A concise summary.
+---CODE_START---
+from manim import *
+import numpy as np
+
+class GeneratedScene(Scene):
+    def construct(self):
+        title = cs_text("Pythagorean theorem", "title", "text")
+        formula = cs_math(r"a^2 + b^2 = c^2", "display", "accent")
+        self.add(title, formula)
+'''
+
+        prepared = VideoStrategy().prepare(response)
+
+        self.assertEqual(prepared.summary, "A concise summary.")
+        self.assertEqual(prepared.runtime_version, VIDEO_RUNTIME_VERSION)
+        self.assertEqual(prepared.compiler_version, VIDEO_COMPILER_VERSION)
+        self.assertIn(VIDEO_RUNTIME_START, prepared.source_code)
+        self.assertIn(VIDEO_RUNTIME_END, prepared.source_code)
+        self.assertIn('CS_LATIN_FONT = "Inter"', prepared.source_code)
+        self.assertIn('CS_CJK_FONT = "Noto Sans CJK SC"', prepared.source_code)
+        self.assertIn("def cs_math", prepared.source_code)
+        self.assertIn("MathTex(", prepared.source_code)
+        self.assertIn('"display": (36, 11.4)', prepared.source_code)
+        self.assertIn('"equation": (36, 10.8)', prepared.source_code)
+        self.assertIn("CS_MATH_MIN_SCALE = 0.9", prepared.source_code)
+        self.assertIn("split it into multiple formulas", prepared.source_code)
+        self.assertIn('config.background_color = CS_COLORS["background"]', prepared.source_code)
+        self.assertIn("class GeneratedScene(Scene):", prepared.source_code)
+        ast.parse(prepared.source_code)
+        validate_manim_code(prepared.source_code)
+
+    def test_compiler_rejects_direct_text_and_math_objects(self) -> None:
+        direct_calls = (
+            'Text("Heading")',
+            r'MathTex(r"x^2")',
+            r'Tex(r"Area")',
+        )
+        for direct_call in direct_calls:
+            with self.subTest(direct_call=direct_call), self.assertRaisesRegex(
+                RenderError, "must use Chalksmith helpers"
+            ):
+                compile_video(
+                    "from manim import *\n"
+                    "class GeneratedScene(Scene):\n"
+                    "    def construct(self):\n"
+                    f"        self.add({direct_call})\n"
+                )
+
+    def test_edit_prompt_strips_the_prior_compiler_runtime(self) -> None:
+        source = """from manim import *
+class GeneratedScene(Scene):
+    def construct(self):
+        self.add(cs_text("Old", "title", "text"))
+"""
+        compiled = compile_video(source)
+        recompiled = compile_video(compiled)
+
+        prompt = VideoStrategy().build_prompt(
+            FormatRequest(
+                topic="Revise the title",
+                lesson_format="video",
+                previous_code=compiled,
+                edit_instruction="Use the new title.",
+            )
+        )
+
+        self.assertNotIn(VIDEO_RUNTIME_START, prompt)
+        self.assertNotIn(VIDEO_RUNTIME_END, prompt)
+        self.assertIn('self.add(cs_text("Old", "title", "text"))', prompt)
+        self.assertEqual(recompiled.count(VIDEO_RUNTIME_START), 1)
+        self.assertEqual(recompiled.count(VIDEO_RUNTIME_END), 1)
+
+    def test_compiler_rejects_platform_style_overrides(self) -> None:
+        source = """from manim import *
+config.background_color = WHITE
+class GeneratedScene(Scene):
+    def construct(self):
+        self.wait()
+"""
+
+        with self.assertRaisesRegex(RenderError, "must not override the platform background"):
+            compile_video(source)
 
 
 class StructuredSlidesTests(unittest.TestCase):

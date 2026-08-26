@@ -534,6 +534,15 @@ the renderer executes.
 
 ### 9.2 Video specification
 
+As an incremental step before the storyboard compiler owns the complete scene, the current
+code-driven Video strategy injects a versioned platform runtime into generated Manim source. That
+runtime owns the chalkboard palette, Inter/Noto CJK typography roles, background, text fitting, and
+the approved `MathTex` template. Model-authored code must use `cs_text` and `cs_math`; direct text
+objects and background overrides are rejected and receive the existing bounded repair pass. Main
+display and derivation equations share one base font size, while compact math is reserved for
+diagram annotations. An expression that would need more than ten percent downscaling is rejected so
+the repair pass can split it into multiple consistently sized formula objects.
+
 ```json
 {
   "template": "worked-explanation",
@@ -557,7 +566,7 @@ the renderer executes.
 
 The v1 object vocabulary should include:
 
-- text, label, callout, equation-as-Unicode, and step list;
+- text, label, callout, validated LaTeX equation, and step list;
 - line, arrow, point, circle, rectangle, polygon, angle, brace, and measurement;
 - axes, number line, plotted points, and sampled function graphs;
 - groups whose children use compiler-controlled arrangement.
@@ -592,7 +601,7 @@ Before rendering, the compiler validates:
 - configured duration, per-beat reading time, and bounded simultaneous object count;
 - local geometry bounds and text-length budgets;
 - every object entering or leaving the scene through a declared action;
-- no unsupported primitive, transition, font, image, SVG, LaTeX, or external asset.
+- no unsupported primitive, transition, font, image, SVG, LaTeX package/template, or external asset.
 
 The compiler then emits a `GeneratedScene` using only audited platform helpers. The private Manim
 renderer retains its deadline, output-size limit, and lack of application credentials. Sampled
