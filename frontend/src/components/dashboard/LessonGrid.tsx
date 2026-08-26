@@ -53,6 +53,7 @@ export default function LessonGrid({
           description={lesson.summary ? <FormatOutput rawContent={lesson.summary} /> : null}
           format={lesson.format}
           status={lesson.status}
+          isPublished={lesson.is_published}
           createdAt={lesson.created_at}
           versionCount={lesson.version_count}
           onDelete={() => onDelete(lesson.id)}

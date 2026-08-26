@@ -1,16 +1,17 @@
-import re
-from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
 from sqlmodel import Session
 
 from backend.app.api.dependencies import get_request_settings
+from backend.app.api.lesson_access import sign_lesson_access
 from backend.app.api.schemas import (
     AccessURLResponse,
     FinalLessonResponse,
     LessonFormat,
     LessonListItem,
+    LessonPublicationResponse,
+    LessonPublicationUpdate,
     LessonResponse,
     LessonUpdate,
     LessonVersionResponse,
@@ -26,8 +27,10 @@ from backend.app.db.lessons import (
     list_owned_lessons,
     save_lessons,
     set_final_lesson,
+    set_lesson_publication,
 )
 from backend.app.db.session import get_session
+from backend.app.db.profiles import ensure_user_profile
 from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.storage import Storage, get_storage
 
@@ -39,6 +42,18 @@ def _owned_or_404(session: Session, lesson_id: UUID, owner_id: str):
     if lesson is None:
         raise AppError(code="lesson_not_found", message="Lesson not found.", status_code=404)
     return lesson
+
+
+def _lesson_response(session: Session, lesson) -> LessonResponse:
+    root = get_lesson_root(session, lesson)
+    if root is None:
+        raise AppError(code="lesson_not_found", message="Lesson not found.", status_code=404)
+    return LessonResponse.model_validate(lesson).model_copy(
+        update={
+            "is_published": root.published_at is not None,
+            "published_at": root.published_at,
+        }
+    )
 
 
 @router.get("", response_model=list[LessonListItem])
@@ -56,7 +71,10 @@ def list_lessons(
     )
     return [
         LessonListItem.model_validate(lesson).model_copy(
-            update={"version_count": version_counts.get(lesson.root_lesson_id, 0)}
+            update={
+                "version_count": version_counts.get(lesson.root_lesson_id, 0),
+                "is_published": lesson.is_published,
+            }
         )
         for lesson in lessons
     ]
@@ -68,7 +86,7 @@ def get_lesson(
     user: AuthUser = Depends(get_current_user),
     session: Session = Depends(get_session, scope="function"),
 ):
-    return _owned_or_404(session, lesson_id, user.uid)
+    return _lesson_response(session, _owned_or_404(session, lesson_id, user.uid))
 
 
 @router.get("/{lesson_id}/versions", response_model=list[LessonVersionResponse])
@@ -101,6 +119,36 @@ def select_final_lesson(
     )
 
 
+@router.put("/{lesson_id}/publication", response_model=LessonPublicationResponse)
+def update_lesson_publication(
+    lesson_id: UUID,
+    update: LessonPublicationUpdate,
+    user: AuthUser = Depends(get_current_user),
+    session: Session = Depends(get_session, scope="function"),
+) -> LessonPublicationResponse:
+    lesson = _owned_or_404(session, lesson_id, user.uid)
+    if update.published and (lesson.status != "ready" or not lesson.object_key):
+        raise AppError(
+            code="lesson_not_ready",
+            message="Only a ready lesson version can be published.",
+            status_code=409,
+        )
+    if update.published:
+        display_name = (update.display_name or "Chalksmith creator").strip()
+        ensure_user_profile(
+            session,
+            owner_id=user.uid,
+            display_name=display_name or "Chalksmith creator",
+        )
+    root = set_lesson_publication(session, lesson, update.published)
+    return LessonPublicationResponse(
+        root_lesson_id=root.id,
+        lesson_id=lesson.id,
+        is_published=root.published_at is not None,
+        published_at=root.published_at,
+    )
+
+
 @router.patch("/{lesson_id}", response_model=LessonResponse)
 def update_lesson(
     lesson_id: UUID,
@@ -125,7 +173,7 @@ def update_lesson(
     for version in versions:
         version.topic = topic
     save_lessons(session, versions)
-    return lesson
+    return _lesson_response(session, lesson)
 
 
 @router.delete("/{lesson_id}", status_code=204)
@@ -178,21 +226,7 @@ def create_access_url(
     settings: Settings = Depends(get_request_settings),
 ) -> AccessURLResponse:
     lesson = _owned_or_404(session, lesson_id, user.uid)
-    if lesson.status != "ready" or not lesson.object_key:
-        raise AppError(code="lesson_not_ready", message="Lesson output is not ready.", status_code=409)
-    extension = Path(lesson.object_key).suffix
-    safe_topic = re.sub(r"[^\w .()-]", "_", lesson.topic, flags=re.UNICODE).strip()[:80]
-    download_name = f"{safe_topic or 'chalksmith-lesson'}{extension}" if download else None
-    object_key = lesson.object_key
     # Signing can call IAM over the network; do not reserve a scarce DB
     # connection while that independent operation is in flight.
     session.close()
-    try:
-        url = storage.signed_url(object_key, download_name=download_name)
-    except Exception as error:
-        raise AppError(
-            code="signed_url_failed",
-            message="A temporary lesson URL could not be created.",
-            status_code=503,
-        ) from error
-    return AccessURLResponse(url=url, expires_in=settings.signed_url_ttl_seconds)
+    return sign_lesson_access(lesson, download=download, storage=storage, settings=settings)

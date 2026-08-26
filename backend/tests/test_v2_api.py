@@ -424,6 +424,107 @@ class V2ApiTests(unittest.TestCase):
         dashboard = self.client.get("/v2/lessons").json()
         self.assertEqual(dashboard[0]["id"], edited_id)
 
+    def test_published_final_version_is_publicly_listed_viewable_and_downloadable(self) -> None:
+        first = self.client.post(
+            "/v2/generations",
+            data={"topic": "Public fractions", "format": "interactive"},
+        )
+        first_id = _completed_lesson_id(first.text)
+        edited = self.client.post(
+            "/v2/generations",
+            data={
+                "topic": "Public fractions",
+                "format": "interactive",
+                "base_lesson_id": first_id,
+                "edit_instruction": "Add a visual example.",
+            },
+        )
+        edited_id = _completed_lesson_id(edited.text)
+
+        publication = self.client.put(
+            f"/v2/lessons/{edited_id}/publication",
+            json={"published": True, "display_name": "Ada Teacher"},
+        )
+
+        self.assertEqual(publication.status_code, 200)
+        self.assertTrue(publication.json()["is_published"])
+        self.assertEqual(publication.json()["lesson_id"], edited_id)
+        self.assertIsNotNone(publication.json()["published_at"])
+        profile = self.client.get("/v2/profile")
+        self.assertEqual(profile.status_code, 200)
+        self.assertEqual(profile.json()["display_name"], "Ada Teacher")
+        self.assertNotIn("email", profile.json())
+        updated_profile = self.client.put(
+            "/v2/profile",
+            json={
+                "display_name": "Ada Teacher",
+                "bio": "I create visual math lessons for curious learners.",
+            },
+        )
+        self.assertEqual(updated_profile.status_code, 200)
+        profile_id = updated_profile.json()["id"]
+        public_profile = self.client.get(f"/v2/profiles/{profile_id}")
+        self.assertEqual(public_profile.status_code, 200)
+        self.assertEqual(
+            public_profile.json()["bio"],
+            "I create visual math lessons for curious learners.",
+        )
+        self.assertNotIn("email", public_profile.json())
+        self.assertTrue(self.client.get(f"/v2/lessons/{first_id}").json()["is_published"])
+        dashboard = self.client.get("/v2/lessons")
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertTrue(dashboard.json()[0]["is_published"])
+        published = self.client.get("/v2/explore/lessons")
+        self.assertEqual(published.status_code, 200)
+        self.assertEqual([lesson["id"] for lesson in published.json()], [edited_id])
+        self.assertNotIn("source_code", published.json()[0])
+        self.assertNotIn("email", published.json()[0])
+        self.assertEqual(published.json()[0]["author_profile_id"], profile_id)
+        self.assertEqual(published.json()[0]["author_display_name"], "Ada Teacher")
+
+        old_access = self.client.post(f"/v2/explore/lessons/{first_id}/access-url")
+        view_access = self.client.post(f"/v2/explore/lessons/{edited_id}/access-url")
+        download_access = self.client.post(
+            f"/v2/explore/lessons/{edited_id}/access-url?download=true"
+        )
+
+        self.assertEqual(old_access.status_code, 404)
+        self.assertEqual(view_access.status_code, 200)
+        self.assertNotIn("?download=", view_access.json()["url"])
+        self.assertIn("?download=Public fractions.html", download_access.json()["url"])
+
+        unpublished = self.client.put(
+            f"/v2/lessons/{first_id}/publication",
+            json={"published": False},
+        )
+
+        self.assertEqual(unpublished.status_code, 200)
+        self.assertFalse(unpublished.json()["is_published"])
+        self.assertFalse(self.client.get("/v2/lessons").json()[0]["is_published"])
+        self.assertEqual(self.client.get("/v2/explore/lessons").json(), [])
+        self.assertEqual(
+            self.client.post(f"/v2/explore/lessons/{edited_id}/access-url").status_code,
+            404,
+        )
+
+    def test_only_ready_lessons_can_be_published(self) -> None:
+        with Session(self.app.state.engine) as session:
+            lesson = create_lesson(
+                session,
+                owner_id="teacher-a",
+                topic="Still generating",
+                lesson_format="video",
+            )
+            lesson_id = lesson.id
+
+        response = self.client.put(
+            f"/v2/lessons/{lesson_id}/publication",
+            json={"published": True},
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["error"]["code"], "lesson_not_ready")
+
     def test_version_numbers_are_unique_within_a_lesson(self) -> None:
         with Session(self.app.state.engine) as session:
             root = create_lesson(
@@ -661,14 +762,23 @@ class V2ApiTests(unittest.TestCase):
         self.assertIn(mine_id, ids)
         self.assertNotIn(other_id, ids)
         self.assertEqual(self.client.get(f"/v2/lessons/{other_id}").status_code, 404)
+        self.assertEqual(
+            self.client.put(
+                f"/v2/lessons/{other_id}/publication",
+                json={"published": False},
+            ).status_code,
+            404,
+        )
 
     def test_missing_identity_token_is_rejected(self) -> None:
         self.app.dependency_overrides.pop(get_current_user)
 
         response = self.client.get("/v2/lessons")
+        public_response = self.client.get("/v2/explore/lessons")
 
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["error"]["code"], "authentication_required")
+        self.assertEqual(public_response.status_code, 200)
 
     def test_delete_removes_sources_before_ready_output(self) -> None:
         with Session(self.app.state.engine) as session:

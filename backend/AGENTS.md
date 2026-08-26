@@ -34,9 +34,11 @@ backend/
 │   ├── renderer_main.py         # Private POST /internal/render/manim app
 │   ├── api/                     # HTTP validation, delegation, serialization
 │   │   ├── dependencies.py      # Request settings and renderer wiring
+│   │   ├── explore.py           # Public published-lesson list and access URLs
 │   │   ├── generations.py       # POST /v2/generations SSE endpoint
 │   │   ├── health.py            # Health check
 │   │   ├── lessons.py           # Lesson CRUD, versions, and access URLs
+│   │   ├── profiles.py          # Private profile editing and public profile reads
 │   │   ├── local_storage.py     # Local-only artifact route, mounted conditionally
 │   │   └── schemas.py           # API Pydantic models, not ORM models
 │   ├── core/
@@ -176,9 +178,11 @@ Consequences to respect:
 
 ## Non-negotiable invariants
 
-**Tenant isolation.** `owner_id` is the Clerk `sub` claim. Every read and write goes through the
-owner-scoped helpers in `backend/app/db/lessons.py`; there is no unscoped lesson query anywhere,
-and new ones must not appear. Missing-or-not-yours is always a 404 via `_owned_or_404()`.
+**Tenant isolation.** `owner_id` is the Clerk `sub` claim. Every private read and write goes through
+the owner-scoped helpers in `backend/app/db/lessons.py`; there is no unscoped private lesson query.
+The only deliberate exception is Explore: its read-only helpers must join through a root with a
+non-null `published_at` and expose only that root's selected ready final revision. Missing,
+unpublished, or not-yours private records are always a 404 via `_owned_or_404()`.
 
 **Generated code is never trusted.**
 - `interactive`/`slides`: `HTMLRenderer` requires the marker (`p5` / `reveal`), rejects

@@ -1,7 +1,7 @@
 'use client';
 
 import { SignUpButton, UserButton, useAuth } from '@clerk/nextjs';
-import { LogIn } from 'lucide-react';
+import { LogIn, UserRound } from 'lucide-react';
 
 export function AuthButton() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -18,7 +18,15 @@ export function AuthButton() {
             userButtonTrigger: 'size-10',
           },
         }}
-      />
+      >
+        <UserButton.MenuItems>
+          <UserButton.Link
+            label="Public profile"
+            href="/profile"
+            labelIcon={<UserRound size={16} />}
+          />
+        </UserButton.MenuItems>
+      </UserButton>
     );
   }
 

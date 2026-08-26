@@ -38,12 +38,35 @@ class Lesson(SQLModel, table=True):
     runtime_version: str | None = Field(default=None, max_length=64)
     compiler_version: str | None = Field(default=None, max_length=64)
     object_key: str | None = Field(default=None, max_length=1024)
+    # Meaningful on the root row; the selected final revision is public while set.
+    published_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True, index=True),
+    )
     error_message: str | None = Field(default=None, sa_column=Column(Text))
     # First prepare/render failure that triggered a bounded repair; kept after success.
     first_error: str | None = Field(default=None, sa_column=Column(Text))
     # Private debugging payload; never serialized by an API response model.
     raw_model_output: str | None = Field(default=None, sa_column=Column(Text))
     edit_instruction: str | None = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
+class UserProfile(SQLModel, table=True):
+    __tablename__ = "user_profiles"
+
+    # Public URLs use this opaque id instead of exposing the Clerk subject.
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    owner_id: str = Field(index=True, unique=True, max_length=128)
+    display_name: str = Field(max_length=80)
+    bio: str = Field(default="", sa_column=Column(Text, nullable=False))
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False),

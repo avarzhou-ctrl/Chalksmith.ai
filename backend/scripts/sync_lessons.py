@@ -16,7 +16,7 @@ from backend.scripts.migrate_v1_users import all_users, primary_email
 
 COLUMNS = (
     "id", "owner_id", "root_lesson_id", "parent_lesson_id", "final_lesson_id",
-    "version_number", "topic",
+    "version_number", "topic", "published_at",
     "format", "status", "summary", "source_code", "object_key", "error_message",
     "first_error", "raw_model_output", "edit_instruction", "created_at", "updated_at",
 )

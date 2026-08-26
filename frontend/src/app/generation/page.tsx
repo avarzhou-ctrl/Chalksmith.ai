@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import { Code, Download, Eye, Flame } from 'lucide-react';
 import { Group, Panel, Separator, type PanelImperativeHandle } from 'react-resizable-panels';
@@ -12,12 +13,23 @@ import EditableTitle from '@/components/generation/EditableTitle';
 import GenerationSidebar from '@/components/generation/GenerationSidebar';
 import LessonViewport from '@/components/generation/LessonViewport';
 import LoadingOverlay from '@/components/generation/LoadingOverlay';
+import PublishLessonButton from '@/components/generation/PublishLessonButton';
 import Button from '@/components/ui/Button';
 import { useApi } from '@/lib/hooks/useApi';
 import { useGeneration } from '@/lib/hooks/useGeneration';
+import { usePublicDisplayName } from '@/lib/hooks/usePublicDisplayName';
 
 export default function GenerationPage() {
   const api = useApi();
+  const { user } = useUser();
+  const clerkDisplayName = user?.fullName?.trim()
+    || user?.username?.trim()
+    || user?.firstName?.trim()
+    || 'Chalksmith creator';
+  const {
+    displayName: publicAuthorName,
+    isLoading: profileLoading,
+  } = usePublicDisplayName(api, clerkDisplayName, Boolean(user));
   const {
     topic,
     setTopic,
@@ -27,6 +39,7 @@ export default function GenerationPage() {
     previewUrl,
     title,
     loading,
+    publicationLoading,
     status,
     progress,
     error,
@@ -43,7 +56,9 @@ export default function GenerationPage() {
     generateLesson,
     updateTitle,
     downloadLesson,
-  } = useGeneration(api);
+    publishLesson,
+    unpublishLesson,
+  } = useGeneration(api, publicAuthorName);
   const [collapsed, setCollapsed] = useState(false);
   const [loadedPreviewUrl, setLoadedPreviewUrl] = useState('');
   const panelRef = useRef<PanelImperativeHandle | null>(null);
@@ -68,7 +83,19 @@ export default function GenerationPage() {
               <header className="m-1 flex shrink-0 items-end gap-4 p-4">
                 <Link href="/dashboard" className="mb-1 grid size-10 place-items-center rounded-xl"><img src="/logo.png" alt="Chalksmith" className="size-8 object-contain" /></Link>
                 <EditableTitle initialTitle={title} onChange={(value) => void updateTitle(value)} />
-                <section className="flex gap-2 pb-1">
+                <section className="flex shrink-0 gap-2 pb-1">
+                  {lesson && (
+                    <>
+                      <PublishLessonButton
+                        authorName={publicAuthorName}
+                        isPublished={lesson.is_published}
+                        isBusy={publicationLoading}
+                        disabled={lesson.status !== 'ready' || loading || profileLoading}
+                        onPublish={publishLesson}
+                        onUnpublish={unpublishLesson}
+                      />
+                    </>
+                  )}
                   <Button variant="outline" size="sm" onClick={startNewLesson} className="gap-1.5"><Flame size={14} />Create New</Button>
                   {lesson && <Button variant="outline" size="sm" onClick={() => void downloadLesson()} className="gap-1.5"><Download size={14} />Export</Button>}
                 </section>

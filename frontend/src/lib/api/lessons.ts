@@ -5,6 +5,7 @@ import type {
   Lesson,
   LessonFormat,
   LessonListItem,
+  LessonPublication,
   LessonVersion,
 } from '@/lib/types/api';
 
@@ -42,6 +43,21 @@ export function deleteLesson(client: ApiClient, lessonId: string) {
 export function selectFinalLesson(client: ApiClient, lessonId: string) {
   return client.request<FinalLessonSelection>(`/v2/lessons/${lessonId}/final`, {
     method: 'PUT',
+  });
+}
+
+export function setLessonPublication(
+  client: ApiClient,
+  lessonId: string,
+  published: boolean,
+  displayName?: string,
+) {
+  return client.request<LessonPublication>(`/v2/lessons/${lessonId}/publication`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      published,
+      ...(published && displayName ? { display_name: displayName } : {}),
+    }),
   });
 }
 

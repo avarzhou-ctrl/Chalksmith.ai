@@ -25,6 +25,10 @@ interface CreateApiClientOptions {
   getAccessToken: AccessTokenProvider;
 }
 
+interface CreatePublicApiClientOptions {
+  baseUrl?: string;
+}
+
 export function createApiClient({
   baseUrl = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL,
   getAccessToken,
@@ -67,6 +71,29 @@ export function createApiClient({
     if (response.status === 204) {
       return undefined as T;
     }
+    return response.json() as Promise<T>;
+  }
+
+  return { request, requestRaw };
+}
+
+export function createPublicApiClient({
+  baseUrl = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL,
+}: CreatePublicApiClientOptions = {}): ApiClient {
+  const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+
+  async function requestRaw(path: string, init: RequestInit = {}): Promise<Response> {
+    const headers = new Headers(init.headers);
+    if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
+    return fetch(`${normalizedBaseUrl}${normalizePath(path)}`, { ...init, headers });
+  }
+
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const response = await requestRaw(path, init);
+    if (!response.ok) throw await apiErrorFromResponse(response);
+    if (response.status === 204) return undefined as T;
     return response.json() as Promise<T>;
   }
 

@@ -24,6 +24,8 @@ class LessonResponse(BaseModel):
     runtime_version: str | None
     compiler_version: str | None
     error_message: str | None
+    is_published: bool = False
+    published_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -52,6 +54,7 @@ class LessonListItem(BaseModel):
     format: LessonFormat
     status: Literal["generating", "ready", "failed", "deleting"]
     summary: str | None
+    is_published: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -68,3 +71,43 @@ class AccessURLResponse(BaseModel):
 class FinalLessonResponse(BaseModel):
     root_lesson_id: UUID
     final_lesson_id: UUID
+
+
+class LessonPublicationUpdate(BaseModel):
+    published: bool
+    display_name: str | None = Field(default=None, min_length=1, max_length=80)
+
+
+class LessonPublicationResponse(BaseModel):
+    root_lesson_id: UUID
+    lesson_id: UUID
+    is_published: bool
+    published_at: datetime | None
+
+
+class PublishedLessonItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    root_lesson_id: UUID
+    topic: str
+    format: LessonFormat
+    summary: str | None
+    published_at: datetime
+    updated_at: datetime
+    author_profile_id: UUID
+    author_display_name: str
+
+
+class ProfileUpdate(BaseModel):
+    display_name: str = Field(min_length=1, max_length=80)
+    bio: str = Field(default="", max_length=500)
+
+
+class PublicProfileResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    display_name: str
+    bio: str
+    updated_at: datetime

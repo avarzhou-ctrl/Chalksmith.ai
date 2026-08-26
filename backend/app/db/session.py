@@ -81,6 +81,7 @@ def _migrate_lesson_versions(engine) -> None:
         "spec_version": "VARCHAR(64)",
         "runtime_version": "VARCHAR(64)",
         "compiler_version": "VARCHAR(64)",
+        "published_at": "TIMESTAMP WITH TIME ZONE" if dialect == "postgresql" else "DATETIME",
         "first_error": "TEXT",
         "raw_model_output": "TEXT",
     }
@@ -99,6 +100,12 @@ def _migrate_lesson_versions(engine) -> None:
             text(
                 "CREATE INDEX IF NOT EXISTS ix_lessons_owner_root "
                 "ON lessons (owner_id, root_lesson_id)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_lessons_published_at "
+                "ON lessons (published_at)"
             )
         )
         connection.execute(

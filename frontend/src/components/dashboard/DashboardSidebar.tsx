@@ -15,14 +15,18 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
             <div className="h-10 mb-2 flex items-center justify-between">
                 {!isCollapsed ? (
                     <>
-                        <div className="flex items-center min-w-0">
-                            <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden mr-3 shrink-0">
-                                <Link href="/">
-                                    <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
-                                </Link>
-                            </div>
-                            <h1 className="text-xl font-bold tracking-tight text-primary-text truncate animate-in fade-in duration-300">Chalksmith.ai</h1>
-                        </div>
+                        <a
+                            href="https://chalksmith.ai/"
+                            className="flex min-w-0 items-center"
+                            aria-label="Chalksmith.ai home"
+                        >
+                            <span className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl">
+                                <img src="/logo.png" alt="" className="h-8 w-8 object-contain" />
+                            </span>
+                            <span className="animate-in truncate text-xl font-bold tracking-tight text-primary-text fade-in duration-300">
+                                Chalksmith.ai
+                            </span>
+                        </a>
                         <button 
                             className="p-2 hover:bg-surface/50 rounded-lg text-secondary-text transition-all duration-300 ml-2 shrink-0" 
                             title="Collapse Sidebar"

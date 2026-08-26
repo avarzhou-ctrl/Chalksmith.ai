@@ -32,6 +32,8 @@ export interface Lesson {
   runtime_version: string | null;
   compiler_version: string | null;
   error_message: string | null;
+  is_published: boolean;
+  published_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,7 +52,7 @@ export interface LessonVersion {
 
 export type LessonListItem = Pick<
   Lesson,
-  'id' | 'root_lesson_id' | 'topic' | 'format' | 'status' | 'summary' | 'created_at' | 'updated_at'
+  'id' | 'root_lesson_id' | 'topic' | 'format' | 'status' | 'summary' | 'is_published' | 'created_at' | 'updated_at'
 > & { version_count: number };
 
 export interface GenerationRequest {
@@ -84,4 +86,30 @@ export interface AccessUrl {
 export interface FinalLessonSelection {
   root_lesson_id: string;
   final_lesson_id: string;
+}
+
+export interface LessonPublication {
+  root_lesson_id: string;
+  lesson_id: string;
+  is_published: boolean;
+  published_at: string | null;
+}
+
+export interface PublishedLessonItem {
+  id: string;
+  root_lesson_id: string;
+  topic: string;
+  format: LessonFormat;
+  summary: string | null;
+  published_at: string;
+  updated_at: string;
+  author_profile_id: string;
+  author_display_name: string;
+}
+
+export interface PublicProfile {
+  id: string;
+  display_name: string;
+  bio: string;
+  updated_at: string;
 }

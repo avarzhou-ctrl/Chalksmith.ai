@@ -1,11 +1,32 @@
 # Changelog
 
+**2026-08-26**: Linked the Dashboard sidebar logo and Chalksmith.ai wordmark to the public `https://chalksmith.ai/` homepage so the app-host brand link no longer redirects back to `/home` (`frontend/src/components/dashboard/DashboardSidebar.tsx`, `CHANGELOG.md`).
+
+**2026-08-26**: Fixed the Clerk avatar menu's Public profile entry to use the installed SDK's compound menu-item API, ensuring the link is rendered with an icon (`frontend/src/components/auth/AuthButton.tsx`, `CHANGELOG.md`).
+
+**2026-08-26**: Added a visible Public profile entry to the Clerk avatar menu so users can find and edit their public introduction without losing account settings access (`frontend/src/components/auth/AuthButton.tsx`, `CHANGELOG.md`).
+
+**2026-08-26**: Restored Clerk account settings access from the avatar menu and added an Account settings action to the custom public profile editor, preserving password and security controls (`frontend/src/components/auth/AuthButton.tsx`, `frontend/src/components/profile/ProfileEditor.tsx`, `CHANGELOG.md`).
+
+**2026-08-26**: Clarified that only the original author can continue editing published lessons and removed the content-page header divider and extra padding to reduce space before search (`frontend/src/app/content/page.tsx`, `CHANGELOG.md`).
+
+**2026-08-26**: Placed the Dashboard published indicator immediately to the right of each lesson date in the card footer (`frontend/src/components/dashboard/LessonCard.tsx`, `CHANGELOG.md`).
+
+**2026-08-26**: Moved the published indicator to the Dashboard card footer immediately before the lesson date for consistent alignment away from variable-length titles (`frontend/src/components/dashboard/LessonCard.tsx`, `CHANGELOG.md`).
+
+**2026-08-26**: Fixed the Dashboard published icon position by anchoring it beside the card actions instead of after the variable-length lesson title (`frontend/src/components/dashboard/LessonCard.tsx`, `CHANGELOG.md`).
+
+**2026-08-26**: Added published-state metadata to Dashboard lesson summaries and a compact Explore globe icon for published cards; removed the owner byline from the lesson detail header (`backend/app/db/lessons.py`, `backend/app/api/schemas.py`, `backend/app/api/lessons.py`, `frontend/src/lib/types/api.ts`, `frontend/src/components/dashboard/LessonGrid.tsx`, `frontend/src/components/dashboard/LessonCard.tsx`, `frontend/src/app/generation/page.tsx`, `CHANGELOG.md`).
+
+**2026-08-26**: Replaced published lesson format labels with author bylines directly beneath each lesson title on the content page (`frontend/src/components/content/PublishedLessonGrid.tsx`).
+
 Project history, newest first. One entry per completed coding or design task:
 what changed, why, and the files affected. Agent instructions live in
 [AGENTS.md](AGENTS.md).
 
 Format: `**YYYY-MM-DD**: [Brief description of changes with which files were edited]`
 
+- **2026-08-26**: Added owner-controlled lesson publishing with a confirmation dialog and reversible Unpublish action; exposed only the published root's ready final revision through unauthenticated Explore list/view/download endpoints; added public lesson cards, a non-functional search placeholder, and the preserved YouTube channel link; migrated and indexed publication timestamps and added API regression coverage (`backend/app/api/explore.py`, `backend/app/api/lesson_access.py`, `backend/app/api/lessons.py`, `backend/app/api/schemas.py`, `backend/app/db/lessons.py`, `backend/app/db/models.py`, `backend/app/db/session.py`, `backend/app/main.py`, `backend/scripts/sync_lessons.py`, `backend/tests/test_v2_api.py`, `backend/tests/test_v2_app.py`, `backend/AGENTS.md`, `frontend/src/app/content/page.tsx`, `frontend/src/app/generation/page.tsx`, `frontend/src/components/content/PublishedLessonGrid.tsx`, `frontend/src/components/generation/PublishLessonButton.tsx`, `frontend/src/lib/api/client.ts`, `frontend/src/lib/api/explore.ts`, `frontend/src/lib/api/lessons.ts`, `frontend/src/lib/hooks/useGeneration.ts`, `frontend/src/lib/types/api.ts`, `CHANGELOG.md`).
 - **2026-08-26**: Unified Manim LaTeX sizing by giving standalone and derivation equations the same base font size, reserving compact math for diagram annotations, and rejecting expressions that would require more than ten percent downscaling so the repair pass splits long chains into consistently sized formulas (`backend/app/lessons/formats/video/compiler.py`, `backend/app/lessons/formats/video/prompt.py`, `backend/tests/test_v2_app.py`, `doc/LAYOUT.md`, `CHANGELOG.md`).
 - **2026-08-26**: Standardized code-driven Manim videos with a compiler-injected Chalksmith runtime that owns the chalkboard palette, Inter/Noto CJK typography roles, background, text fitting, and `MathTex` rendering; required generated scenes to use `cs_text`/`cs_math`, rejected direct text objects and style overrides with the existing repair path, stripped prior runtimes during lesson edits, added renderer fonts and a LaTeX/`dvisvgm` toolchain, persisted video runtime/compiler versions, and added prompt, compiler, security, edit, and AST regression coverage (`backend/app/lessons/formats/video/compiler.py`, `backend/app/lessons/formats/video/prompt.py`, `backend/app/lessons/formats/video/strategy.py`, `backend/tests/test_v2_app.py`, `docker/renderer.Dockerfile`, `backend/AGENTS.md`, `README.md`, `doc/LAYOUT.md`, `CHANGELOG.md`).
 - **2026-08-26**: Added compact format icons beside lesson-list card titles so Interactive, Presentation, and Video lessons can be distinguished at a glance while retaining the existing text format label for accessibility (`frontend/src/components/dashboard/LessonFormatIcon.tsx`, `frontend/src/components/dashboard/LessonCard.tsx`, `CHANGELOG.md`).

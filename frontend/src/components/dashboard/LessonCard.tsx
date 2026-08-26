@@ -1,7 +1,7 @@
 'use client'
 
 import Link from "next/link";
-import { PencilLine, EllipsisVertical, Trash2 } from "lucide-react";
+import { Globe2, PencilLine, EllipsisVertical, Trash2 } from "lucide-react";
 import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
@@ -18,6 +18,7 @@ interface LessonCardProps {
     description: React.ReactNode;
     format: LessonFormat;
     status: LessonListItem['status'];
+    isPublished: boolean;
     createdAt: string;
     versionCount: number;
     onDelete: () => void;
@@ -29,6 +30,7 @@ export default function LessonCard({
     description,
     format,
     status,
+    isPublished,
     createdAt,
     versionCount,
     onDelete,
@@ -115,12 +117,10 @@ export default function LessonCard({
             <div className="pointer-events-none relative z-30 flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-2">
                     <LessonFormatIcon format={format} />
-                    <h3 className="min-w-0 text-xl font-semibold leading-snug text-primary-text line-clamp-2">
-                        {displayTitle}
-                    </h3>
+                    <h3 className="min-w-0 text-xl font-semibold leading-snug text-primary-text line-clamp-2">{displayTitle}</h3>
                 </div>
                 <div className="pointer-events-auto relative ml-auto shrink-0" ref={actionsRef}>
-                    <button 
+                    <button
                         type="button"
                         onClick={() => setIsActionsOpen((current) => !current)}
                         className="rounded-md p-1 text-secondary-text transition-colors hover:bg-primary-text/10 focus:outline-none focus:ring-2"
@@ -167,7 +167,19 @@ export default function LessonCard({
                 </p>
             )}
             <div className="pointer-events-none relative z-10 mt-auto flex items-center justify-between gap-3 pt-4">
-                <p className="truncate text-xs text-secondary-text">{formattedDate}</p>
+                <section className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-xs text-secondary-text">{formattedDate}</p>
+                    {isPublished && (
+                        <span
+                            role="img"
+                            title="Published to Explore"
+                            aria-label="Published to Explore"
+                            className="pointer-events-auto grid size-5 shrink-0 place-items-center rounded bg-accent/10 text-accent"
+                        >
+                            <Globe2 size={12} aria-hidden="true" />
+                        </span>
+                    )}
+                </section>
                 <p className="truncate text-xs text-secondary-text">{versionCount} {versionCount === 1 ? 'version' : 'versions'} · {formatLabel}</p>
             </div>
             

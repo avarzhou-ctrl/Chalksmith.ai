@@ -9,6 +9,7 @@ import {
   getLessonVersions,
   renameLesson,
   selectFinalLesson,
+  setLessonPublication,
 } from '@/lib/api/lessons';
 import type { ApiClient } from '@/lib/api/client';
 import type { Lesson, LessonFormat, LessonVersion } from '@/lib/types/api';
@@ -69,7 +70,7 @@ function topicFromSourceFile(file: File): string {
   return file.name.replace(/\.pdf$/i, '').trim() || 'Uploaded source';
 }
 
-export function useGeneration(api: ApiClient) {
+export function useGeneration(api: ApiClient, publicationDisplayName = 'Chalksmith creator') {
   const [topic, setTopic] = useState('');
   const [originalTopic, setOriginalTopic] = useState('');
   const [format, setFormat] = useState<LessonFormat | ''>('');
@@ -77,6 +78,7 @@ export function useGeneration(api: ApiClient) {
   const [previewUrl, setPreviewUrl] = useState('');
   const [title, setTitle] = useState('Untitled');
   const [loading, setLoading] = useState(false);
+  const [publicationLoading, setPublicationLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -188,6 +190,7 @@ export function useGeneration(api: ApiClient) {
     setSourceFiles([]);
     setError(null);
     setShowCode(false);
+    setPublicationLoading(false);
     window.history.replaceState({}, '', window.location.pathname);
   }, [stopGeneration]);
 
@@ -289,6 +292,40 @@ export function useGeneration(api: ApiClient) {
     }
   }, [api, lesson]);
 
+  const updatePublication = useCallback(async (published: boolean) => {
+    if (!lesson) return false;
+    setPublicationLoading(true);
+    setError(null);
+    try {
+      const publication = await setLessonPublication(
+        api,
+        lesson.id,
+        published,
+        publicationDisplayName,
+      );
+      setLesson((current) => current ? {
+        ...current,
+        is_published: publication.is_published,
+        published_at: publication.published_at,
+      } : current);
+      if (published) {
+        setMessages((current) => current.map((message) => ({
+          ...message,
+          isFinal: Boolean(message.lessonId && message.lessonId === lesson.id),
+        })));
+      }
+      return true;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : `Failed to ${published ? 'publish' : 'unpublish'} lesson.`);
+      return false;
+    } finally {
+      setPublicationLoading(false);
+    }
+  }, [api, lesson, publicationDisplayName]);
+
+  const publishLesson = useCallback(() => updatePublication(true), [updatePublication]);
+  const unpublishLesson = useCallback(() => updatePublication(false), [updatePublication]);
+
   return {
     topic,
     setTopic,
@@ -298,6 +335,7 @@ export function useGeneration(api: ApiClient) {
     previewUrl,
     title,
     loading,
+    publicationLoading,
     status,
     progress,
     error,
@@ -314,5 +352,7 @@ export function useGeneration(api: ApiClient) {
     generateLesson,
     updateTitle,
     downloadLesson,
+    publishLesson,
+    unpublishLesson,
   };
 }
