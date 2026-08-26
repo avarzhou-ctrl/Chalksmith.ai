@@ -744,7 +744,42 @@ for (let i = steps; i >= 0; i--) drawPoint(i);
 
         self.assertEqual(asset.extension, "html")
 
-    def test_interactive_prompt_and_repair_prompt_address_runtime_validation(self) -> None:
+    def test_interactive_prompt_and_repair_prompt_cover_generation_constraints(self) -> None:
+        for section in (
+            "<DELIVERABLE>",
+            "<TEACHING_AND_INTERACTION>",
+            "<VISUAL_LAYOUT>",
+            "<MATH_RENDERING>",
+            "<POINTER_COORDINATES>",
+            "<STATE_AND_MODE_CHECKS>",
+            "<RUNTIME_SAFETY>",
+            "<SECURITY_RULES>",
+        ):
+            self.assertIn(section, INTERACTIVE_RULES)
+        normalized_rules = " ".join(INTERACTIVE_RULES.split())
+        self.assertIn("free from unintended overlap", normalized_rules)
+        self.assertIn(
+            "consistent spacing, alignment, margins, and visual density",
+            normalized_rules,
+        )
+        self.assertIn("do not crowd one area", normalized_rules)
+        self.assertIn("Reflow, resize, or simplify content", normalized_rules)
+        self.assertIn("KaTeX 0.16.9", normalized_rules)
+        self.assertIn("auto-render to recognize `$...$`", normalized_rules)
+        self.assertIn("After dynamically inserting or changing a formula", normalized_rules)
+        self.assertIn("Never leave raw LaTeX delimiters visible", normalized_rules)
+        self.assertIn(
+            "Make pointer interactions work after responsive scaling", normalized_rules
+        )
+        self.assertIn("Every mode switch must update", normalized_rules)
+        self.assertIn("Ensure draw() reads the current mode", normalized_rules)
+        self.assertIn("trace the initial state and every mode", normalized_rules)
+        self.assertIn("each referenced function and DOM id exists", normalized_rules)
+        self.assertIn(
+            "Do not name variables or function parameters after p5.js functions",
+            normalized_rules,
+        )
+        self.assertIn("cannot throw an exception, freeze draw()", normalized_rules)
         self.assertIn("decrement toward a lower bound", INTERACTIVE_RULES)
         repair = build_code_repair_prompt(
             original_prompt="Create an interactive lesson.",
@@ -754,6 +789,7 @@ for (let i = steps; i >= 0; i--) drawPoint(i);
 
         self.assertIn("failed validation or rendering", repair)
         self.assertIn("requested format", repair)
+        self.assertIn("<REPAIR_TASK>", repair)
         self.assertNotIn("previous Manim code", repair)
 
 

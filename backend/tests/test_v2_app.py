@@ -35,7 +35,7 @@ from backend.app.integrations.storage.gcp import GCSStorage
 from backend.app.integrations.storage.local import LocalStorage
 from backend.app.main import create_app
 from backend.app.lessons.formats import FormatRequest, get_lesson_format_strategy
-from backend.app.lessons.formats.code import parse_generated_lesson
+from backend.app.lessons.formats.code import build_code_generation_prompt, parse_generated_lesson
 from backend.app.lessons.formats.slides import compiler as slides_compiler
 from backend.app.lessons.formats.slides.registry import (
     BLOCK_DEFINITIONS,
@@ -749,6 +749,41 @@ class ParseGeneratedLessonTests(unittest.TestCase):
     def test_still_strips_markdown_fences(self) -> None:
         lesson = parse_generated_lesson("S\n---CODE_START---\n```python\nx = 1\n```", "video")
         self.assertEqual(lesson.code, "x = 1")
+
+
+class CodeGenerationPromptTests(unittest.TestCase):
+    def test_prompt_organizes_and_preserves_generation_guidance(self) -> None:
+        prompt = build_code_generation_prompt(
+            topic="Explain vectors",
+            rules="Return a complete runnable example.",
+            sources="Teacher notes",
+            previous_code="print('old')",
+            edit_instruction="Add a worked example.",
+        )
+
+        for section in (
+            "<CONTEXT_RULES>",
+            "<OUTPUT_CONTRACT>",
+            "<LESSON_REQUIREMENTS>",
+            "<FORMAT_RULES>",
+        ):
+            self.assertIn(section, prompt)
+        normalized_prompt = " ".join(prompt.split())
+        self.assertIn("advanced or competition topics", normalized_prompt)
+        self.assertIn("curriculum-ready sequence", normalized_prompt)
+        self.assertIn("verify calculations and units", normalized_prompt)
+        self.assertIn("concrete examples before abstraction", normalized_prompt)
+        self.assertIn("teacher-provided material as the factual basis", normalized_prompt)
+        self.assertIn("irrelevant or sensitive material", normalized_prompt)
+        self.assertIn("preserving working behavior", normalized_prompt)
+        self.assertIn("<REQUEST>Explain vectors</REQUEST>", prompt)
+        self.assertIn("<SOURCES>\nTeacher notes\n</SOURCES>", prompt)
+        self.assertIn("<EDIT_INSTRUCTION>Add a worked example.</EDIT_INSTRUCTION>", prompt)
+        self.assertIn("<EXISTING_CODE>\nprint('old')\n</EXISTING_CODE>", prompt)
+        self.assertIn("Return a complete runnable example.", prompt)
+        self.assertIn("---CODE_START--- on its own line", prompt)
+        self.assertIn("Never use Markdown fences", prompt)
+        self.assertIn("write no closing separator, fence, or commentary", prompt)
 
 
 class StructuredSlidesTests(unittest.TestCase):

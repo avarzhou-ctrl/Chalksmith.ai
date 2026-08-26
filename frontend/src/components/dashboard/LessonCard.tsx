@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PencilLine, EllipsisVertical, Trash2 } from "lucide-react";
+import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { TriangleAlert } from "lucide-react";
@@ -112,7 +113,12 @@ export default function LessonCard({
                 title="Open lesson"
             />}
             <div className="pointer-events-none relative z-30 flex items-start justify-between gap-3">
-                <h3 className="min-w-0 text-xl font-semibold text-primary-text leading-snug line-clamp-2">{displayTitle}</h3>
+                <div className="flex min-w-0 items-start gap-2">
+                    <LessonFormatIcon format={format} />
+                    <h3 className="min-w-0 text-xl font-semibold leading-snug text-primary-text line-clamp-2">
+                        {displayTitle}
+                    </h3>
+                </div>
                 <div className="pointer-events-auto relative ml-auto shrink-0" ref={actionsRef}>
                     <button 
                         type="button"
