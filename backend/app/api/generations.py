@@ -19,7 +19,7 @@ from backend.app.integrations.llm.base import LLMProvider
 from backend.app.integrations.storage import Storage, get_storage
 from backend.app.lessons.generation import GenerationService
 from backend.app.lessons.render.base import Renderer
-from backend.app.lessons.sources import extract_sources
+from backend.app.lessons.sources import extract_sources, source_images
 
 router = APIRouter(prefix="/v2/generations", tags=["generations"])
 
@@ -83,6 +83,12 @@ async def generate_lesson(
             message="Lesson generation timed out. Please try again.",
             status_code=504,
         ) from error
+    if source_images(documents) and not getattr(llm, "supports_images", False):
+        raise AppError(
+            code="image_sources_not_supported",
+            message="The configured AI model does not support image sources.",
+            status_code=422,
+        )
     service = GenerationService(
         session=session,
         llm=llm,

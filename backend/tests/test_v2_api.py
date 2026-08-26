@@ -20,7 +20,7 @@ from backend.app.db.lessons import create_lesson, get_owned_lesson, save_lesson
 from backend.app.db.models import LessonFolder
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
-from backend.app.integrations.llm.base import LLMResult, LLMStreamChunk
+from backend.app.integrations.llm.base import LLMImage, LLMResult, LLMStreamChunk
 from backend.app.integrations.llm.factory import get_llm_provider
 from backend.app.integrations.storage import get_storage
 from backend.app.main import create_app
@@ -71,6 +71,23 @@ class StreamingFakeLLM(FakeLLM):
         )
 
 
+class ImageAwareFakeLLM(FakeLLM):
+    supports_images = True
+
+    def __init__(self) -> None:
+        self.prompts: list[str] = []
+        self.images: list[tuple[LLMImage, ...]] = []
+
+    async def generate(
+        self,
+        prompt: str,
+        images: tuple[LLMImage, ...] = (),
+    ) -> LLMResult:
+        self.prompts.append(prompt)
+        self.images.append(images)
+        return await super().generate(prompt)
+
+
 def _slides_response() -> str:
     return (
         Path(__file__).parent / "fixtures" / "lesson_specs" / "slides.json"
@@ -94,13 +111,16 @@ class FakeSlidesLLM:
 class FakeStorage:
     def __init__(self) -> None:
         self.objects: dict[str, bytes] = {}
+        self.content_types: dict[str, str] = {}
         self.deletions: list[tuple[str, str]] = []
 
-    def upload_file(self, source: Path, object_key: str, _content_type: str) -> None:
+    def upload_file(self, source: Path, object_key: str, content_type: str) -> None:
         self.objects[object_key] = source.read_bytes()
+        self.content_types[object_key] = content_type
 
-    def upload_bytes(self, data: bytes, object_key: str, _content_type: str) -> None:
+    def upload_bytes(self, data: bytes, object_key: str, content_type: str) -> None:
         self.objects[object_key] = data
+        self.content_types[object_key] = content_type
 
     def signed_url(self, object_key: str, *, download_name: str | None = None) -> str:
         suffix = f"?download={download_name}" if download_name else ""
@@ -109,12 +129,14 @@ class FakeStorage:
     def delete(self, object_key: str) -> None:
         self.deletions.append(("object", object_key))
         self.objects.pop(object_key, None)
+        self.content_types.pop(object_key, None)
 
     def delete_prefix(self, prefix: str) -> None:
         self.deletions.append(("prefix", prefix))
         for key in list(self.objects):
             if key.startswith(prefix):
                 self.objects.pop(key)
+                self.content_types.pop(key, None)
 
 
 class ConnectionTracker:
@@ -209,6 +231,42 @@ class V2ApiTests(unittest.TestCase):
         access_response = self.client.post(f"/v2/lessons/{lesson_id}/access-url")
         self.assertEqual(access_response.status_code, 200)
         self.assertEqual(access_response.json()["expires_in"], 300)
+
+    def test_image_source_is_stored_and_sent_to_the_model(self) -> None:
+        llm = ImageAwareFakeLLM()
+        self.app.dependency_overrides[get_llm_provider] = lambda: llm
+        image = b"\x89PNG\r\n\x1a\nsource-image-bytes"
+
+        response = self.client.post(
+            "/v2/generations",
+            data={"topic": "Explain this diagram", "format": "interactive"},
+            files={"sources": ("diagram.png", image, "image/png")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("event: complete", response.text)
+        self.assertEqual(len(llm.images), 1)
+        self.assertEqual(llm.images[0], (LLMImage("diagram.png", "image/png", image),))
+        self.assertIn("SOURCE IMAGE: diagram.png", llm.prompts[0])
+        source_key = next(key for key in self.storage.objects if key.endswith("/diagram.png"))
+        self.assertEqual(self.storage.objects[source_key], image)
+        self.assertEqual(self.storage.content_types[source_key], "image/png")
+
+    def test_image_source_requires_an_image_capable_model(self) -> None:
+        response = self.client.post(
+            "/v2/generations",
+            data={"topic": "Explain this diagram", "format": "interactive"},
+            files={
+                "sources": (
+                    "diagram.png",
+                    b"\x89PNG\r\n\x1a\nsource-image-bytes",
+                    "image/png",
+                )
+            },
+        )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["error"]["code"], "image_sources_not_supported")
 
     def test_slides_generation_compiles_a_versioned_specification(self) -> None:
         llm = FakeSlidesLLM()
@@ -924,8 +982,28 @@ class V2ApiTests(unittest.TestCase):
             file=BytesIO(b"%PDF12"),
             headers=Headers({"content-type": "application/pdf"}),
         )
-        with self.assertRaisesRegex(Exception, "combined PDF uploads"):
+        with self.assertRaisesRegex(Exception, "combined source files"):
             asyncio.run(extract_sources([upload], byte_settings))
+
+    def test_source_images_are_signature_checked(self) -> None:
+        settings = Settings(app_env="test")
+        valid = UploadFile(
+            filename="diagram.webp",
+            file=BytesIO(b"RIFF\x04\x00\x00\x00WEBPdata"),
+            headers=Headers({"content-type": "image/webp"}),
+        )
+        documents = asyncio.run(extract_sources([valid], settings))
+
+        self.assertEqual(documents[0].media_type, "image/webp")
+        self.assertIsNone(documents[0].text)
+
+        invalid = UploadFile(
+            filename="diagram.png",
+            file=BytesIO(b"not-an-image"),
+            headers=Headers({"content-type": "image/png"}),
+        )
+        with self.assertRaisesRegex(Exception, "not a valid PNG image"):
+            asyncio.run(extract_sources([invalid], settings))
 
     def test_interactive_prompt_prevents_double_scaled_pointer_coordinates(self) -> None:
         rules = INTERACTIVE_RULES

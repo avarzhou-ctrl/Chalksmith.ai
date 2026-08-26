@@ -54,7 +54,7 @@ From this issue emerged the incentive to create a solution. Over these past few 
 | **API** | Python 3.12, FastAPI, SQLModel | Authenticated lesson API and generation orchestration |
 | **Renderer** | FastAPI, Manim | Isolated execution of generated video code |
 | **Database** | Cloud SQL for PostgreSQL | Lesson metadata and source code |
-| **Storage** | Private Cloud Storage | PDF sources, HTML outputs, and MP4 outputs |
+| **Storage** | Private Cloud Storage | PDF/image sources, HTML outputs, and MP4 outputs |
 | **Authentication** | Clerk | Account UI, provider login, and short-lived session JWTs |
 | **LLM** | Vertex AI Gemini or OpenAI Responses API | Deployment-configured, interchangeable provider |
 | **Runtime** | Cloud Run, Cloud Build, Artifact Registry | Three independently scalable containers |
@@ -120,7 +120,7 @@ flowchart LR
     Browser -->|"Bearer token + JSON or SSE"| API
     API -->|"Generate code"| LLM
     API -->|"Lesson metadata and source"| SQL
-    API -->|"PDF, HTML, and MP4 objects"| GCS
+    API -->|"PDF, image, HTML, and MP4 objects"| GCS
     API -->|"OIDC + Manim code"| Renderer
     Renderer -->|"MP4 response"| API
     Secrets -.->|"Database password and optional OpenAI key"| API
@@ -132,9 +132,9 @@ flowchart LR
 
 A generation request follows one path:
 
-1. The browser sends `POST /v2/generations` with a Clerk session JWT, lesson parameters, and optional PDFs.
-2. FastAPI verifies the JWT signature, issuer, expiry, and authorized party; enforces file and request limits; extracts PDF text; and streams progress over SSE.
-3. The configured LLM adapter returns a summary and source code. Vertex Gemini streams chunks so the API can report generated-character progress and keep the SSE connection active, but the API buffers the complete response before validation.
+1. The browser sends `POST /v2/generations` with a Clerk session JWT, lesson parameters, and optional PDF, PNG, JPEG, or WebP sources.
+2. FastAPI verifies the JWT signature, issuer, expiry, and authorized party; enforces file and request limits; extracts PDF text; validates image signatures; and streams progress over SSE.
+3. The configured LLM adapter returns a summary and source code. Source images are sent as multimodal inputs to Vertex Gemini or OpenAI; DeepSeek configurations reject image-backed requests before generation because their adapter is text-only. Vertex Gemini streams chunks so the API can report generated-character progress and keep the SSE connection active, but the API buffers the complete response before validation.
 4. Interactive p5.js and Reveal.js outputs are validated and secured as HTML inside the API without being executed there. Video code is sent to the isolated renderer over an authenticated service-to-service request.
 5. The API uploads the final artifact to private Cloud Storage and stores lesson metadata and source code in Cloud SQL.
 6. Preview and download requests return short-lived signed URLs; the database stores stable object keys, never expiring URLs.

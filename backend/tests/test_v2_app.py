@@ -25,11 +25,11 @@ from backend.app.core.errors import AppError
 from backend.app.core.logging import JsonFormatter
 from backend.app.db.session import create_db_and_tables
 from backend.app.integrations.auth import _decode_clerk_token, get_current_user
-from backend.app.integrations.llm.base import LLMResult
-from backend.app.integrations.llm.base import LLMProviderError
+from backend.app.integrations.llm.base import LLMImage, LLMProviderError, LLMResult
 from backend.app.integrations.llm.deepseek import DeepSeekProvider
 from backend.app.integrations.llm.factory import create_llm_provider
 from backend.app.integrations.llm.gemini import VertexGeminiProvider
+from backend.app.integrations.llm.openai import OpenAIProvider
 from backend.app.integrations.storage import create_storage
 from backend.app.integrations.storage.gcp import GCSStorage
 from backend.app.integrations.storage.local import LocalStorage
@@ -683,6 +683,71 @@ class GeminiStreamingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("".join(chunk.text for chunk in chunks), "first second")
         self.assertEqual(chunks[-1].input_tokens, 20)
         self.assertEqual(chunks[-1].output_tokens, 8)
+
+    async def test_stream_sends_source_images_as_binary_parts(self) -> None:
+        async def responses():
+            yield SimpleNamespace(
+                text="done",
+                usage_metadata=SimpleNamespace(
+                    prompt_token_count=20,
+                    candidates_token_count=5,
+                    thoughts_token_count=0,
+                ),
+            )
+
+        provider = VertexGeminiProvider(
+            project="test-project",
+            location="global",
+            model="test-model",
+            timeout_seconds=1,
+            max_output_tokens=100,
+        )
+        provider.client = MagicMock()
+        provider.client.aio.models.generate_content_stream = AsyncMock(return_value=responses())
+        image = LLMImage("diagram.png", "image/png", b"png-bytes")
+
+        chunks = [chunk async for chunk in provider.stream("prompt", images=(image,))]
+
+        self.assertEqual(chunks[-1].text, "done")
+        contents = provider.client.aio.models.generate_content_stream.await_args.kwargs["contents"]
+        self.assertEqual(contents[0].text, "prompt")
+        self.assertEqual(contents[1].text, "Source image: diagram.png")
+        self.assertEqual(contents[2].inline_data.mime_type, "image/png")
+        self.assertEqual(contents[2].inline_data.data, b"png-bytes")
+
+
+class OpenAIImageTests(unittest.IsolatedAsyncioTestCase):
+    async def test_generate_sends_source_images_as_data_urls(self) -> None:
+        provider = OpenAIProvider(
+            api_key="test-key",
+            model="test-model",
+            timeout_seconds=1,
+            max_output_tokens=100,
+        )
+        provider.client = MagicMock()
+        provider.client.responses.create = AsyncMock(
+            return_value=SimpleNamespace(
+                output_text="done",
+                usage=SimpleNamespace(input_tokens=20, output_tokens=5),
+            )
+        )
+        image = LLMImage("diagram.jpg", "image/jpeg", b"jpeg-bytes")
+
+        result = await provider.generate("prompt", images=(image,))
+
+        self.assertEqual(result.text, "done")
+        request_input = provider.client.responses.create.await_args.kwargs["input"]
+        content = request_input[0]["content"]
+        self.assertEqual(content[0], {"type": "input_text", "text": "prompt"})
+        self.assertEqual(
+            content[1],
+            {"type": "input_text", "text": "Source image: diagram.jpg"},
+        )
+        self.assertEqual(content[2]["type"], "input_image")
+        self.assertEqual(
+            content[2]["image_url"],
+            "data:image/jpeg;base64,anBlZy1ieXRlcw==",
+        )
 
 
 class RendererCancellationTests(unittest.IsolatedAsyncioTestCase):

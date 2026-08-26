@@ -1,7 +1,22 @@
 'use client'
 
 import { useState, useRef, DragEvent, ChangeEvent, forwardRef } from "react";
-import { Paperclip, X } from "lucide-react";
+import { FileImage, FileText, Paperclip, X } from "lucide-react";
+
+const SUPPORTED_SOURCE_TYPES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
+const SUPPORTED_SOURCE_EXTENSION = /\.(?:pdf|png|jpe?g|webp)$/i;
+
+function isImageFile(file: File) {
+  return (
+    (SUPPORTED_SOURCE_TYPES.has(file.type) && file.type !== 'application/pdf')
+    || /\.(?:png|jpe?g|webp)$/i.test(file.name)
+  );
+}
 
 export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'maxLength'> {
   files?: File[];
@@ -20,9 +35,11 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 
     const handleFiles = (newFiles: File[]) => {
       if (fileUploadDisabled) return;
-      const pdfFiles = newFiles.filter((file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"));
-      if (pdfFiles.length) {
-        onFilesChange?.([...files, ...pdfFiles]);
+      const sourceFiles = newFiles.filter((file) => (
+        SUPPORTED_SOURCE_TYPES.has(file.type) || SUPPORTED_SOURCE_EXTENSION.test(file.name)
+      ));
+      if (sourceFiles.length) {
+        onFilesChange?.([...files, ...sourceFiles]);
       }
     };
 
@@ -91,9 +108,10 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             </p>
             <div className="flex gap-2 flex-wrap">
               {files.map((file, i) => (
-                <div key={i} className="flex items-center gap-2 bg-surface px-2 py-1 rounded-md text-xs">
-                  <span>{file.name}</span>
-                  <button type="button" onClick={() => removeFile(i)} className="text-secondary-text hover:text-primary-text">
+                <div key={`${file.name}-${i}`} className="flex max-w-48 items-center gap-2 rounded-md bg-surface px-2 py-1 text-xs">
+                  {isImageFile(file) ? <FileImage className="shrink-0 text-accent" size={14} /> : <FileText className="shrink-0 text-accent" size={14} />}
+                  <span className="truncate" title={file.name}>{file.name}</span>
+                  <button type="button" onClick={() => removeFile(i)} className="shrink-0 text-secondary-text hover:text-primary-text" title={`Remove ${file.name}`}>
                     <X size={14} />
                   </button>
                 </div>
@@ -105,7 +123,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
               ref={inputRef}
               type="file"
               multiple
-              accept="application/pdf,.pdf"
+              accept="application/pdf,image/png,image/jpeg,image/webp,.pdf,.png,.jpg,.jpeg,.webp"
               className="hidden"
               onChange={handleChange}
             />
@@ -114,6 +132,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
               onClick={onButtonClick}
               disabled={fileUploadDisabled}
               className="p-1.5 hover:bg-surface/50 rounded-lg text-accent transition-colors disabled:opacity-40"
+              title="Attach PDF or image"
             >
               <Paperclip size={20} />
             </button>

@@ -66,7 +66,7 @@ backend/
 │   │       └── deepseek.py      # DeepSeek chat-completions provider
 │   └── lessons/                 # Lesson-generation domain
 │       ├── generation.py        # GenerationService orchestration and SSE events
-│       ├── sources.py           # PDF validation, extraction, prompt context
+│       ├── sources.py           # PDF/image validation and model source context
 │       ├── formats/
 │       │   ├── contracts.py     # Format requests, prepared results, strategy protocol
 │       │   ├── code.py          # Code response parsing, prompts, shared code strategy
@@ -123,8 +123,8 @@ Routine `__init__.py` files and generated `__pycache__/` directories are omitted
 `edit_instruction`, `sources[]`) is the only long-running endpoint.
 
 1. `generations.py` authenticates, validates the form, sets
-   `deadline = monotonic() + generation_timeout_seconds`, and extracts PDF text **before**
-   opening the stream so upload errors are still ordinary HTTP errors.
+   `deadline = monotonic() + generation_timeout_seconds`, extracts PDF text, and validates image
+   signatures **before** opening the stream so upload errors are still ordinary HTTP errors.
 2. `GenerationService.stream()` writes the `Lesson` row immediately with `status="generating"`,
    then yields Server-Sent Events:
    `started` → `progress` (`generating` → `validating` → `rendering` → [`repairing`] → `saving`)
@@ -135,6 +135,8 @@ Routine `__init__.py` files and generated `__pycache__/` directories are omitted
 3. Every external await observes the shared deadline. One-shot stages use `self._await(...)`;
    model streaming re-derives the remaining time before each chunk/heartbeat wait. Add new
    awaits the same way, or a slow stage can outlive the request budget.
+   PNG, JPEG, and WebP sources are passed as multimodal inputs to Vertex Gemini and OpenAI.
+   Text-only providers reject them before the SSE stream opens instead of silently ignoring them.
 4. A format strategy parses the model output. Slides always use the strict `chalksmith.slides.v1`
    Kind-and-Block JSON specification and deterministic block-composition compiler; Interactive and
    Video still use `formats/code.py` parsing and the `---CODE_START---` contract. Historical Slides

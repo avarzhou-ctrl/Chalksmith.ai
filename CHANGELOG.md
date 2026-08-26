@@ -1,5 +1,7 @@
 # Changelog
 
+**2026-08-26**: Added PNG, JPEG, and WebP lesson sources alongside PDFs, including drag-and-drop selection, image attachment indicators, binary signature and shared-size validation, private source storage with correct media types, multimodal Vertex Gemini/OpenAI requests, early rejection for text-only providers, and end-to-end/provider regression coverage (`backend/app/api/generations.py`, `backend/app/integrations/llm/base.py`, `backend/app/integrations/llm/deepseek.py`, `backend/app/integrations/llm/gemini.py`, `backend/app/integrations/llm/openai.py`, `backend/app/lessons/generation.py`, `backend/app/lessons/sources.py`, `backend/tests/test_v2_api.py`, `backend/tests/test_v2_app.py`, `frontend/src/components/ui/Textarea.tsx`, `frontend/src/lib/hooks/useGeneration.ts`, `README.md`, `backend/AGENTS.md`, `doc/REFACTOR.md`, `CHANGELOG.md`).
+
 **2026-08-26**: Restyled the Move lesson folder picker's scrollbar with a thin dark thumb and transparent track so it matches the modal's chalkboard theme (`frontend/src/components/dashboard/FolderPicker.tsx`, `CHANGELOG.md`).
 
 **2026-08-26**: Extended the Dashboard Lessons row background through the add-folder action so the active navigation highlight forms one continuous container (`frontend/src/components/dashboard/DashboardSidebar.tsx`, `CHANGELOG.md`).

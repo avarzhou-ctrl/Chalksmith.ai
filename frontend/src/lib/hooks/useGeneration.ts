@@ -67,7 +67,7 @@ function messagesForVersions(versions: LessonVersion[]): GenerationMessage[] {
 }
 
 function topicFromSourceFile(file: File): string {
-  return file.name.replace(/\.pdf$/i, '').trim() || 'Uploaded source';
+  return file.name.replace(/\.(?:pdf|png|jpe?g|webp)$/i, '').trim() || 'Uploaded source';
 }
 
 export function useGeneration(api: ApiClient, publicationDisplayName = 'Chalksmith creator') {

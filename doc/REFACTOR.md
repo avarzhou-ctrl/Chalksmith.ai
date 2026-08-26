@@ -57,7 +57,7 @@ flowchart LR
     API -->|JWKS signature verification| Clerk
     API -->|generate source| LLM
     API -->|metadata + source| SQL
-    API -->|PDF/HTML/MP4 objects| GCS
+    API -->|PDF/image/HTML/MP4 objects| GCS
     API -->|Google OIDC + Manim source| Renderer
     Renderer -->|bounded MP4 response| API
     GCS -->|short-lived signed URL| Browser
@@ -116,7 +116,7 @@ sequenceDiagram
 
     User->>Auth: Sign in
     Auth-->>User: Session JWT
-    User->>API: POST /v2/generations + Bearer JWT + optional PDFs
+    User->>API: POST /v2/generations + Bearer JWT + optional PDF/images
     API->>Auth: Resolve cached JWKS when needed
     API->>API: Verify claims, limits, owner, and source files
     API-->>User: SSE progress
@@ -139,8 +139,8 @@ One `GenerationService` owns the full deadline and state transition:
 
 1. validate the owner and optional edit source, deriving `root_lesson_id`, `parent_lesson_id`, and the next `version_number`;
 2. create a `generating` lesson row;
-3. upload the accepted PDF sources, which the route extracted and limit-checked before the stream opened;
-4. call the selected `LLMProvider`;
+3. upload accepted PDF and image sources, which the route validated and limit-checked before the stream opened;
+4. call the selected `LLMProvider`, passing PNG, JPEG, and WebP sources as multimodal input when the provider supports images;
 5. parse and validate the generated source;
 6. render once, with one bounded repair attempt for video;
 7. upload the final artifact;
@@ -254,7 +254,7 @@ Object keys are namespaced:
 ```text
 lessons/{owner_id}/{lesson_id}/lesson.html
 lessons/{owner_id}/{lesson_id}/lesson.mp4
-sources/{owner_id}/{lesson_id}/{filename}.pdf
+sources/{owner_id}/{lesson_id}/{filename}
 ```
 
 The bucket has Uniform Bucket-Level Access and Public Access Prevention. `access-url` returns a short-lived V4 signed URL after the owner-scoped database lookup, and requires `status == "ready"`. Uploaded source files follow lifecycle rules, and lesson deletion marks every version `deleting` before removing objects and rows so retries are safe.
