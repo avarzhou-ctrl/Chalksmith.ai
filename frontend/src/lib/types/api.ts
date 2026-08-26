@@ -22,6 +22,7 @@ export interface Lesson {
   id: string;
   root_lesson_id: string;
   parent_lesson_id: string | null;
+  folder_id: string | null;
   version_number: number;
   topic: string;
   format: LessonFormat;
@@ -52,8 +53,16 @@ export interface LessonVersion {
 
 export type LessonListItem = Pick<
   Lesson,
-  'id' | 'root_lesson_id' | 'topic' | 'format' | 'status' | 'summary' | 'is_published' | 'created_at' | 'updated_at'
+  'id' | 'root_lesson_id' | 'folder_id' | 'topic' | 'format' | 'status' | 'summary' | 'is_published' | 'created_at' | 'updated_at'
 > & { version_count: number };
+
+export interface LessonFolder {
+  id: string;
+  parent_id: string | null;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface GenerationRequest {
   topic: string;

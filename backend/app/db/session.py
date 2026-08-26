@@ -75,6 +75,7 @@ def _migrate_lesson_versions(engine) -> None:
         "root_lesson_id": "UUID" if dialect == "postgresql" else "CHAR(32)",
         "parent_lesson_id": "UUID" if dialect == "postgresql" else "CHAR(32)",
         "final_lesson_id": "UUID" if dialect == "postgresql" else "CHAR(32)",
+        "folder_id": "UUID" if dialect == "postgresql" else "CHAR(32)",
         "version_number": "INTEGER NOT NULL DEFAULT 1",
         "edit_instruction": "TEXT",
         "lesson_spec": "TEXT",
@@ -106,6 +107,12 @@ def _migrate_lesson_versions(engine) -> None:
             text(
                 "CREATE INDEX IF NOT EXISTS ix_lessons_published_at "
                 "ON lessons (published_at)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_lessons_folder_id "
+                "ON lessons (folder_id)"
             )
         )
         connection.execute(

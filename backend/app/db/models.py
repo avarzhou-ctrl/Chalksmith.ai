@@ -27,6 +27,8 @@ class Lesson(SQLModel, table=True):
     parent_lesson_id: UUID | None = Field(default=None, index=True)
     # Meaningful on the root row: the revision selected for dashboard and sharing.
     final_lesson_id: UUID | None = Field(default=None, index=True)
+    # Meaningful on the root row; revisions inherit folder placement from their root.
+    folder_id: UUID | None = Field(default=None, index=True)
     version_number: int = Field(default=1, ge=1)
     topic: str = Field(max_length=500)
     format: str = Field(index=True, max_length=32)
@@ -49,6 +51,23 @@ class Lesson(SQLModel, table=True):
     # Private debugging payload; never serialized by an API response model.
     raw_model_output: str | None = Field(default=None, sa_column=Column(Text))
     edit_instruction: str | None = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
+class LessonFolder(SQLModel, table=True):
+    __tablename__ = "lesson_folders"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    owner_id: str = Field(index=True, max_length=128)
+    parent_id: UUID | None = Field(default=None, index=True)
+    name: str = Field(max_length=100)
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False),

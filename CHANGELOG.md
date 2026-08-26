@@ -1,5 +1,11 @@
 # Changelog
 
+**2026-08-26**: Restyled the Move lesson folder picker's scrollbar with a thin dark thumb and transparent track so it matches the modal's chalkboard theme (`frontend/src/components/dashboard/FolderPicker.tsx`, `CHANGELOG.md`).
+
+**2026-08-26**: Extended the Dashboard Lessons row background through the add-folder action so the active navigation highlight forms one continuous container (`frontend/src/components/dashboard/DashboardSidebar.tsx`, `CHANGELOG.md`).
+
+**2026-08-26**: Added persistent owner-scoped lesson folder trees with nested creation, rename, leaf-only deletion and automatic lesson promotion to the parent; moved Search above Lessons in the Dashboard sidebar, added URL-persistent folder navigation and course movement controls, extended additive database migration and API schemas, and covered hierarchy rules and tenant isolation with regression tests (`backend/app/api/folders.py`, `backend/app/api/lessons.py`, `backend/app/api/schemas.py`, `backend/app/db/folders.py`, `backend/app/db/lessons.py`, `backend/app/db/models.py`, `backend/app/db/session.py`, `backend/app/main.py`, `backend/tests/test_v2_api.py`, `backend/AGENTS.md`, `frontend/src/app/dashboard/layout.tsx`, `frontend/src/app/dashboard/page.tsx`, `frontend/src/app/dashboard/search/page.tsx`, `frontend/src/components/dashboard/DashboardSidebar.tsx`, `frontend/src/components/dashboard/FolderPicker.tsx`, `frontend/src/components/dashboard/LessonCard.tsx`, `frontend/src/components/dashboard/LessonFoldersProvider.tsx`, `frontend/src/components/dashboard/LessonGrid.tsx`, `frontend/src/lib/api/folders.ts`, `frontend/src/lib/api/lessons.ts`, `frontend/src/lib/hooks/useLessons.ts`, `frontend/src/lib/types/api.ts`, `CHANGELOG.md`).
+
 **2026-08-26**: Linked the Dashboard sidebar logo and Chalksmith.ai wordmark to the public `https://chalksmith.ai/` homepage so the app-host brand link no longer redirects back to `/home` (`frontend/src/components/dashboard/DashboardSidebar.tsx`, `CHANGELOG.md`).
 
 **2026-08-26**: Fixed the Clerk avatar menu's Public profile entry to use the installed SDK's compound menu-item API, ensuring the link is rendered with an icon (`frontend/src/components/auth/AuthButton.tsx`, `CHANGELOG.md`).

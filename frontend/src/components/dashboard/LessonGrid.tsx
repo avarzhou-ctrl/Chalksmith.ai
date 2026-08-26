@@ -5,12 +5,14 @@ import { CirclePlus } from 'lucide-react';
 
 import LessonCard from '@/components/dashboard/LessonCard';
 import FormatOutput from '@/components/ui/FormatOutput';
-import type { LessonListItem } from '@/lib/types/api';
+import type { LessonFolder, LessonListItem } from '@/lib/types/api';
 
 interface LessonGridProps {
   lessons: LessonListItem[];
   isLoading: boolean;
   onDelete: (lessonId: string) => void;
+  onMove: (lessonId: string, folderId: string | null) => Promise<void>;
+  folders: LessonFolder[];
   showCreateCard?: boolean;
 }
 
@@ -18,6 +20,8 @@ export default function LessonGrid({
   lessons,
   isLoading,
   onDelete,
+  onMove,
+  folders,
   showCreateCard = false,
 }: LessonGridProps) {
   return (
@@ -56,7 +60,10 @@ export default function LessonGrid({
           isPublished={lesson.is_published}
           createdAt={lesson.created_at}
           versionCount={lesson.version_count}
+          folderId={lesson.folder_id}
+          folders={folders}
           onDelete={() => onDelete(lesson.id)}
+          onMove={(folderId) => onMove(lesson.id, folderId)}
         />
       ))}
     </section>

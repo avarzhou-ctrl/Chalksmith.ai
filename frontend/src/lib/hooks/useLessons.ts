@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { deleteLesson, listLessons } from '@/lib/api/lessons';
+import { deleteLesson, listLessons, moveLesson } from '@/lib/api/lessons';
 import { useApi } from '@/lib/hooks/useApi';
 import type { LessonFormat, LessonListItem } from '@/lib/types/api';
 
@@ -55,5 +55,19 @@ export function useLessons(filters: LessonFilters = {}, debounceMs = 0) {
     }
   }, [api]);
 
-  return { lessons, isLoading, error, removeLesson };
+  const moveLessonToFolder = useCallback(async (lessonId: string, folderId: string | null) => {
+    try {
+      setError(null);
+      await moveLesson(api, lessonId, folderId);
+      setLessons((current) => current.map((lesson) => (
+        lesson.id === lessonId ? { ...lesson, folder_id: folderId } : lesson
+      )));
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Failed to move lesson.';
+      setError(message);
+      throw caught;
+    }
+  }, [api]);
+
+  return { lessons, isLoading, error, removeLesson, moveLessonToFolder };
 }

@@ -14,6 +14,7 @@ class LessonResponse(BaseModel):
     id: UUID
     root_lesson_id: UUID
     parent_lesson_id: UUID | None
+    folder_id: UUID | None = None
     version_number: int
     topic: str
     format: LessonFormat
@@ -49,6 +50,7 @@ class LessonListItem(BaseModel):
 
     id: UUID
     root_lesson_id: UUID
+    folder_id: UUID | None = None
     version_count: int = 1
     topic: str
     format: LessonFormat
@@ -61,6 +63,29 @@ class LessonListItem(BaseModel):
 
 class LessonUpdate(BaseModel):
     topic: str = Field(min_length=1, max_length=500)
+
+
+class LessonFolderUpdate(BaseModel):
+    folder_id: UUID | None = None
+
+
+class FolderCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    parent_id: UUID | None = None
+
+
+class FolderUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+
+
+class FolderResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    parent_id: UUID | None
+    name: str
+    created_at: datetime
+    updated_at: datetime
 
 
 class AccessURLResponse(BaseModel):

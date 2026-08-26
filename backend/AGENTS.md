@@ -35,6 +35,7 @@ backend/
 │   ├── api/                     # HTTP validation, delegation, serialization
 │   │   ├── dependencies.py      # Request settings and renderer wiring
 │   │   ├── explore.py           # Public published-lesson list and access URLs
+│   │   ├── folders.py           # Private lesson-folder tree CRUD
 │   │   ├── generations.py       # POST /v2/generations SSE endpoint
 │   │   ├── health.py            # Health check
 │   │   ├── lessons.py           # Lesson CRUD, versions, and access URLs
@@ -46,8 +47,9 @@ backend/
 │   │   ├── errors.py            # AppError and JSON exception handlers
 │   │   └── logging.py           # JSON logs and request-id middleware
 │   ├── db/
+│   │   ├── folders.py           # Owner-scoped folder queries and leaf deletion
 │   │   ├── lessons.py           # Owner-scoped lesson queries and mutations
-│   │   ├── models.py            # Lesson SQLModel table
+│   │   ├── models.py            # Lesson, lesson-folder, and profile SQLModel tables
 │   │   └── session.py           # Engine, sessions, schema creation, additive migration
 │   ├── integrations/
 │   │   ├── auth.py              # Clerk JWT verification and AuthUser
@@ -151,7 +153,8 @@ disconnects (`CancelledError`/`GeneratedExit`) are recorded as `failed` too, not
 
 ## Data model and versioning
 
-One table, `lessons`. An edit is a **new row**, not an update. Structured lessons store canonical
+Lesson content and revisions live in `lessons`; the private directory tree lives in
+`lesson_folders`. An edit is a **new lesson row**, not an update. Structured lessons store canonical
 `lesson_spec` JSON plus `spec_version`, `runtime_version`, and `compiler_version`;
 `source_code` is compiler output for those rows and remains the canonical legacy input otherwise.
 `first_error` and `raw_model_output` are private diagnostics: they may be persisted and logged in
@@ -162,6 +165,9 @@ bounded form, but must not appear in public API schemas.
 - `version_number` — from `next_version_number()`, unique per owner and root.
 - `final_lesson_id` — stored on the root row and points to the ready revision selected by the user.
   A first version selects itself; later revisions do not replace it automatically.
+- `folder_id` — stored only on the root row. Moving any revision moves the full lesson lineage.
+  Folder parents must belong to the same owner. A folder can only be deleted when it has no child
+  folders; its directly contained lessons move to its parent in the same transaction.
 
 Consequences to respect:
 

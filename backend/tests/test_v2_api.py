@@ -17,6 +17,7 @@ from starlette.datastructures import Headers
 from backend.app.api.dependencies import get_renderers
 from backend.app.core.config import Settings
 from backend.app.db.lessons import create_lesson, get_owned_lesson, save_lesson
+from backend.app.db.models import LessonFolder
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.llm.base import LLMResult, LLMStreamChunk
@@ -769,6 +770,110 @@ class V2ApiTests(unittest.TestCase):
             ).status_code,
             404,
         )
+
+    def test_folder_tree_moves_lessons_and_only_deletes_leaf_folders(self) -> None:
+        parent_response = self.client.post(
+            "/v2/folders",
+            json={"name": "Math", "parent_id": None},
+        )
+        self.assertEqual(parent_response.status_code, 201)
+        parent = parent_response.json()
+        child_response = self.client.post(
+            "/v2/folders",
+            json={"name": "Geometry", "parent_id": parent["id"]},
+        )
+        self.assertEqual(child_response.status_code, 201)
+        child = child_response.json()
+
+        duplicate = self.client.post(
+            "/v2/folders",
+            json={"name": " Geometry ", "parent_id": parent["id"]},
+        )
+        self.assertEqual(duplicate.status_code, 409)
+        self.assertEqual(duplicate.json()["error"]["code"], "folder_name_conflict")
+
+        with Session(self.app.state.engine) as session:
+            root = create_lesson(
+                session,
+                owner_id="teacher-a",
+                topic="Triangles",
+                lesson_format="slides",
+            )
+            revision = create_lesson(
+                session,
+                owner_id="teacher-a",
+                topic="Triangles",
+                lesson_format="slides",
+                root_lesson_id=root.id,
+                parent_lesson_id=root.id,
+                version_number=2,
+            )
+            lesson_id = str(revision.id)
+            root_id = root.id
+            revision_id = revision.id
+
+        moved = self.client.put(
+            f"/v2/lessons/{lesson_id}/folder",
+            json={"folder_id": child["id"]},
+        )
+        self.assertEqual(moved.status_code, 200)
+        self.assertEqual(moved.json()["folder_id"], child["id"])
+        self.assertEqual(self.client.get("/v2/lessons").json()[0]["folder_id"], child["id"])
+
+        blocked = self.client.delete(f"/v2/folders/{parent['id']}")
+        self.assertEqual(blocked.status_code, 409)
+        self.assertEqual(blocked.json()["error"]["code"], "folder_has_children")
+
+        renamed = self.client.patch(
+            f"/v2/folders/{parent['id']}",
+            json={"name": "Mathematics"},
+        )
+        self.assertEqual(renamed.status_code, 200)
+        self.assertEqual(renamed.json()["name"], "Mathematics")
+
+        self.assertEqual(self.client.delete(f"/v2/folders/{child['id']}").status_code, 204)
+        self.assertEqual(self.client.get(f"/v2/lessons/{lesson_id}").json()["folder_id"], parent["id"])
+        with Session(self.app.state.engine) as session:
+            root = get_owned_lesson(session, root_id, "teacher-a")
+            revision = get_owned_lesson(session, revision_id, "teacher-a")
+            self.assertEqual(str(root.folder_id), parent["id"])
+            self.assertIsNone(revision.folder_id)
+
+        self.assertEqual(self.client.delete(f"/v2/folders/{parent['id']}").status_code, 204)
+        self.assertIsNone(self.client.get(f"/v2/lessons/{lesson_id}").json()["folder_id"])
+
+    def test_folder_operations_are_tenant_isolated(self) -> None:
+        with Session(self.app.state.engine) as session:
+            other_folder = LessonFolder(owner_id="teacher-b", name="Private")
+            mine = create_lesson(
+                session,
+                owner_id="teacher-a",
+                topic="Mine",
+                lesson_format="interactive",
+            )
+            session.add(other_folder)
+            session.commit()
+            session.refresh(other_folder)
+            other_folder_id = str(other_folder.id)
+            lesson_id = str(mine.id)
+
+        self.assertEqual(self.client.get("/v2/folders").json(), [])
+        self.assertEqual(
+            self.client.post(
+                "/v2/folders",
+                json={"name": "Child", "parent_id": other_folder_id},
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.put(
+                f"/v2/lessons/{lesson_id}/folder",
+                json={"folder_id": other_folder_id},
+            ).status_code,
+            404,
+        )
+        self.assertEqual(self.client.patch(f"/v2/folders/{other_folder_id}", json={"name": "No"}).status_code, 404)
+        self.assertEqual(self.client.delete(f"/v2/folders/{other_folder_id}").status_code, 404)
 
     def test_missing_identity_token_is_rejected(self) -> None:
         self.app.dependency_overrides.pop(get_current_user)

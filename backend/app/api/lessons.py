@@ -9,6 +9,7 @@ from backend.app.api.schemas import (
     AccessURLResponse,
     FinalLessonResponse,
     LessonFormat,
+    LessonFolderUpdate,
     LessonListItem,
     LessonPublicationResponse,
     LessonPublicationUpdate,
@@ -29,6 +30,7 @@ from backend.app.db.lessons import (
     set_final_lesson,
     set_lesson_publication,
 )
+from backend.app.db.folders import get_owned_folder
 from backend.app.db.session import get_session
 from backend.app.db.profiles import ensure_user_profile
 from backend.app.integrations.auth import AuthUser, get_current_user
@@ -52,6 +54,7 @@ def _lesson_response(session: Session, lesson) -> LessonResponse:
         update={
             "is_published": root.published_at is not None,
             "published_at": root.published_at,
+            "folder_id": root.folder_id,
         }
     )
 
@@ -173,6 +176,25 @@ def update_lesson(
     for version in versions:
         version.topic = topic
     save_lessons(session, versions)
+    return _lesson_response(session, lesson)
+
+
+@router.put("/{lesson_id}/folder", response_model=LessonResponse)
+def move_lesson_to_folder(
+    lesson_id: UUID,
+    update: LessonFolderUpdate,
+    user: AuthUser = Depends(get_current_user),
+    session: Session = Depends(get_session, scope="function"),
+):
+    lesson = _owned_or_404(session, lesson_id, user.uid)
+    root = get_lesson_root(session, lesson)
+    if root is None:
+        raise AppError(code="lesson_not_found", message="Lesson not found.", status_code=404)
+    if update.folder_id is not None:
+        if get_owned_folder(session, update.folder_id, user.uid) is None:
+            raise AppError(code="folder_not_found", message="Folder not found.", status_code=404)
+    root.folder_id = update.folder_id
+    save_lessons(session, [root])
     return _lesson_response(session, lesson)
 
 

@@ -13,6 +13,7 @@ from backend.app.db.models import Lesson, UserProfile, utc_now
 class LessonListSummary:
     id: UUID
     root_lesson_id: UUID
+    folder_id: UUID | None
     topic: str
     format: str
     status: str
@@ -97,6 +98,7 @@ def list_owned_lessons(
         select(
             Lesson.id,
             Lesson.root_lesson_id,
+            root.folder_id,
             Lesson.topic,
             Lesson.format,
             Lesson.status,
@@ -121,13 +123,14 @@ def list_owned_lessons(
         LessonListSummary(
             id=row[0],
             root_lesson_id=row[1],
-            topic=row[2],
-            format=row[3],
-            status=row[4],
-            summary=row[5],
-            created_at=row[6],
-            updated_at=row[7],
-            is_published=row[8] is not None,
+            folder_id=row[2],
+            topic=row[3],
+            format=row[4],
+            status=row[5],
+            summary=row[6],
+            created_at=row[7],
+            updated_at=row[8],
+            is_published=row[9] is not None,
         )
         for row in session.exec(statement).all()
     ]

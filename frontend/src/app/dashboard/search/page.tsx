@@ -5,6 +5,7 @@ import { Search, X } from 'lucide-react';
 
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import LessonGrid from '@/components/dashboard/LessonGrid';
+import { useLessonFolders } from '@/components/dashboard/LessonFoldersProvider';
 import SearchFilter from '@/components/dashboard/SearchFilter';
 import { useLessons } from '@/lib/hooks/useLessons';
 import type { LessonFormat } from '@/lib/types/api';
@@ -12,13 +13,15 @@ import type { LessonFormat } from '@/lib/types/api';
 export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [format, setFormat] = useState('');
-  const { lessons, isLoading, error, removeLesson } = useLessons(
+  const { lessons, isLoading, error, removeLesson, moveLessonToFolder } = useLessons(
     {
       q: query.trim() || undefined,
       format: (format || undefined) as LessonFormat | undefined,
     },
     300,
   );
+  const { folders, resolveFolderId } = useLessonFolders();
+  const normalizedLessons = lessons.map((lesson) => ({ ...lesson, folder_id: resolveFolderId(lesson.folder_id) }));
 
   return (
     <DashboardShell layoutId="search-layout">
@@ -59,9 +62,11 @@ export default function SearchPage() {
         )}
 
         <LessonGrid
-          lessons={lessons}
+          lessons={normalizedLessons}
           isLoading={isLoading}
           onDelete={(lessonId) => void removeLesson(lessonId)}
+          onMove={moveLessonToFolder}
+          folders={folders}
         />
       </section>
     </DashboardShell>

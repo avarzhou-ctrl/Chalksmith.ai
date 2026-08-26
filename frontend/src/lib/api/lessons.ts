@@ -40,6 +40,13 @@ export function deleteLesson(client: ApiClient, lessonId: string) {
   return client.request<void>(`/v2/lessons/${lessonId}`, { method: 'DELETE' });
 }
 
+export function moveLesson(client: ApiClient, lessonId: string, folderId: string | null) {
+  return client.request<Lesson>(`/v2/lessons/${lessonId}/folder`, {
+    method: 'PUT',
+    body: JSON.stringify({ folder_id: folderId }),
+  });
+}
+
 export function selectFinalLesson(client: ApiClient, lessonId: string) {
   return client.request<FinalLessonSelection>(`/v2/lessons/${lessonId}/final`, {
     method: 'PUT',

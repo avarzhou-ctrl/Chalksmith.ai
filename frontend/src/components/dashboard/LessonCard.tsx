@@ -1,15 +1,16 @@
 'use client'
 
 import Link from "next/link";
-import { Globe2, PencilLine, EllipsisVertical, Trash2 } from "lucide-react";
+import { FolderInput, Globe2, PencilLine, EllipsisVertical, Trash2 } from "lucide-react";
 import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
+import FolderPicker from '@/components/dashboard/FolderPicker';
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { TriangleAlert } from "lucide-react";
 import EditableTitle from "@/components/generation/EditableTitle";
 import { renameLesson } from "@/lib/api/lessons";
 import { useApi } from "@/lib/hooks/useApi";
-import { getLessonFormatLabel, type LessonFormat, type LessonListItem } from '@/lib/types/api';
+import { getLessonFormatLabel, type LessonFolder, type LessonFormat, type LessonListItem } from '@/lib/types/api';
 import { useState, useRef, useEffect } from "react";
 
 interface LessonCardProps {
@@ -21,7 +22,10 @@ interface LessonCardProps {
     isPublished: boolean;
     createdAt: string;
     versionCount: number;
+    folderId: string | null;
+    folders: LessonFolder[];
     onDelete: () => void;
+    onMove: (folderId: string | null) => Promise<void>;
 }
 
 export default function LessonCard({
@@ -33,7 +37,10 @@ export default function LessonCard({
     isPublished,
     createdAt,
     versionCount,
+    folderId,
+    folders,
     onDelete,
+    onMove,
 }: LessonCardProps) {
     const api = useApi();
     const [displayTitle, setDisplayTitle] = useState(title);
@@ -43,6 +50,9 @@ export default function LessonCard({
     const [isActionsOpen, setIsActionsOpen] = useState(false);
     const actionsRef = useRef<HTMLDivElement>(null);
     const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+    const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+    const [isMoving, setIsMoving] = useState(false);
+    const [moveError, setMoveError] = useState<string | null>(null);
 
     useEffect(() => {
         setDisplayTitle(title);
@@ -86,6 +96,29 @@ export default function LessonCard({
         setIsActionsOpen(false);
         setRenameError(null);
         setIsRenameModalOpen(true);
+    };
+
+    const openMoveModal = () => {
+        setIsActionsOpen(false);
+        setMoveError(null);
+        setIsMoveModalOpen(true);
+    };
+
+    const handleMoveLesson = async (targetFolderId: string | null) => {
+        if (targetFolderId === folderId) {
+            setIsMoveModalOpen(false);
+            return;
+        }
+        try {
+            setIsMoving(true);
+            setMoveError(null);
+            await onMove(targetFolderId);
+            setIsMoveModalOpen(false);
+        } catch (error) {
+            setMoveError(error instanceof Error ? error.message : 'Failed to move lesson');
+        } finally {
+            setIsMoving(false);
+        }
     };
 
     const handleRenameLesson = async (newTitle: string) => {
@@ -144,6 +177,15 @@ export default function LessonCard({
                             >
                                 <PencilLine size={16} />
                                 <span className="truncate">Rename</span>
+                            </button>}
+                            {status !== 'deleting' && <button
+                                type="button"
+                                role="menuitem"
+                                onClick={openMoveModal}
+                                className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-primary-text transition-colors hover:bg-primary-text/10 focus:outline-none focus:ring-2"
+                            >
+                                <FolderInput size={16} />
+                                <span className="truncate">Move to folder</span>
                             </button>}
                             <button
                                 type="button"
@@ -243,6 +285,20 @@ export default function LessonCard({
                         </Button>
                     </div>
                 </div>
+            </Modal>
+
+            <Modal
+                isOpen={isMoveModalOpen}
+                onClose={() => setIsMoveModalOpen(false)}
+                title="Move lesson"
+            >
+                <FolderPicker
+                    folders={folders}
+                    value={folderId}
+                    onChange={(targetFolderId) => void handleMoveLesson(targetFolderId)}
+                    disabled={isMoving}
+                />
+                {moveError && <p className="mt-3 text-sm text-red-300">{moveError}</p>}
             </Modal>
         </article>
     );
