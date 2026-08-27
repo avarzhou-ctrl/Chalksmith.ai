@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from backend.app.api.dependencies import get_request_settings
-from backend.app.api.lesson_access import sign_lesson_access
 from backend.app.api.schemas import AccessURLResponse, PublishedLessonItem
 from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
 from backend.app.db.lessons import get_published_lesson, list_published_lessons
 from backend.app.db.session import get_session
 from backend.app.integrations.storage import Storage, get_storage
+from backend.app.lessons.access import sign_lesson_access
 
 router = APIRouter(prefix="/v2/explore", tags=["explore"])
 

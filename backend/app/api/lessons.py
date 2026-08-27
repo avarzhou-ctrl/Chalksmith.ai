@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlmodel import Session
 
 from backend.app.api.dependencies import get_request_settings
-from backend.app.api.lesson_access import sign_lesson_access
 from backend.app.api.schemas import (
     AccessURLResponse,
     FinalLessonResponse,
@@ -35,6 +34,7 @@ from backend.app.db.session import get_session
 from backend.app.db.profiles import ensure_user_profile
 from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.storage import Storage, get_storage
+from backend.app.lessons.access import sign_lesson_access
 
 router = APIRouter(prefix="/v2/lessons", tags=["lessons"])
 

@@ -32,6 +32,7 @@ Always-free monthly allotment, aggregated per billing account: 180,000 vCPU-seco
 | Cloud SQL `db-f1-micro`, 24/7, 10 GB SSD | ~$10 | Runs continuously by definition |
 | PITR write-ahead log archive | ~$1 | Scales with write volume, negligible here |
 | Cloud Run, three services at `--min 0` | ~$0 | Inside the free allotment at this traffic |
+| Cloud Scheduler keep-warm job | $0–$0.10 | One job every 3 minutes; first three jobs per billing account are free |
 | GCS + Artifact Registry | ~$1–2 | Grows with retained image tags |
 | **Total** | **~$12** | |
 

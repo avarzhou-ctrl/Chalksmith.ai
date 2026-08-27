@@ -76,6 +76,7 @@ sql_instance="${CLOUD_SQL_INSTANCE_NAME:-chalksmith-postgres-${environment}}"
 api_service="${API_SERVICE:-chalksmith-api-${environment}}"
 renderer_service="${RENDERER_SERVICE:-chalksmith-renderer-${environment}}"
 web_service="${WEB_SERVICE:-chalksmith-web-${environment}}"
+scheduler_job="${api_service}-keep-warm"
 
 if [[ "${action}" == "shutdown" ]]; then
   # Production is a live service; removing its services takes the product offline.
@@ -84,6 +85,10 @@ if [[ "${action}" == "shutdown" ]]; then
     [[ "${answer}" == "prod" ]] || { echo "Aborted." >&2; exit 1; }
   fi
   # Web first, so the front door closes before its dependencies disappear.
+  if gcloud scheduler jobs describe "${scheduler_job}" --location "${REGION}" --project "${PROJECT_ID}" >/dev/null 2>&1; then
+    gcloud scheduler jobs delete "${scheduler_job}" --location "${REGION}" --project "${PROJECT_ID}" --quiet
+    echo "deleted: ${scheduler_job}"
+  fi
   for service in "${web_service}" "${api_service}" "${renderer_service}"; do
     if gcloud run services describe "${service}" --region "${REGION}" --project "${PROJECT_ID}" >/dev/null 2>&1; then
       gcloud run services delete "${service}" --region "${REGION}" --project "${PROJECT_ID}" --quiet
@@ -217,7 +222,7 @@ fi
 gcloud artifacts repositories set-cleanup-policies "${repository}" --location "${REGION}" \
   --policy "${repo_root}/bin/artifact-cleanup-policy.json" --no-dry-run >/dev/null
 
-# The API creates its tables at startup, so the instance must already be up.
+# The migration job and API both require a running Cloud SQL instance.
 # setup.sh owns its lifecycle; this only checks.
 sql_state="$(gcloud sql instances describe "${sql_instance}" --format='value(state)')"
 if [[ "${sql_state}" != "RUNNABLE" ]]; then
@@ -257,13 +262,34 @@ if [[ -n "${llm_secret_variable}" ]]; then
   secret_bindings+=",${llm_secret_variable}=${LLM_SECRET_NAME}:latest"
 fi
 connection_name="${PROJECT_ID}:${REGION}:${sql_instance}"
+# Run additive schema changes before exposing the new API revision. The job uses
+# APP_ENV=local because it only needs the database settings, not API/LLM config.
+migration_job_env="^|^APP_ENV=local|APP_ROLE=api|CLOUD_SQL_INSTANCE=${connection_name}|DATABASE_NAME=${database}|DATABASE_USER=${database_user}|AUTO_CREATE_TABLES=true"
+gcloud run jobs deploy "${api_service}-migration" --image "${api_image}" --region "${REGION}" \
+  --service-account "${api_account}" --cpu 1 --memory 512Mi --task-timeout 5m --max-retries 0 \
+  --set-cloudsql-instances "${connection_name}" --command python \
+  --args=-m,backend.scripts.init_db --set-env-vars "${migration_job_env}" \
+  --set-secrets "DATABASE_PASSWORD=${db_password_secret}:latest" --execute-now --wait
+
 gcloud run deploy "${api_service}" --image "${api_image}" --region "${REGION}" \
   --service-account "${api_account}" --allow-unauthenticated --cpu 1 --memory 1Gi \
   --concurrency 8 --timeout 900 --min 0 --max 2 --cpu-throttling \
   --add-cloudsql-instances "${connection_name}" \
-  --set-env-vars "^|^APP_ENV=${app_env}|APP_ROLE=api|GCP_PROJECT_ID=${PROJECT_ID}|CLERK_ISSUER=${CLERK_ISSUER}|CLERK_AUTHORIZED_PARTIES=${initial_origins}|LLM_PROVIDER=${LLM_PROVIDER}|LLM_MODEL=${LLM_MODEL}|LLM_TIMEOUT_SECONDS=${llm_timeout_seconds}|LLM_MAX_OUTPUT_TOKENS=${llm_max_output_tokens}|DEEPSEEK_THINKING=${deepseek_thinking}|VERTEX_AI_LOCATION=${vertex_ai_location}|CLOUD_SQL_INSTANCE=${connection_name}|DATABASE_NAME=${database}|DATABASE_USER=${database_user}|GCS_BUCKET=${bucket}|GCS_SIGNER_SERVICE_ACCOUNT=${api_account}|MANIM_RENDERER_URL=${renderer_url}|GENERATION_TIMEOUT_SECONDS=840|MAX_SOURCE_CHARACTERS=${max_source_characters}|FRONTEND_ORIGINS=${initial_origins}" \
+  --set-env-vars "^|^APP_ENV=${app_env}|APP_ROLE=api|GCP_PROJECT_ID=${PROJECT_ID}|CLERK_ISSUER=${CLERK_ISSUER}|CLERK_AUTHORIZED_PARTIES=${initial_origins}|LLM_PROVIDER=${LLM_PROVIDER}|LLM_MODEL=${LLM_MODEL}|LLM_TIMEOUT_SECONDS=${llm_timeout_seconds}|LLM_MAX_OUTPUT_TOKENS=${llm_max_output_tokens}|DEEPSEEK_THINKING=${deepseek_thinking}|VERTEX_AI_LOCATION=${vertex_ai_location}|CLOUD_SQL_INSTANCE=${connection_name}|DATABASE_NAME=${database}|DATABASE_USER=${database_user}|GCS_BUCKET=${bucket}|GCS_SIGNER_SERVICE_ACCOUNT=${api_account}|MANIM_RENDERER_URL=${renderer_url}|GENERATION_TIMEOUT_SECONDS=840|MAX_SOURCE_CHARACTERS=${max_source_characters}|FRONTEND_ORIGINS=${initial_origins}|AUTO_CREATE_TABLES=false" \
   --set-secrets "${secret_bindings}"
 api_url="$(gcloud run services describe "${api_service}" --region "${REGION}" --format 'value(status.url)')"
+
+# Keep one API instance warm enough to hide the usual idle eviction window.
+# Use the single /ready route for the keep-warm request.
+if gcloud scheduler jobs describe "${scheduler_job}" --location "${REGION}" --project "${PROJECT_ID}" >/dev/null 2>&1; then
+  gcloud scheduler jobs update http "${scheduler_job}" --location "${REGION}" \
+    --schedule="*/3 * * * *" --uri="${api_url}/ready" --http-method=GET \
+    --attempt-deadline=30s --max-retry-attempts=0 --time-zone=Etc/UTC
+else
+  gcloud scheduler jobs create http "${scheduler_job}" --location "${REGION}" \
+    --schedule="*/3 * * * *" --uri="${api_url}/ready" --http-method=GET \
+    --attempt-deadline=30s --max-retry-attempts=0 --time-zone=Etc/UTC
+fi
 
 gcloud builds submit --config bin/cloudbuild-web.yaml \
   --service-account "projects/${PROJECT_ID}/serviceAccounts/${build_account}" \

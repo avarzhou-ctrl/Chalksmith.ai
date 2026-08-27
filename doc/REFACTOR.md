@@ -197,7 +197,7 @@ The repository has no root npm workspace. Use `npm --prefix frontend ...` and `u
 Public health route:
 
 ```text
-GET /healthz
+GET /ready
 ```
 
 Authenticated application routes:

@@ -3,9 +3,6 @@ from fastapi import Request
 from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
 from backend.app.integrations.llm.base import LLMProvider
-from backend.app.integrations.llm.deepseek import DeepSeekProvider
-from backend.app.integrations.llm.gemini import VertexGeminiProvider
-from backend.app.integrations.llm.openai import OpenAIProvider
 
 
 def create_llm_provider(settings: Settings) -> LLMProvider:
@@ -18,6 +15,8 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
                 message="GCP_PROJECT_ID is not configured for Vertex AI.",
                 status_code=503,
             )
+        from backend.app.integrations.llm.gemini import VertexGeminiProvider
+
         return VertexGeminiProvider(
             project=settings.gcp_project_id,
             location=settings.vertex_ai_location,
@@ -28,6 +27,8 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
     if settings.llm_provider == "deepseek":
         if not settings.deepseek_api_key:
             raise AppError(code="llm_not_configured", message="DEEPSEEK_API_KEY is not configured.", status_code=503)
+        from backend.app.integrations.llm.deepseek import DeepSeekProvider
+
         return DeepSeekProvider(
             api_key=settings.deepseek_api_key.get_secret_value(),
             model=settings.llm_model,
@@ -38,6 +39,8 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
         )
     if not settings.openai_api_key:
         raise AppError(code="llm_not_configured", message="OPENAI_API_KEY is not configured.", status_code=503)
+    from backend.app.integrations.llm.openai import OpenAIProvider
+
     return OpenAIProvider(
         api_key=settings.openai_api_key.get_secret_value(),
         model=settings.llm_model,

@@ -164,7 +164,7 @@ cat <<EOF
 
 Web      http://localhost:3000
 API docs http://localhost:8000/docs
-Health   http://localhost:8000/healthz, http://localhost:8081/healthz
+Health   http://localhost:8000/ready, http://localhost:8081/ready
 Lessons  ${lessons}
 Records  ${records}
 

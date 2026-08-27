@@ -456,7 +456,7 @@ class ApplicationTests(unittest.TestCase):
         self.client = TestClient(self.app)
 
     def test_healthcheck(self) -> None:
-        response = self.client.get("/healthz", headers={"X-Request-Id": "test-request"})
+        response = self.client.get("/ready", headers={"X-Request-Id": "test-request"})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(

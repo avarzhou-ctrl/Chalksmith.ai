@@ -41,7 +41,7 @@ gcloud config set project "${project}"
 gcloud services enable \
   artifactregistry.googleapis.com cloudbuild.googleapis.com run.googleapis.com \
   sqladmin.googleapis.com secretmanager.googleapis.com storage.googleapis.com \
-  iamcredentials.googleapis.com aiplatform.googleapis.com \
+  iamcredentials.googleapis.com aiplatform.googleapis.com cloudscheduler.googleapis.com \
   --project "${project}"
 
 create_account() {
@@ -78,6 +78,7 @@ for role in \
   roles/cloudsql.admin \
   roles/cloudbuild.builds.editor \
   roles/run.admin \
+  roles/cloudscheduler.admin \
   roles/logging.logWriter; do
   grant_project_role "serviceAccount:${deployer}" "${role}"
 done

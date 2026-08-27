@@ -2,13 +2,15 @@ from fastapi import Request
 
 from backend.app.core.config import Settings
 from backend.app.integrations.storage.base import Storage
-from backend.app.integrations.storage.gcp import GCSStorage
-from backend.app.integrations.storage.local import LocalStorage
 
 
 def create_storage(settings: Settings) -> Storage:
     if settings.local_storage_dir:
+        from backend.app.integrations.storage.local import LocalStorage
+
         return LocalStorage(settings)
+    from backend.app.integrations.storage.gcp import GCSStorage
+
     return GCSStorage(settings)
 
 

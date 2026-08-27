@@ -17,7 +17,7 @@ class RenderRequest(BaseModel):
 renderer_app = FastAPI(title="Chalksmith Manim Renderer", version="2.0.0")
 
 
-@renderer_app.get("/healthz")
+@renderer_app.get("/ready")
 async def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
 

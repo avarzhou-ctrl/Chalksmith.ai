@@ -280,7 +280,7 @@ uv run --project backend python -m unittest discover -s backend/tests
 uv lock --project backend --check
 ```
 
-`http://localhost:8000/docs` for the OpenAPI explorer; `/healthz` on both ports. Every API
+`http://localhost:8000/docs` for the OpenAPI explorer; `/ready` on both ports. Every API
 response carries `X-Request-Id`, which matches the `request_id` field in the structured logs.
 
 ## Testing conventions

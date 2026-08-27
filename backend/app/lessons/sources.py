@@ -2,7 +2,6 @@ import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
-import pymupdf
 from fastapi import UploadFile
 
 from backend.app.core.config import Settings
@@ -117,6 +116,8 @@ def _detected_image_media_type(data: bytes) -> str | None:
 
 
 def _extract_pdf_text(data: bytes) -> str:
+    import pymupdf
+
     with pymupdf.open(stream=data, filetype="pdf") as pdf:
         return "\n".join(page.get_text("text") for page in pdf).strip()
 

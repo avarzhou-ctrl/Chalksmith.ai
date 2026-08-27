@@ -12,7 +12,7 @@ class HealthResponse(BaseModel):
     version: str
 
 
-@router.get("/healthz", response_model=HealthResponse)
+@router.get("/ready", response_model=HealthResponse)
 async def healthcheck(request: Request) -> HealthResponse:
     settings: Settings = request.app.state.settings
     return HealthResponse(

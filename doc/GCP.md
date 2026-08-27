@@ -15,6 +15,7 @@ Never commit service-account JSON files, database passwords, or provider secrets
 | Cloud Build | Builds the api, renderer, and web images from repository source | Not used | `${your-project-id}_cloudbuild` | `${your-project-id}_cloudbuild` |
 | Artifact Registry | Container image storage | Not used | `chalksmith-stg` | `chalksmith-prod` |
 | Cloud Run | Next.js web, FastAPI API, isolated Manim renderer | 3 local processes | <nobr>`chalksmith-{web,api,renderer}-stg` | <nobr>`chalksmith-{web,api,renderer}-prod` |
+| Cloud Scheduler | Keep the API warm between list-page visits | Not used | `chalksmith-api-stg-keep-warm` | `chalksmith-api-prod-keep-warm` |
 
 Vertex AI uses Google credentials and does not use a Gemini Developer API key in this architecture.
 
@@ -72,9 +73,10 @@ Enable the required APIs for `${your-project-id}`:
 | `artifactregistry.googleapis.com` |  | X |
 | `cloudbuild.googleapis.com` |  | X |
 | `run.googleapis.com` |  | X |
+| `cloudscheduler.googleapis.com` |  | X |
 
 ```bash
-gcloud services enable aiplatform.googleapis.com storage.googleapis.com iamcredentials.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com run.googleapis.com sqladmin.googleapis.com secretmanager.googleapis.com --project=your-project-id
+gcloud services enable aiplatform.googleapis.com storage.googleapis.com iamcredentials.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com run.googleapis.com sqladmin.googleapis.com secretmanager.googleapis.com cloudscheduler.googleapis.com --project=your-project-id
 ```
 
 Organization policies are evaluated above project IAM, so a project owner cannot override one inherited from the organization or folder. If a policy restricts allowed services, an organization-policy administrator must [allow these APIs first](https://console.cloud.google.com/iam-admin/orgpolicies/list).
@@ -233,7 +235,7 @@ Shared-core carries no SLA, and `ZONAL` availability means a zone outage is an o
 
 `max_connections` on this tier is derived from 0.6 GB of memory and is small; read it with `SELECT * FROM pg_settings WHERE name = 'max_connections'`. Build the engine with `pool_size=2, max_overflow=0` and cap the API at 2 instances ([Section 3.2](#32-staging-and-production-deployment)) — SQLAlchemy's defaults of 5 pooled plus 10 overflow per process would let an API at `--max 5` demand 75 connections. Ordinary API dependencies close their sessions before sending the response; only the generation SSE keeps request scope, and committed objects do not implicitly reacquire a connection while it waits on the LLM, renderer, or storage.
 
-The v2 schema is created by `create_db_and_tables()` during API startup unless `AUTO_CREATE_TABLES=false`, so a fresh environment needs no explicit schema step. Run the scripts below only to initialize without starting the API, or to import v1 data. Both resolve the connection the same way the API does, so the instance must be running and reachable — from a workstation that means the proxy in [Section 3.1.1](#311-start-cloud-sql-and-verify-gcp-access).
+The v2 schema is initialized by a one-off Cloud Run migration Job during each deployment. The API runs with `AUTO_CREATE_TABLES=false`, so a slow or unavailable database cannot delay every new API instance. Run the scripts below to initialize without deploying, or to import v1 data. Both resolve the connection the same way the API does, so the instance must be running and reachable — from a workstation that means the proxy in [Section 3.1.1](#311-start-cloud-sql-and-verify-gcp-access).
 
 ```bash
 # Schema only.
@@ -326,8 +328,8 @@ After that, verify and debug using following URLs
 | :--- | :--- |
 | `http://localhost:3000` | Web application |
 | `http://localhost:8000/docs` | FastAPI OpenAPI explorer |
-| `http://localhost:8000/healthz` | API health check |
-| `http://localhost:8081/healthz` | Renderer health check |
+| `http://localhost:8000/ready` | API health check |
+| `http://localhost:8081/ready` | Renderer health check |
 
 
 ### 3.2 Staging and production deployment
@@ -367,11 +369,13 @@ Two dependencies fix the order: the API needs the renderer URL, and the web imag
 | 2 | Confirm the Cloud SQL instance is running and abort if it is not; `bin/setup.sh` starts it. Bucket and secret bindings were granted there too, alongside the resources themselves, so only the optional OpenAI secret is bound here. |
 | 3 | Build the api and renderer images with Cloud Build. The build names `chalksmith-deployer` as its service account because the organization policy in [Section 1.2](#12-enable-required-apis-for-the-project) leaves no default build account. |
 | 4 | Deploy the renderer with `--no-allow-unauthenticated`, then grant `chalksmith-api` `roles/run.invoker` on it. |
-| 5 | Deploy the API with `--allow-unauthenticated`, `--add-cloudsql-instances`, the renderer URL from step 4, and Secret Manager mounts for `DATABASE_PASSWORD` (plus `LLM_SECRET_NAME`, mounted as `OPENAI_API_KEY` or `DEEPSEEK_API_KEY`, when `LLM_PROVIDER` is not `vertex`). |
-| 6 | Build the web image with the API URL and the Clerk publishable key compiled in, then deploy it. |
-| 7 | Rewrite the API's `FRONTEND_ORIGINS` and `CLERK_AUTHORIZED_PARTIES` with the real web URL. |
+| 5 | Execute the additive schema migration as a Cloud Run Job over the Cloud SQL connector. |
+| 6 | Deploy the API with `--allow-unauthenticated`, `--add-cloudsql-instances`, the renderer URL from step 4, and Secret Manager mounts for `DATABASE_PASSWORD` (plus `LLM_SECRET_NAME`, mounted as `OPENAI_API_KEY` or `DEEPSEEK_API_KEY`, when `LLM_PROVIDER` is not `vertex`). API startup keeps `AUTO_CREATE_TABLES=false`. |
+| 7 | Create or update `${api_service}-keep-warm` in Cloud Scheduler to request `/ready` every 3 minutes. |
+| 8 | Build the web image with the API URL and the Clerk publishable key compiled in, then deploy it. |
+| 9 | Rewrite the API's `FRONTEND_ORIGINS` and `CLERK_AUTHORIZED_PARTIES` with the real web URL. |
 
-Step 5 runs before the web hostname exists, so both origin variables start at a placeholder and step 7 corrects them. The placeholder is an `https://` URL rather than an empty string because startup validation rejects non-HTTPS origins. Staging deploys with `APP_ENV=production` as well, so it exercises the same validation path as production.
+Step 6 runs before the web hostname exists, so both origin variables start at a placeholder and step 9 corrects them. The placeholder is an `https://` URL rather than an empty string because startup validation rejects non-HTTPS origins. Staging deploys with `APP_ENV=production` as well, so it exercises the same validation path as production.
 
 | Service | Ingress | CPU / memory | Concurrency | Timeout | Scale |
 | :--- | :--- | :--- | :---: | :---: | :---: |
@@ -389,9 +393,9 @@ After `start`:
 
 1. Configure the root `DOMAIN` on the Clerk Production instance, add Clerk's DNS records, deploy its certificates, and create the Cloud Run mappings and product DNS records in [DOMAIN.md](DOMAIN.md). Clerk production keys work only on that configured custom domain.
 2. Use the printed `run.app` URL only for unauthenticated deployment diagnostics. Cloud Run answers each service on two hostnames, the legacy `-<hash>-uc.a.run.app` form and the newer `-<project-number>.<region>.run.app` form; only the first is written into `FRONTEND_ORIGINS` and the Clerk authorized parties. `gcloud run services list` reports the newer form.
-3. Verify the API through `/docs` or any `/v2/...` route, which answers `401` without a token. `/healthz` is answered upstream of the container on `*.run.app` and is not a usable deployment check.
+3. Verify the API through `/docs` or any `/v2/...` route, which answers `401` without a token. The scheduler calls the lightweight `/ready` route every 3 minutes to reduce idle cold starts; it is intentionally a process check and does not validate a database query.
 
-`shutdown` deletes the three Cloud Run services and nothing else; images, buckets, secrets, and data all survive, which makes `start` repeatable. Stopping the database is `bin/setup.sh <env> shutdown`, so a `start` between sessions costs no instance boot. Each `start` prints the web URL again for deployment diagnostics; production authentication continues to use the configured custom domain.
+`shutdown` deletes the three Cloud Run services and the keep-warm scheduler job; images, buckets, secrets, and data all survive, which makes `start` repeatable. Stopping the database is `bin/setup.sh <env> shutdown`, so a `start` between sessions costs no instance boot. Each `start` prints the web URL again for deployment diagnostics; production authentication continues to use the configured custom domain.
 
 Logs are structured JSON on stdout, collected by Cloud Logging. Every API response carries an `X-Request-Id` header matching `jsonPayload.request_id`, and user identity appears only as `owner_id_hash`.
 
