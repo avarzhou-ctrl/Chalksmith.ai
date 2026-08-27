@@ -4,7 +4,7 @@ from typing import Protocol, runtime_checkable
 
 
 @dataclass(frozen=True)
-class LLMImage:
+class LLMSource:
     filename: str
     media_type: str
     data: bytes
@@ -29,12 +29,12 @@ class LLMStreamChunk:
 
 
 class LLMProvider(Protocol):
-    supports_images: bool
+    supports_sources: bool
 
     async def generate(
         self,
         prompt: str,
-        images: tuple[LLMImage, ...] = (),
+        sources: tuple[LLMSource, ...] = (),
     ) -> LLMResult: ...
 
 
@@ -43,7 +43,7 @@ class StreamingLLMProvider(Protocol):
     def stream(
         self,
         prompt: str,
-        images: tuple[LLMImage, ...] = (),
+        sources: tuple[LLMSource, ...] = (),
     ) -> AsyncIterator[LLMStreamChunk]: ...
 
 

@@ -31,7 +31,8 @@ load_deploy_env() {
     value="${BASH_REMATCH[2]}"
     case "${name}" in
       PROJECT_ID|REGION|DOMAIN|LLM_PROVIDER|LLM_MODEL|VERTEX_AI_LOCATION|LLM_SECRET_NAME) ;;
-      LLM_TIMEOUT_SECONDS|LLM_MAX_OUTPUT_TOKENS|MAX_SOURCE_CHARACTERS|DEEPSEEK_THINKING) ;;
+      LLM_TIMEOUT_SECONDS|LLM_MAX_OUTPUT_TOKENS|DEEPSEEK_THINKING) ;;
+      MAX_SOURCE_CHARACTERS) ;; # Retain old deploy files; direct PDF inputs no longer use this value.
       BUILD_SERVICE_ACCOUNT|CLOUD_SQL_INSTANCE_NAME|API_SERVICE|RENDERER_SERVICE|WEB_SERVICE) ;;
       ARTIFACT_REPOSITORY|GCS_BUCKET|DATABASE_NAME|DATABASE_USER|DB_PASSWORD_SECRET_NAME) ;;
       CLERK_KEY_SECRET_NAME|CLERK_KEY_FILE|REVISION_TAG|STAGING_ORIGINS) ;;
@@ -173,12 +174,11 @@ app_env="${APP_ENV_OVERRIDE:-production}"
 vertex_ai_location="${VERTEX_AI_LOCATION:-global}"
 llm_timeout_seconds="${LLM_TIMEOUT_SECONDS:-120}"
 llm_max_output_tokens="${LLM_MAX_OUTPUT_TOKENS:-16384}"
-max_source_characters="${MAX_SOURCE_CHARACTERS:-200000}"
 # DeepSeek bills its chain of thought against LLM_MAX_OUTPUT_TOKENS, so leaving
 # thinking off keeps that budget available for the lesson itself.
 deepseek_thinking="${DEEPSEEK_THINKING:-false}"
 
-for setting in llm_timeout_seconds llm_max_output_tokens max_source_characters; do
+for setting in llm_timeout_seconds llm_max_output_tokens; do
   value="${!setting}"
   if [[ ! "${value}" =~ ^[1-9][0-9]*$ ]]; then
     echo "${setting} must be a positive integer." >&2
@@ -275,7 +275,7 @@ gcloud run deploy "${api_service}" --image "${api_image}" --region "${REGION}" \
   --service-account "${api_account}" --allow-unauthenticated --cpu 1 --memory 1Gi \
   --concurrency 8 --timeout 900 --min 0 --max 2 --cpu-throttling \
   --add-cloudsql-instances "${connection_name}" \
-  --set-env-vars "^|^APP_ENV=${app_env}|APP_ROLE=api|GCP_PROJECT_ID=${PROJECT_ID}|CLERK_ISSUER=${CLERK_ISSUER}|CLERK_AUTHORIZED_PARTIES=${initial_origins}|LLM_PROVIDER=${LLM_PROVIDER}|LLM_MODEL=${LLM_MODEL}|LLM_TIMEOUT_SECONDS=${llm_timeout_seconds}|LLM_MAX_OUTPUT_TOKENS=${llm_max_output_tokens}|DEEPSEEK_THINKING=${deepseek_thinking}|VERTEX_AI_LOCATION=${vertex_ai_location}|CLOUD_SQL_INSTANCE=${connection_name}|DATABASE_NAME=${database}|DATABASE_USER=${database_user}|GCS_BUCKET=${bucket}|GCS_SIGNER_SERVICE_ACCOUNT=${api_account}|MANIM_RENDERER_URL=${renderer_url}|GENERATION_TIMEOUT_SECONDS=840|MAX_SOURCE_CHARACTERS=${max_source_characters}|FRONTEND_ORIGINS=${initial_origins}|AUTO_CREATE_TABLES=false" \
+  --set-env-vars "^|^APP_ENV=${app_env}|APP_ROLE=api|GCP_PROJECT_ID=${PROJECT_ID}|CLERK_ISSUER=${CLERK_ISSUER}|CLERK_AUTHORIZED_PARTIES=${initial_origins}|LLM_PROVIDER=${LLM_PROVIDER}|LLM_MODEL=${LLM_MODEL}|LLM_TIMEOUT_SECONDS=${llm_timeout_seconds}|LLM_MAX_OUTPUT_TOKENS=${llm_max_output_tokens}|DEEPSEEK_THINKING=${deepseek_thinking}|VERTEX_AI_LOCATION=${vertex_ai_location}|CLOUD_SQL_INSTANCE=${connection_name}|DATABASE_NAME=${database}|DATABASE_USER=${database_user}|GCS_BUCKET=${bucket}|GCS_SIGNER_SERVICE_ACCOUNT=${api_account}|MANIM_RENDERER_URL=${renderer_url}|GENERATION_TIMEOUT_SECONDS=840|FRONTEND_ORIGINS=${initial_origins}|AUTO_CREATE_TABLES=false" \
   --set-secrets "${secret_bindings}"
 api_url="$(gcloud run services describe "${api_service}" --region "${REGION}" --format 'value(status.url)')"
 

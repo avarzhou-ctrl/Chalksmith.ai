@@ -4,11 +4,11 @@ from collections.abc import AsyncIterator
 from google import genai
 from google.genai import types
 
-from backend.app.integrations.llm.base import LLMImage, LLMProviderError, LLMResult, LLMStreamChunk
+from backend.app.integrations.llm.base import LLMProviderError, LLMResult, LLMSource, LLMStreamChunk
 
 
 class VertexGeminiProvider:
-    supports_images = True
+    supports_sources = True
 
     def __init__(
         self,
@@ -24,12 +24,12 @@ class VertexGeminiProvider:
         self.timeout_seconds = timeout_seconds
         self.max_output_tokens = max_output_tokens
 
-    async def generate(self, prompt: str, images: tuple[LLMImage, ...] = ()) -> LLMResult:
+    async def generate(self, prompt: str, sources: tuple[LLMSource, ...] = ()) -> LLMResult:
         try:
             response = await asyncio.wait_for(
                 self.client.aio.models.generate_content(
                     model=self.model,
-                    contents=_contents(prompt, images),
+                    contents=_contents(prompt, sources),
                     config=types.GenerateContentConfig(
                         temperature=0.2,
                         max_output_tokens=self.max_output_tokens,
@@ -51,13 +51,13 @@ class VertexGeminiProvider:
     async def stream(
         self,
         prompt: str,
-        images: tuple[LLMImage, ...] = (),
+        sources: tuple[LLMSource, ...] = (),
     ) -> AsyncIterator[LLMStreamChunk]:
         try:
             async with asyncio.timeout(self.timeout_seconds):
                 responses = await self.client.aio.models.generate_content_stream(
                     model=self.model,
-                    contents=_contents(prompt, images),
+                    contents=_contents(prompt, sources),
                     config=types.GenerateContentConfig(
                         temperature=0.2,
                         max_output_tokens=self.max_output_tokens,
@@ -76,13 +76,14 @@ class VertexGeminiProvider:
             raise LLMProviderError(f"Gemini request failed: {error}") from error
 
 
-def _contents(prompt: str, images: tuple[LLMImage, ...]):
-    if not images:
+def _contents(prompt: str, sources: tuple[LLMSource, ...]):
+    if not sources:
         return prompt
     parts = [types.Part.from_text(text=prompt)]
-    for image in images:
-        parts.append(types.Part.from_text(text=f"Source image: {image.filename}"))
-        parts.append(types.Part.from_bytes(data=image.data, mime_type=image.media_type))
+    for source in sources:
+        source_kind = "document" if source.media_type == "application/pdf" else "image"
+        parts.append(types.Part.from_text(text=f"Source {source_kind}: {source.filename}"))
+        parts.append(types.Part.from_bytes(data=source.data, mime_type=source.media_type))
     return parts
 
 

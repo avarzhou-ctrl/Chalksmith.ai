@@ -20,7 +20,7 @@ from backend.app.db.lessons import create_lesson, get_owned_lesson, save_lesson
 from backend.app.db.models import LessonFolder
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
-from backend.app.integrations.llm.base import LLMImage, LLMResult, LLMStreamChunk
+from backend.app.integrations.llm.base import LLMResult, LLMSource, LLMStreamChunk
 from backend.app.integrations.llm.factory import get_llm_provider
 from backend.app.integrations.storage import get_storage
 from backend.app.main import create_app
@@ -71,20 +71,20 @@ class StreamingFakeLLM(FakeLLM):
         )
 
 
-class ImageAwareFakeLLM(FakeLLM):
-    supports_images = True
+class SourceAwareFakeLLM(FakeLLM):
+    supports_sources = True
 
     def __init__(self) -> None:
         self.prompts: list[str] = []
-        self.images: list[tuple[LLMImage, ...]] = []
+        self.sources: list[tuple[LLMSource, ...]] = []
 
     async def generate(
         self,
         prompt: str,
-        images: tuple[LLMImage, ...] = (),
+        sources: tuple[LLMSource, ...] = (),
     ) -> LLMResult:
         self.prompts.append(prompt)
-        self.images.append(images)
+        self.sources.append(sources)
         return await super().generate(prompt)
 
 
@@ -233,7 +233,7 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual(access_response.json()["expires_in"], 300)
 
     def test_image_source_is_stored_and_sent_to_the_model(self) -> None:
-        llm = ImageAwareFakeLLM()
+        llm = SourceAwareFakeLLM()
         self.app.dependency_overrides[get_llm_provider] = lambda: llm
         image = b"\x89PNG\r\n\x1a\nsource-image-bytes"
 
@@ -245,28 +245,51 @@ class V2ApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("event: complete", response.text)
-        self.assertEqual(len(llm.images), 1)
-        self.assertEqual(llm.images[0], (LLMImage("diagram.png", "image/png", image),))
+        self.assertEqual(len(llm.sources), 1)
+        self.assertEqual(llm.sources[0], (LLMSource("diagram.png", "image/png", image),))
         self.assertIn("SOURCE IMAGE: diagram.png", llm.prompts[0])
         source_key = next(key for key in self.storage.objects if key.endswith("/diagram.png"))
         self.assertEqual(self.storage.objects[source_key], image)
         self.assertEqual(self.storage.content_types[source_key], "image/png")
 
-    def test_image_source_requires_an_image_capable_model(self) -> None:
+    def test_pdf_source_is_stored_and_sent_directly_to_the_model(self) -> None:
+        llm = SourceAwareFakeLLM()
+        self.app.dependency_overrides[get_llm_provider] = lambda: llm
+        pdf = b"%PDF-1.7\nimage-only-pdf"
+
         response = self.client.post(
             "/v2/generations",
-            data={"topic": "Explain this diagram", "format": "interactive"},
+            data={"topic": "Explain this worksheet", "format": "interactive"},
+            files={"sources": ("worksheet.pdf", pdf, "application/pdf")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("event: complete", response.text)
+        self.assertEqual(
+            llm.sources[0],
+            (LLMSource("worksheet.pdf", "application/pdf", pdf),),
+        )
+        self.assertIn("SOURCE DOCUMENT: worksheet.pdf", llm.prompts[0])
+        self.assertNotIn("image-only-pdf", llm.prompts[0])
+        source_key = next(key for key in self.storage.objects if key.endswith("/worksheet.pdf"))
+        self.assertEqual(self.storage.objects[source_key], pdf)
+        self.assertEqual(self.storage.content_types[source_key], "application/pdf")
+
+    def test_source_file_requires_a_source_capable_model(self) -> None:
+        response = self.client.post(
+            "/v2/generations",
+            data={"topic": "Explain this worksheet", "format": "interactive"},
             files={
                 "sources": (
-                    "diagram.png",
-                    b"\x89PNG\r\n\x1a\nsource-image-bytes",
-                    "image/png",
+                    "worksheet.pdf",
+                    b"%PDF-1.7\nimage-only-pdf",
+                    "application/pdf",
                 )
             },
         )
 
         self.assertEqual(response.status_code, 422)
-        self.assertEqual(response.json()["error"]["code"], "image_sources_not_supported")
+        self.assertEqual(response.json()["error"]["code"], "source_files_not_supported")
 
     def test_slides_generation_compiles_a_versioned_specification(self) -> None:
         llm = FakeSlidesLLM()
@@ -995,7 +1018,6 @@ class V2ApiTests(unittest.TestCase):
         documents = asyncio.run(extract_sources([valid], settings))
 
         self.assertEqual(documents[0].media_type, "image/webp")
-        self.assertIsNone(documents[0].text)
 
         invalid = UploadFile(
             filename="diagram.png",

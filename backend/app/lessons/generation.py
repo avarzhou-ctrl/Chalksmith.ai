@@ -20,10 +20,10 @@ from backend.app.db.lessons import (
     save_lesson,
 )
 from backend.app.integrations.llm.base import (
-    LLMImage,
     LLMProvider,
     LLMProviderError,
     LLMResult,
+    LLMSource,
     StreamingLLMProvider,
 )
 from backend.app.integrations.storage import Storage
@@ -33,7 +33,7 @@ from backend.app.lessons.formats import (
     get_lesson_format_strategy,
 )
 from backend.app.lessons.render.base import RenderError, Renderer
-from backend.app.lessons.sources import SourceDocument, source_context, source_images
+from backend.app.lessons.sources import SourceDocument, model_sources, source_context
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -77,7 +77,7 @@ class GenerationService:
         self,
         prompt: str,
         *,
-        images: tuple[LLMImage, ...] = (),
+        sources: tuple[LLMSource, ...] = (),
         lesson_id: UUID,
         owner_hash: str,
         stage: str,
@@ -95,8 +95,8 @@ class GenerationService:
             reported_characters = 0
             last_progress_at = started
             iterator = (
-                self.llm.stream(prompt, images=images)
-                if images
+                self.llm.stream(prompt, sources=sources)
+                if sources
                 else self.llm.stream(prompt)
             ).__aiter__()
             pending_chunk: asyncio.Task | None = None
@@ -169,7 +169,7 @@ class GenerationService:
             )
         else:
             generation_task = asyncio.create_task(
-                self.llm.generate(prompt, images=images) if images else self.llm.generate(prompt)
+                self.llm.generate(prompt, sources=sources) if sources else self.llm.generate(prompt)
             )
             try:
                 while True:
@@ -283,7 +283,7 @@ class GenerationService:
             edit_instruction=edit_instruction,
         )
         source_prefix = f"sources/{owner_id}/{lesson.id}/" if sources else None
-        images = source_images(sources)
+        llm_sources = model_sources(sources)
         last_model_text: str | None = None
         yield _event("started", {"lesson_id": str(lesson.id)})
 
@@ -314,7 +314,7 @@ class GenerationService:
             result = None
             async for llm_event in self._generate_with_progress(
                 prompt,
-                images=images,
+                sources=llm_sources,
                 lesson_id=lesson.id,
                 owner_hash=owner_hash,
                 stage="generating",
@@ -362,7 +362,7 @@ class GenerationService:
                     repair = None
                     async for llm_event in self._generate_with_progress(
                         strategy.build_repair_prompt(prompt, result.text, first_error),
-                        images=images,
+                        sources=llm_sources,
                         lesson_id=lesson.id,
                         owner_hash=owner_hash,
                         stage="repairing",

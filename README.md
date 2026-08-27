@@ -133,8 +133,8 @@ flowchart LR
 A generation request follows one path:
 
 1. The browser sends `POST /v2/generations` with a Clerk session JWT, lesson parameters, and optional PDF, PNG, JPEG, or WebP sources.
-2. FastAPI verifies the JWT signature, issuer, expiry, and authorized party; enforces file and request limits; extracts PDF text; validates image signatures; and streams progress over SSE.
-3. The configured LLM adapter returns a summary and source code. Source images are sent as multimodal inputs to Vertex Gemini or OpenAI; DeepSeek configurations reject image-backed requests before generation because their adapter is text-only. Vertex Gemini streams chunks so the API can report generated-character progress and keep the SSE connection active, but the API buffers the complete response before validation.
+2. FastAPI verifies the JWT signature, issuer, expiry, and authorized party; enforces file and request limits; validates PDF and image signatures; and streams progress over SSE.
+3. The configured LLM adapter returns a summary and source code. PDFs and images are sent directly as multimodal inputs to Vertex Gemini or OpenAI; DeepSeek configurations reject source-backed requests before generation because their adapter is text-only. Vertex Gemini streams chunks so the API can report generated-character progress and keep the SSE connection active, but the API buffers the complete response before validation.
 4. Interactive p5.js and Reveal.js outputs are validated and secured as HTML inside the API without being executed there. Video code is sent to the isolated renderer over an authenticated service-to-service request.
 5. The API uploads the final artifact to private Cloud Storage and stores lesson metadata and source code in Cloud SQL.
 6. Preview and download requests return short-lived signed URLs; the database stores stable object keys, never expiring URLs.

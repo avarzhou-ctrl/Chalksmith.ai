@@ -1,13 +1,13 @@
 from openai import AsyncOpenAI
 
-from backend.app.integrations.llm.base import LLMImage, LLMProviderError, LLMResult
+from backend.app.integrations.llm.base import LLMProviderError, LLMResult, LLMSource
 
 
 class DeepSeekProvider:
     """DeepSeek speaks the OpenAI wire format on /chat/completions only, so this
     provider cannot reuse the Responses API call in openai.py."""
 
-    supports_images = False
+    supports_sources = False
 
     def __init__(
         self,
@@ -24,9 +24,9 @@ class DeepSeekProvider:
         self.max_output_tokens = max_output_tokens
         self.thinking = thinking
 
-    async def generate(self, prompt: str, images: tuple[LLMImage, ...] = ()) -> LLMResult:
-        if images:
-            raise LLMProviderError("The configured DeepSeek model does not support image sources.")
+    async def generate(self, prompt: str, sources: tuple[LLMSource, ...] = ()) -> LLMResult:
+        if sources:
+            raise LLMProviderError("The configured DeepSeek model does not support source files.")
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,

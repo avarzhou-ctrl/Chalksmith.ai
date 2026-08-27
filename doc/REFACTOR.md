@@ -140,7 +140,7 @@ One `GenerationService` owns the full deadline and state transition:
 1. validate the owner and optional edit source, deriving `root_lesson_id`, `parent_lesson_id`, and the next `version_number`;
 2. create a `generating` lesson row;
 3. upload accepted PDF and image sources, which the route validated and limit-checked before the stream opened;
-4. call the selected `LLMProvider`, passing PNG, JPEG, and WebP sources as multimodal input when the provider supports images;
+4. call the selected `LLMProvider`, passing PDF, PNG, JPEG, and WebP sources directly as multimodal input when the provider supports source files;
 5. parse and validate the generated source;
 6. render once, with one bounded repair attempt for video;
 7. upload the final artifact;
@@ -313,7 +313,6 @@ MANIM_RENDERER_URL
 MAX_SOURCE_FILES
 MAX_SOURCE_BYTES
 MAX_TOTAL_SOURCE_BYTES
-MAX_SOURCE_CHARACTERS
 AUTO_CREATE_TABLES
 ```
 

@@ -25,7 +25,7 @@ from backend.app.core.errors import AppError
 from backend.app.core.logging import JsonFormatter
 from backend.app.db.session import create_db_and_tables
 from backend.app.integrations.auth import _decode_clerk_token, get_current_user
-from backend.app.integrations.llm.base import LLMImage, LLMProviderError, LLMResult
+from backend.app.integrations.llm.base import LLMProviderError, LLMResult, LLMSource
 from backend.app.integrations.llm.deepseek import DeepSeekProvider
 from backend.app.integrations.llm.factory import create_llm_provider
 from backend.app.integrations.llm.gemini import VertexGeminiProvider
@@ -684,7 +684,7 @@ class GeminiStreamingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(chunks[-1].input_tokens, 20)
         self.assertEqual(chunks[-1].output_tokens, 8)
 
-    async def test_stream_sends_source_images_as_binary_parts(self) -> None:
+    async def test_stream_sends_source_files_as_binary_parts(self) -> None:
         async def responses():
             yield SimpleNamespace(
                 text="done",
@@ -704,9 +704,10 @@ class GeminiStreamingTests(unittest.IsolatedAsyncioTestCase):
         )
         provider.client = MagicMock()
         provider.client.aio.models.generate_content_stream = AsyncMock(return_value=responses())
-        image = LLMImage("diagram.png", "image/png", b"png-bytes")
+        image = LLMSource("diagram.png", "image/png", b"png-bytes")
+        pdf = LLMSource("worksheet.pdf", "application/pdf", b"pdf-bytes")
 
-        chunks = [chunk async for chunk in provider.stream("prompt", images=(image,))]
+        chunks = [chunk async for chunk in provider.stream("prompt", sources=(image, pdf))]
 
         self.assertEqual(chunks[-1].text, "done")
         contents = provider.client.aio.models.generate_content_stream.await_args.kwargs["contents"]
@@ -714,10 +715,13 @@ class GeminiStreamingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(contents[1].text, "Source image: diagram.png")
         self.assertEqual(contents[2].inline_data.mime_type, "image/png")
         self.assertEqual(contents[2].inline_data.data, b"png-bytes")
+        self.assertEqual(contents[3].text, "Source document: worksheet.pdf")
+        self.assertEqual(contents[4].inline_data.mime_type, "application/pdf")
+        self.assertEqual(contents[4].inline_data.data, b"pdf-bytes")
 
 
-class OpenAIImageTests(unittest.IsolatedAsyncioTestCase):
-    async def test_generate_sends_source_images_as_data_urls(self) -> None:
+class OpenAISourceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_generate_sends_images_and_pdfs_as_data_urls(self) -> None:
         provider = OpenAIProvider(
             api_key="test-key",
             model="test-model",
@@ -731,9 +735,10 @@ class OpenAIImageTests(unittest.IsolatedAsyncioTestCase):
                 usage=SimpleNamespace(input_tokens=20, output_tokens=5),
             )
         )
-        image = LLMImage("diagram.jpg", "image/jpeg", b"jpeg-bytes")
+        image = LLMSource("diagram.jpg", "image/jpeg", b"jpeg-bytes")
+        pdf = LLMSource("worksheet.pdf", "application/pdf", b"pdf-bytes")
 
-        result = await provider.generate("prompt", images=(image,))
+        result = await provider.generate("prompt", sources=(image, pdf))
 
         self.assertEqual(result.text, "done")
         request_input = provider.client.responses.create.await_args.kwargs["input"]
@@ -747,6 +752,16 @@ class OpenAIImageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             content[2]["image_url"],
             "data:image/jpeg;base64,anBlZy1ieXRlcw==",
+        )
+        self.assertEqual(
+            content[3],
+            {"type": "input_text", "text": "Source document: worksheet.pdf"},
+        )
+        self.assertEqual(content[4]["type"], "input_file")
+        self.assertEqual(content[4]["filename"], "worksheet.pdf")
+        self.assertEqual(
+            content[4]["file_data"],
+            "data:application/pdf;base64,cGRmLWJ5dGVz",
         )
 
 
