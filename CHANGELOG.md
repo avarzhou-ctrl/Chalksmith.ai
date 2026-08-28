@@ -1,5 +1,9 @@
 # Changelog
 
+**2026-08-29**: Expanded the landing-page `demo-1.mp4` preview to the same full-block width as the first “Why choose Chalksmith?” card for consistent section alignment (`frontend/src/app/page.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Vertically centered both desktop landing-page lesson pipeline node groups with equal outer spacing and aligned every connector with the midpoint of its source and output card (`frontend/src/components/home/LessonPipeline.tsx`, `CHANGELOG.md`).
+
 **2026-08-28**: Increased the landing-page dot field density, displacement, brightness, dot size, and amber highlights while reducing the hero overlay, making the animated wave bands visibly distinct against the chalkboard background (`frontend/src/app/page.tsx`, `frontend/src/components/home/ChalkDust.tsx`, `CHANGELOG.md`).
 
 **2026-08-27**: Simplified the landing-page hierarchy by removing six decorative eyebrow labels, linked Examples to the published `/content/` catalog, and replaced the hero-only random chalk particles with a fixed dependency-free amber/stone dot field that moves in layered waves behind the full page (`frontend/src/app/page.tsx`, `frontend/src/components/home/ChalkDust.tsx`, `frontend/src/components/home/LessonPipeline.tsx`, `CHANGELOG.md`).

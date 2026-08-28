@@ -29,18 +29,18 @@ function PipelineNode({ icon: Icon, label, detail }: PipelineNodeProps) {
 }
 
 const paths = [
-  'M220 75 C350 75 350 150 455 150',
-  'M220 225 C350 225 350 150 455 150',
-  'M545 150 C650 150 650 55 780 55',
-  'M545 150 C650 150 650 150 780 150',
-  'M545 150 C650 150 650 245 780 245',
+  'M220 73 C350 73 350 144 455 144',
+  'M220 215 C350 215 350 144 455 144',
+  'M545 144 C650 144 650 62 780 62',
+  'M545 144 C650 144 650 144 780 144',
+  'M545 144 C650 144 650 226 780 226',
 ];
 
 export default function LessonPipeline() {
   return (
     <figure aria-label="Lesson source to output pipeline" className="relative mx-auto mt-10 w-full max-w-5xl rounded-3xl border border-stone-800 bg-stone-950/55 p-4 shadow-2xl shadow-black/30 backdrop-blur-sm sm:p-5">
       <div className="relative hidden min-h-72 md:block">
-        <svg className="pointer-events-none absolute inset-0 size-full" viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true">
+        <svg className="pointer-events-none absolute inset-0 size-full" viewBox="0 0 1000 288" preserveAspectRatio="none" aria-hidden="true">
           {paths.map((path) => (
             <path key={`base-${path}`} d={path} fill="none" pathLength="1" stroke="rgb(68 64 60)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
           ))}
@@ -61,7 +61,7 @@ export default function LessonPipeline() {
           ))}
         </svg>
 
-        <div className="absolute left-0 top-7 w-[24%] space-y-20">
+        <div className="absolute left-0 top-1/2 w-[24%] -translate-y-1/2 space-y-20">
           <PipelineNode icon={FileText} label="Upload a source" detail="Syllabus, notes, or PDF" />
           <PipelineNode icon={MessageSquareText} label="Describe a lesson" detail="Topic, level, and goals" />
         </div>
@@ -76,7 +76,7 @@ export default function LessonPipeline() {
           </div>
         </div>
 
-        <div className="absolute right-0 top-0 w-[24%] space-y-5">
+        <div className="absolute right-0 top-1/2 w-[24%] -translate-y-1/2 space-y-5">
           <PipelineNode icon={Video} label="Video" detail="Code-driven animation" />
           <PipelineNode icon={MousePointerClick} label="Interactive" detail="Student-controlled display" />
           <PipelineNode icon={Presentation} label="Slides" detail="Classroom presentation" />

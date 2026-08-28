@@ -89,7 +89,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative mx-auto w-full max-w-5xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8" id="content" aria-label="Chalksmith product preview">
+        <section className="relative mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8" id="content" aria-label="Chalksmith product preview">
           <ForgeFrame>
             <video
               src="/demo-1.mp4"
