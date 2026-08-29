@@ -20,6 +20,7 @@ interface LessonCardProps {
     format: LessonFormat;
     status: LessonListItem['status'];
     isPublished: boolean;
+    tags: string[];
     createdAt: string;
     versionCount: number;
     folderId: string | null;
@@ -35,6 +36,7 @@ export default function LessonCard({
     format,
     status,
     isPublished,
+    tags,
     createdAt,
     versionCount,
     folderId,
@@ -202,6 +204,16 @@ export default function LessonCard({
             </div>
             {description && (
                 <div className="pointer-events-none relative z-10 mt-3 line-clamp-2 text-sm leading-6 text-secondary-text">{description}</div>
+            )}
+            {tags.length > 0 && (
+                <section className="pointer-events-none relative z-10 mt-3 flex flex-wrap gap-1.5">
+                    {tags.slice(0, 3).map((tag) => (
+                        <span key={tag.toLocaleLowerCase()} className="rounded-full bg-accent/10 px-2 py-1 text-xs text-accent">
+                            {tag}
+                        </span>
+                    ))}
+                    {tags.length > 3 && <span className="px-1 py-1 text-xs text-secondary-text">+{tags.length - 3}</span>}
+                </section>
             )}
             {status !== 'ready' && (
                 <p className="pointer-events-none relative z-10 mt-3 text-xs font-medium text-amber-400">

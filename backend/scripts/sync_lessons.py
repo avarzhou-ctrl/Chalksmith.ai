@@ -22,6 +22,7 @@ COLUMNS = (
 )
 # owner_id and object_key are rewritten per environment, so they are compared separately.
 COMPARED = tuple(name for name in COLUMNS if name not in {"owner_id", "object_key"})
+TAG_COLUMNS = ("root_lesson_id", "owner_id", "normalized_value", "label", "created_at")
 
 
 def parse_args() -> argparse.Namespace:
@@ -62,6 +63,15 @@ def read_lessons(url: str) -> dict[str, dict]:
         return {str(row[0]): dict(zip(COLUMNS, row)) for row in cursor.fetchall()}
 
 
+def read_tags(url: str) -> dict[tuple[str, str], dict]:
+    with psycopg.connect(url) as connection, connection.cursor() as cursor:
+        cursor.execute(f"SELECT {', '.join(TAG_COLUMNS)} FROM lesson_tags")
+        return {
+            (str(row[0]), row[2]): dict(zip(TAG_COLUMNS, row))
+            for row in cursor.fetchall()
+        }
+
+
 def target_key_for(row: dict, owner_id: str) -> str | None:
     if not row["object_key"]:
         return None
@@ -92,6 +102,8 @@ def main() -> None:
 
     source_rows = read_lessons(source_url)
     target_rows = read_lessons(target_url)
+    source_tags = read_tags(source_url)
+    target_tags = read_tags(target_url)
     client = storage.Client()
     source_bucket = client.bucket(required("SOURCE_GCS_BUCKET"))
     target_bucket = client.bucket(required("GCS_BUCKET"))
@@ -115,11 +127,25 @@ def main() -> None:
             updates.append((row, planned))
 
     prunable = [row for lesson_id, row in target_rows.items() if lesson_id not in source_rows]
+    tag_inserts, tag_updates = [], []
+    for key, row in source_tags.items():
+        if row["owner_id"] not in owner_map:
+            continue
+        planned = dict(row)
+        planned["owner_id"] = owner_map[row["owner_id"]]
+        current = target_tags.get(key)
+        if current is None:
+            tag_inserts.append(planned)
+        elif any(current[name] != planned[name] for name in TAG_COLUMNS):
+            tag_updates.append(planned)
+    prunable_tags = [row for key, row in target_tags.items() if key not in source_tags]
 
     print(f"owners: {len(owner_map)} mapped" + (f", {len(unmapped)} unmapped (their lessons are skipped)" if unmapped else ""))
     for owner in unmapped:
         print(f"  unmapped source owner {owner}")
     print(f"lessons: {len(inserts)} to insert, {len(updates)} to update, {len(prunable)} to delete"
+          + ("" if args.prune else " (pass --prune to delete)"))
+    print(f"tags: {len(tag_inserts)} to insert, {len(tag_updates)} to update, {len(prunable_tags)} to delete"
           + ("" if args.prune else " (pass --prune to delete)"))
     if not args.apply:
         print("\ndry-run: nothing written. Re-run with --apply.")
@@ -140,7 +166,26 @@ def main() -> None:
                 f"ON CONFLICT (id) DO UPDATE SET {assignments}",
                 planned,
             )
+        tag_columns = ", ".join(TAG_COLUMNS)
+        tag_placeholders = ", ".join(f"%({name})s" for name in TAG_COLUMNS)
+        tag_assignments = ", ".join(
+            f"{name} = EXCLUDED.{name}"
+            for name in TAG_COLUMNS
+            if name not in {"root_lesson_id", "normalized_value"}
+        )
+        for planned in tag_inserts + tag_updates:
+            cursor.execute(
+                f"INSERT INTO lesson_tags ({tag_columns}) VALUES ({tag_placeholders}) "
+                f"ON CONFLICT (root_lesson_id, normalized_value) DO UPDATE SET {tag_assignments}",
+                planned,
+            )
         pruned_objects = 0
+        if args.prune:
+            for row in prunable_tags:
+                cursor.execute(
+                    "DELETE FROM lesson_tags WHERE root_lesson_id = %s AND normalized_value = %s",
+                    (row["root_lesson_id"], row["normalized_value"]),
+                )
         if args.prune and prunable:
             for row in prunable:
                 if row["object_key"]:
@@ -155,7 +200,9 @@ def main() -> None:
 
     print(f"applied: {len(inserts)} inserted, {len(updates)} updated, "
           f"{len(prunable) if args.prune else 0} deleted, {copied} objects copied"
-          + (f", {pruned_objects} objects deleted" if args.prune else ""))
+          + (f", {pruned_objects} objects deleted" if args.prune else "")
+          + f"; tags: {len(tag_inserts)} inserted, {len(tag_updates)} updated, "
+          f"{len(prunable_tags) if args.prune else 0} deleted")
 
 
 if __name__ == "__main__":

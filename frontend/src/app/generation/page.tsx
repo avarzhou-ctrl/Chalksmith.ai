@@ -13,6 +13,7 @@ import EditableTitle from '@/components/generation/EditableTitle';
 import GenerationSidebar from '@/components/generation/GenerationSidebar';
 import LessonViewport from '@/components/generation/LessonViewport';
 import LoadingOverlay from '@/components/generation/LoadingOverlay';
+import LessonTagEditor from '@/components/generation/LessonTagEditor';
 import PublishLessonButton from '@/components/generation/PublishLessonButton';
 import Button from '@/components/ui/Button';
 import { useApi } from '@/lib/hooks/useApi';
@@ -40,6 +41,7 @@ export default function GenerationPage() {
     title,
     loading,
     publicationLoading,
+    tagLoading,
     status,
     progress,
     error,
@@ -56,6 +58,7 @@ export default function GenerationPage() {
     generateLesson,
     updateTitle,
     downloadLesson,
+    updateTags,
     publishLesson,
     unpublishLesson,
   } = useGeneration(api, publicAuthorName);
@@ -86,6 +89,12 @@ export default function GenerationPage() {
                 <section className="flex shrink-0 gap-2 pb-1">
                   {lesson && (
                     <>
+                      <LessonTagEditor
+                        tags={lesson.tags}
+                        isBusy={tagLoading}
+                        disabled={loading}
+                        onSave={updateTags}
+                      />
                       <PublishLessonButton
                         authorName={publicAuthorName}
                         isPublished={lesson.is_published}

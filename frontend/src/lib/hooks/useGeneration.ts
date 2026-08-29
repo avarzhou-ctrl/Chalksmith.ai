@@ -10,6 +10,7 @@ import {
   renameLesson,
   selectFinalLesson,
   setLessonPublication,
+  setLessonTags,
 } from '@/lib/api/lessons';
 import type { ApiClient } from '@/lib/api/client';
 import type { Lesson, LessonFormat, LessonVersion } from '@/lib/types/api';
@@ -79,6 +80,7 @@ export function useGeneration(api: ApiClient, publicationDisplayName = 'Chalksmi
   const [title, setTitle] = useState('Untitled');
   const [loading, setLoading] = useState(false);
   const [publicationLoading, setPublicationLoading] = useState(false);
+  const [tagLoading, setTagLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -191,6 +193,7 @@ export function useGeneration(api: ApiClient, publicationDisplayName = 'Chalksmi
     setError(null);
     setShowCode(false);
     setPublicationLoading(false);
+    setTagLoading(false);
     window.history.replaceState({}, '', window.location.pathname);
   }, [stopGeneration]);
 
@@ -292,6 +295,22 @@ export function useGeneration(api: ApiClient, publicationDisplayName = 'Chalksmi
     }
   }, [api, lesson]);
 
+  const updateTags = useCallback(async (tags: string[]) => {
+    if (!lesson) return false;
+    setTagLoading(true);
+    setError(null);
+    try {
+      const result = await setLessonTags(api, lesson.id, tags);
+      setLesson((current) => current ? { ...current, tags: result.tags } : current);
+      return true;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to update lesson tags.');
+      return false;
+    } finally {
+      setTagLoading(false);
+    }
+  }, [api, lesson]);
+
   const updatePublication = useCallback(async (published: boolean) => {
     if (!lesson) return false;
     setPublicationLoading(true);
@@ -336,6 +355,7 @@ export function useGeneration(api: ApiClient, publicationDisplayName = 'Chalksmi
     title,
     loading,
     publicationLoading,
+    tagLoading,
     status,
     progress,
     error,
@@ -352,6 +372,7 @@ export function useGeneration(api: ApiClient, publicationDisplayName = 'Chalksmi
     generateLesson,
     updateTitle,
     downloadLesson,
+    updateTags,
     publishLesson,
     unpublishLesson,
   };

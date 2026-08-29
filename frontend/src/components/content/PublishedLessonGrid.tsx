@@ -8,18 +8,31 @@ import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
 import Button from '@/components/ui/Button';
 import { createPublicApiClient } from '@/lib/api/client';
 import { getPublishedLessonAccessUrl, listPublishedLessons } from '@/lib/api/explore';
-import type { PublishedLessonItem } from '@/lib/types/api';
+import type { LessonFormat, PublishedLessonItem } from '@/lib/types/api';
 
-export default function PublishedLessonGrid() {
+interface PublishedLessonGridProps {
+  query: string;
+  format: LessonFormat | undefined;
+  tags: string[];
+}
+
+export default function PublishedLessonGrid({ query, format, tags }: PublishedLessonGridProps) {
   const api = useMemo(() => createPublicApiClient(), []);
   const [lessons, setLessons] = useState<PublishedLessonItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const tagKey = tags.join('\u0000');
 
   useEffect(() => {
     const controller = new AbortController();
-    listPublishedLessons(api, controller.signal)
+    setIsLoading(true);
+    setError(null);
+    listPublishedLessons(
+      api,
+      { q: query.trim() || undefined, format, tags },
+      controller.signal,
+    )
       .then(setLessons)
       .catch((caught) => {
         if (!controller.signal.aborted) {
@@ -28,9 +41,9 @@ export default function PublishedLessonGrid() {
       })
       .finally(() => {
         if (!controller.signal.aborted) setIsLoading(false);
-      });
+    });
     return () => controller.abort();
-  }, [api]);
+  }, [api, format, query, tagKey]);
 
   async function viewLesson(lessonId: string) {
     const pendingWindow = window.open('about:blank', '_blank');
@@ -79,7 +92,11 @@ export default function PublishedLessonGrid() {
       {lessons.length === 0 ? (
         <section className="rounded-2xl border border-dashed border-border bg-surface/20 p-10 text-center">
           <h2 className="text-xl font-semibold">No published lessons yet</h2>
-          <p className="mt-2 text-sm text-secondary-text">Published lessons will be recommended here.</p>
+          <p className="mt-2 text-sm text-secondary-text">
+            {query || format || tags.length
+              ? 'Try a different search term or filter.'
+              : 'Published lessons will be recommended here.'}
+          </p>
         </section>
       ) : (
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -106,6 +123,15 @@ export default function PublishedLessonGrid() {
                 <p className="mt-4 line-clamp-4 text-sm leading-6 text-secondary-text">
                   {lesson.summary || 'A published Chalksmith lesson.'}
                 </p>
+                {lesson.tags.length > 0 && (
+                  <section className="mt-4 flex flex-wrap gap-1.5" aria-label="Lesson tags">
+                    {lesson.tags.map((tag) => (
+                      <span key={tag.toLocaleLowerCase()} className="rounded-full bg-accent/10 px-2.5 py-1 text-xs text-accent">
+                        {tag}
+                      </span>
+                    ))}
+                  </section>
+                )}
                 <section className="mt-auto flex gap-3 pt-6">
                   <Button
                     variant="primary"

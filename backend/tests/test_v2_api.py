@@ -11,13 +11,13 @@ from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session
+from sqlmodel import Session, select
 from starlette.datastructures import Headers
 
 from backend.app.api.dependencies import get_renderers
 from backend.app.core.config import Settings
 from backend.app.db.lessons import create_lesson, get_owned_lesson, save_lesson
-from backend.app.db.models import LessonFolder
+from backend.app.db.models import LessonFolder, LessonTag
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.llm.base import LLMResult, LLMSource, LLMStreamChunk
@@ -523,6 +523,13 @@ class V2ApiTests(unittest.TestCase):
         )
         edited_id = _completed_lesson_id(edited.text)
 
+        tags = self.client.put(
+            f"/v2/lessons/{edited_id}/tags",
+            json={"tags": [" Math ", "math", "Grade 6"]},
+        )
+        self.assertEqual(tags.status_code, 200)
+        self.assertEqual(tags.json()["tags"], ["Math", "Grade 6"])
+
         publication = self.client.put(
             f"/v2/lessons/{edited_id}/publication",
             json={"published": True, "display_name": "Ada Teacher"},
@@ -563,6 +570,22 @@ class V2ApiTests(unittest.TestCase):
         self.assertNotIn("email", published.json()[0])
         self.assertEqual(published.json()[0]["author_profile_id"], profile_id)
         self.assertEqual(published.json()[0]["author_display_name"], "Ada Teacher")
+        self.assertEqual(published.json()[0]["tags"], ["Math", "Grade 6"])
+        self.assertEqual(
+            [lesson["id"] for lesson in self.client.get("/v2/explore/lessons?q=ada").json()],
+            [edited_id],
+        )
+        self.assertEqual(
+            [lesson["id"] for lesson in self.client.get("/v2/explore/lessons?tag=math&tag=grade+6").json()],
+            [edited_id],
+        )
+        self.assertEqual(
+            self.client.get("/v2/explore/tags").json(),
+            [
+                {"label": "Grade 6", "value": "grade 6", "lesson_count": 1},
+                {"label": "Math", "value": "math", "lesson_count": 1},
+            ],
+        )
 
         old_access = self.client.post(f"/v2/explore/lessons/{first_id}/access-url")
         view_access = self.client.post(f"/v2/explore/lessons/{edited_id}/access-url")
@@ -575,6 +598,15 @@ class V2ApiTests(unittest.TestCase):
         self.assertNotIn("?download=", view_access.json()["url"])
         self.assertIn("?download=Public fractions.html", download_access.json()["url"])
 
+        previous_published_at = publication.json()["published_at"]
+        self.assertEqual(self.client.put(f"/v2/lessons/{first_id}/final").status_code, 200)
+        self.assertEqual(self.client.get("/v2/explore/lessons").json()[0]["id"], first_id)
+        self.assertNotEqual(
+            self.client.get(f"/v2/lessons/{first_id}").json()["published_at"],
+            previous_published_at,
+        )
+        self.assertEqual(self.client.put(f"/v2/lessons/{edited_id}/final").status_code, 200)
+
         unpublished = self.client.put(
             f"/v2/lessons/{first_id}/publication",
             json={"published": False},
@@ -584,6 +616,7 @@ class V2ApiTests(unittest.TestCase):
         self.assertFalse(unpublished.json()["is_published"])
         self.assertFalse(self.client.get("/v2/lessons").json()[0]["is_published"])
         self.assertEqual(self.client.get("/v2/explore/lessons").json(), [])
+        self.assertEqual(self.client.get("/v2/explore/tags").json(), [])
         self.assertEqual(
             self.client.post(f"/v2/explore/lessons/{edited_id}/access-url").status_code,
             404,
@@ -821,7 +854,9 @@ class V2ApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual([row["version_count"] for row in response.json()], [2, 2, 2])
-        self.assertEqual(len(select_statements), 2)
+        # Lesson cards, their tags, and version counts each use one bounded query.
+        self.assertEqual(len(select_statements), 3)
+        self.assertEqual(sum("lesson_tags" in statement for statement in select_statements), 1)
         dashboard_select = select_statements[0]
         for private_or_heavy_field in (
             "source_code",
@@ -832,10 +867,72 @@ class V2ApiTests(unittest.TestCase):
         ):
             self.assertNotIn(private_or_heavy_field, dashboard_select)
 
+    def test_lesson_tags_are_root_scoped_searchable_and_validated(self) -> None:
+        first = self.client.post(
+            "/v2/generations",
+            data={"topic": "Fraction models", "format": "interactive"},
+        )
+        first_id = _completed_lesson_id(first.text)
+        edited = self.client.post(
+            "/v2/generations",
+            data={
+                "topic": "Fraction models",
+                "format": "interactive",
+                "base_lesson_id": first_id,
+                "edit_instruction": "Add a number line.",
+            },
+        )
+        edited_id = _completed_lesson_id(edited.text)
+
+        updated = self.client.put(
+            f"/v2/lessons/{edited_id}/tags",
+            json={"tags": [" Math ", "math", "Number Sense"]},
+        )
+
+        self.assertEqual(updated.status_code, 200)
+        self.assertEqual(updated.json()["tags"], ["Math", "Number Sense"])
+        self.assertEqual(self.client.get(f"/v2/lessons/{first_id}").json()["tags"], ["Math", "Number Sense"])
+        self.assertEqual(self.client.get(f"/v2/lessons/{edited_id}").json()["tags"], ["Math", "Number Sense"])
+        self.assertEqual(
+            [lesson["id"] for lesson in self.client.get("/v2/lessons?tag=math&tag=number+sense").json()],
+            [first_id],
+        )
+        self.assertEqual(
+            [lesson["id"] for lesson in self.client.get("/v2/lessons?q=number+sense").json()],
+            [first_id],
+        )
+        self.assertEqual(
+            self.client.get("/v2/lessons/tags").json(),
+            [
+                {"label": "Math", "value": "math", "lesson_count": 1},
+                {"label": "Number Sense", "value": "number sense", "lesson_count": 1},
+            ],
+        )
+        self.assertEqual(
+            self.client.put(
+                f"/v2/lessons/{first_id}/tags",
+                json={"tags": ["1", "2", "3", "4", "5", "6"]},
+            ).status_code,
+            422,
+        )
+
+        self.assertEqual(self.client.delete(f"/v2/lessons/{first_id}").status_code, 204)
+        with Session(self.app.state.engine) as session:
+            self.assertEqual(session.exec(select(LessonTag)).all(), [])
+
     def test_lesson_queries_are_tenant_isolated(self) -> None:
         with Session(self.app.state.engine) as session:
             mine = create_lesson(session, owner_id="teacher-a", topic="Mine", lesson_format="slides")
             other = create_lesson(session, owner_id="teacher-b", topic="Other", lesson_format="slides")
+            session.add(
+                LessonTag(
+                    root_lesson_id=other.id,
+                    owner_id="teacher-b",
+                    normalized_value="private",
+                    label="Private",
+                )
+            )
+            session.commit()
             mine_id = str(mine.id)
             other_id = str(other.id)
 
@@ -843,11 +940,19 @@ class V2ApiTests(unittest.TestCase):
         ids = {row["id"] for row in response.json()}
         self.assertIn(mine_id, ids)
         self.assertNotIn(other_id, ids)
+        self.assertEqual(self.client.get("/v2/lessons/tags").json(), [])
         self.assertEqual(self.client.get(f"/v2/lessons/{other_id}").status_code, 404)
         self.assertEqual(
             self.client.put(
                 f"/v2/lessons/{other_id}/publication",
                 json={"published": False},
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.put(
+                f"/v2/lessons/{other_id}/tags",
+                json={"tags": ["No access"]},
             ).status_code,
             404,
         )

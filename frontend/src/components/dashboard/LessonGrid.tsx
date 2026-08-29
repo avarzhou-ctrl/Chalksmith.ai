@@ -58,6 +58,7 @@ export default function LessonGrid({
           format={lesson.format}
           status={lesson.status}
           isPublished={lesson.is_published}
+          tags={lesson.tags}
           createdAt={lesson.created_at}
           versionCount={lesson.version_count}
           folderId={lesson.folder_id}

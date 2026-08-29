@@ -27,6 +27,7 @@ class LessonResponse(BaseModel):
     error_message: str | None
     is_published: bool = False
     published_at: datetime | None = None
+    tags: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
@@ -57,6 +58,7 @@ class LessonListItem(BaseModel):
     status: Literal["generating", "ready", "failed", "deleting"]
     summary: str | None
     is_published: bool = False
+    tags: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
@@ -67,6 +69,23 @@ class LessonUpdate(BaseModel):
 
 class LessonFolderUpdate(BaseModel):
     folder_id: UUID | None = None
+
+
+class LessonTagsUpdate(BaseModel):
+    tags: list[str] = Field(default_factory=list, max_length=5)
+
+
+class LessonTagsResponse(BaseModel):
+    root_lesson_id: UUID
+    tags: list[str]
+
+
+class LessonTagItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    label: str
+    value: str
+    lesson_count: int
 
 
 class FolderCreate(BaseModel):
@@ -122,6 +141,15 @@ class PublishedLessonItem(BaseModel):
     updated_at: datetime
     author_profile_id: UUID
     author_display_name: str
+    tags: list[str] = Field(default_factory=list)
+
+
+class PublishedTagItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    label: str
+    value: str
+    lesson_count: int
 
 
 class ProfileUpdate(BaseModel):
