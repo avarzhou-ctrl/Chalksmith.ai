@@ -1,5 +1,7 @@
 # Changelog
 
+**2026-08-29**: Restored homepage mobile animations by painting the chalk-wave canvas before the first animation frame, adding WebKit-compatible responsive masking, and triggering the stacked Educator's Dilemma counters when they enter the viewport or a reload restores the page past them (`frontend/src/components/home/ChalkDust.tsx`, `frontend/src/components/home/EducatorEquation.tsx`, `CHANGELOG.md`).
+
 **2026-08-29**: Moved the lesson pipeline's left and right node groups toward the forge and realigned their connectors so the frame has more balanced top, bottom, left, and right whitespace (`frontend/src/components/home/LessonPipeline.tsx`, `CHANGELOG.md`).
 
 **2026-08-29**: Expanded the lesson-pipeline frame to the same maximum width as the product-preview section below it for consistent homepage alignment (`frontend/src/components/home/LessonPipeline.tsx`, `CHANGELOG.md`).

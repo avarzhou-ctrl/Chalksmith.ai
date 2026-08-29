@@ -45,6 +45,17 @@ export default function EducatorEquation() {
     const element = containerRef.current;
     if (!element) return;
 
+    // A mobile reload can restore the page below this section before the observer starts.
+    if (element.getBoundingClientRect().top <= window.innerHeight * 0.9) {
+      setHasEntered(true);
+      return;
+    }
+
+    if (!('IntersectionObserver' in window)) {
+      setHasEntered(true);
+      return;
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -52,7 +63,8 @@ export default function EducatorEquation() {
           observer.disconnect();
         }
       },
-      { threshold: 0.35 },
+      // The cards stack on phones, so waiting for 35% of the whole grid can miss the viewport.
+      { rootMargin: '0px 0px -10% 0px', threshold: 0.01 },
     );
 
     observer.observe(element);
