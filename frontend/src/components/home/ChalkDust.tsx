@@ -114,12 +114,14 @@ export default function ChalkDust() {
 
     observer.observe(drawingCanvas);
     resize();
+    // Paint once immediately because mobile browsers can defer the first animation frame.
+    draw(0);
     updateMotionPreference();
-    reducedMotion.addEventListener('change', updateMotionPreference);
+    reducedMotion.addEventListener?.('change', updateMotionPreference);
 
     return () => {
       observer.disconnect();
-      reducedMotion.removeEventListener('change', updateMotionPreference);
+      reducedMotion.removeEventListener?.('change', updateMotionPreference);
       window.cancelAnimationFrame(frameId);
     };
   }, []);
@@ -128,7 +130,7 @@ export default function ChalkDust() {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0 size-full [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_100%)]"
+      className="pointer-events-none fixed inset-0 z-0 h-screen w-screen [mask-image:radial-gradient(ellipse_at_center,black_55%,transparent_100%)] [-webkit-mask-image:radial-gradient(ellipse_at_center,black_55%,transparent_100%)] sm:[mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_100%)] sm:[-webkit-mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_100%)]"
     />
   );
 }

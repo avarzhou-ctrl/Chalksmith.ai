@@ -114,7 +114,7 @@ export default function Home() {
         </section>
 
         <section id="why_choose_chalksmith" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-          <div className="max-w-3xl">
+          <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-4xl font-bold text-primary-text sm:text-5xl">Why Chalksmith?</h2>
           </div>
           <div className="mt-10 grid gap-6">

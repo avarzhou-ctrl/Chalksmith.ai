@@ -84,7 +84,7 @@ export default function ExamplesCarousel() {
             <h3 className="mt-6 text-2xl font-semibold leading-tight text-primary-text">
               {activeExample.title}
             </h3>
-            <p className="mt-4 text-sm leading-6 text-secondary-text sm:text-base sm:leading-7">
+            <p className="mt-4 text-base leading-7 text-secondary-text">
               {activeExample.description}
             </p>
           </div>

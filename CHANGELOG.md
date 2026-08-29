@@ -1,5 +1,15 @@
 # Changelog
 
+**2026-08-29**: Standardized all three Examples carousel descriptions to the same 16px body size, 28px line height, and 16px title spacing used by the Code-driven production description across mobile and desktop (`frontend/src/components/home/ExamplesCarousel.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Centered the “Why Chalksmith?” heading container to match the alignment of the homepage's other primary section headings (`frontend/src/app/page.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Made the Educator's Dilemma totals progressively enhanced by rendering their real values during SSR and only resetting to zero when a client-side count-up actually starts, preventing permanent zeros when mobile hydration is delayed or unavailable (`frontend/src/components/home/EducatorEquation.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Restored the Educator's Dilemma count-up animation on mobile now that its viewport observer reliably triggers for stacked cards and restored scroll positions (`frontend/src/components/home/EducatorEquation.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Restored homepage mobile animations by painting the chalk-wave canvas before the first animation frame, adding WebKit-compatible responsive masking, and triggering the stacked Educator's Dilemma counters when they enter the viewport or a reload restores the page past them (`frontend/src/components/home/ChalkDust.tsx`, `frontend/src/components/home/EducatorEquation.tsx`, `CHANGELOG.md`).
+
 **2026-08-29**: Shortened the homepage section heading from “Why choose Chalksmith?” to “Why Chalksmith?” for a cleaner, more direct message (`frontend/src/app/page.tsx`, `CHANGELOG.md`).
 
 **2026-08-29**: Consolidated the site header into one responsive row on mobile and desktop, retaining standard-size navigation on typical phones, adding an extra-narrow fallback, and compacting the signed-out mobile action to prevent overflow (`frontend/src/app/layout.tsx`, `frontend/src/components/auth/AuthButton.tsx`, `CHANGELOG.md`).
