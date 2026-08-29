@@ -120,7 +120,14 @@ export interface PublishedLessonItem {
   updated_at: string;
   author_profile_id: string;
   author_display_name: string;
+  like_count: number;
   tags: string[];
+}
+
+export interface PublishedLessonLikeResponse {
+  root_lesson_id: string;
+  liked: boolean;
+  like_count: number;
 }
 
 export interface PublishedTagItem {

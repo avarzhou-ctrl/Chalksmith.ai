@@ -4,6 +4,7 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  Globe2,
   PanelLeft,
   PencilLine,
   Plus,
@@ -130,6 +131,7 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const isLessonsPath = pathname === '/dashboard' || pathname === '/home';
+  const isPublishedPath = pathname === '/dashboard/published';
 
   const dashboardHref = (folderId: string | null) => (
     folderId ? `/dashboard?folder=${encodeURIComponent(folderId)}` : '/dashboard'
@@ -218,6 +220,17 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
         >
           <Search size={20} className={isCollapsed ? '' : 'mr-3'} />
           {!isCollapsed && <span className="text-sm font-medium">Search</span>}
+        </Link>
+
+        <Link
+          href="/dashboard/published"
+          className={`group flex w-full items-center rounded-lg transition-colors ${
+            isPublishedPath ? 'bg-surface text-primary-text' : 'text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
+          } ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}
+          title={isCollapsed ? 'Published Lessons' : undefined}
+        >
+          <Globe2 size={20} className={isCollapsed ? '' : 'mr-3'} />
+          {!isCollapsed && <span className="text-sm font-medium">Published Lessons</span>}
         </Link>
 
         <section className="min-h-0 w-full overflow-y-auto">

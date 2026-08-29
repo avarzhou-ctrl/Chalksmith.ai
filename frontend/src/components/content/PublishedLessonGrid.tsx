@@ -1,26 +1,46 @@
 'use client';
 
-import { Download, ExternalLink } from 'lucide-react';
+import { useAuth } from '@clerk/nextjs';
+import { Download, Eye } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
-import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
-import Button from '@/components/ui/Button';
+import PublishedLessonLikeButton from '@/components/content/PublishedLessonLikeButton';
+import LessonCardLayout from '@/components/lesson/LessonCardLayout';
 import { createPublicApiClient } from '@/lib/api/client';
-import { getPublishedLessonAccessUrl, listPublishedLessons } from '@/lib/api/explore';
+import {
+  getPublishedLessonAccessUrl,
+  listLikedPublishedLessonIds,
+  listMyPublishedLessons,
+  listPublishedLessons,
+  setPublishedLessonLike,
+} from '@/lib/api/explore';
+import { useApi } from '@/lib/hooks/useApi';
 import type { LessonFormat, PublishedLessonItem } from '@/lib/types/api';
 
 interface PublishedLessonGridProps {
   query: string;
   format: LessonFormat | undefined;
   tags: string[];
+  ownerOnly?: boolean;
+  returnTo?: string;
 }
 
-export default function PublishedLessonGrid({ query, format, tags }: PublishedLessonGridProps) {
-  const api = useMemo(() => createPublicApiClient(), []);
+export default function PublishedLessonGrid({
+  query,
+  format,
+  tags,
+  ownerOnly = false,
+  returnTo = '/content',
+}: PublishedLessonGridProps) {
+  const publicApi = useMemo(() => createPublicApiClient(), []);
+  const authenticatedApi = useApi();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const [lessons, setLessons] = useState<PublishedLessonItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [downloadingLessonId, setDownloadingLessonId] = useState<string | null>(null);
+  const [likingRootId, setLikingRootId] = useState<string | null>(null);
+  const [likedRootIds, setLikedRootIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const tagKey = tags.join('\u0000');
 
@@ -28,11 +48,14 @@ export default function PublishedLessonGrid({ query, format, tags }: PublishedLe
     const controller = new AbortController();
     setIsLoading(true);
     setError(null);
-    listPublishedLessons(
-      api,
-      { q: query.trim() || undefined, format, tags },
-      controller.signal,
-    )
+    const request = ownerOnly
+      ? listMyPublishedLessons(authenticatedApi, controller.signal)
+      : listPublishedLessons(
+          publicApi,
+          { q: query.trim() || undefined, format, tags },
+          controller.signal,
+        );
+    request
       .then(setLessons)
       .catch((caught) => {
         if (!controller.signal.aborted) {
@@ -43,38 +66,62 @@ export default function PublishedLessonGrid({ query, format, tags }: PublishedLe
         if (!controller.signal.aborted) setIsLoading(false);
     });
     return () => controller.abort();
-  }, [api, format, query, tagKey]);
+  }, [authenticatedApi, publicApi, format, ownerOnly, query, tagKey]);
 
-  async function viewLesson(lessonId: string) {
-    const pendingWindow = window.open('about:blank', '_blank');
-    setActiveAction(`view:${lessonId}`);
-    setError(null);
-    try {
-      const access = await getPublishedLessonAccessUrl(api, lessonId);
-      if (pendingWindow) {
-        pendingWindow.opener = null;
-        pendingWindow.location.href = access.url;
-      } else {
-        window.location.assign(access.url);
-      }
-    } catch (caught) {
-      pendingWindow?.close();
-      setError(caught instanceof Error ? caught.message : 'Failed to open this lesson.');
-    } finally {
-      setActiveAction(null);
+  useEffect(() => {
+    if (!authLoaded || !isSignedIn || lessons.length === 0) {
+      setLikedRootIds(new Set());
+      return;
     }
-  }
+    const controller = new AbortController();
+    listLikedPublishedLessonIds(
+      authenticatedApi,
+      lessons.map((lesson) => lesson.root_lesson_id),
+      controller.signal,
+    )
+      .then((rootIds) => setLikedRootIds(new Set(rootIds)))
+      .catch((caught) => {
+        if (!controller.signal.aborted) {
+          setError(caught instanceof Error ? caught.message : 'Failed to load your likes.');
+        }
+      });
+    return () => controller.abort();
+  }, [authLoaded, authenticatedApi, isSignedIn, lessons]);
 
   async function downloadLesson(lessonId: string) {
-    setActiveAction(`download:${lessonId}`);
+    setDownloadingLessonId(lessonId);
     setError(null);
     try {
-      const access = await getPublishedLessonAccessUrl(api, lessonId, true);
+      const access = await getPublishedLessonAccessUrl(publicApi, lessonId, true);
       window.location.assign(access.url);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Failed to download this lesson.');
     } finally {
-      setActiveAction(null);
+      setDownloadingLessonId(null);
+    }
+  }
+
+  async function toggleLike(lesson: PublishedLessonItem) {
+    const nextLiked = !likedRootIds.has(lesson.root_lesson_id);
+    setLikingRootId(lesson.root_lesson_id);
+    setError(null);
+    try {
+      const result = await setPublishedLessonLike(authenticatedApi, lesson.id, nextLiked);
+      setLikedRootIds((current) => {
+        const next = new Set(current);
+        if (result.liked) next.add(result.root_lesson_id);
+        else next.delete(result.root_lesson_id);
+        return next;
+      });
+      setLessons((current) => current.map((candidate) => (
+        candidate.root_lesson_id === result.root_lesson_id
+          ? { ...candidate, like_count: result.like_count }
+          : candidate
+      )));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to update this like.');
+    } finally {
+      setLikingRootId(null);
     }
   }
 
@@ -101,60 +148,58 @@ export default function PublishedLessonGrid({ query, format, tags }: PublishedLe
       ) : (
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {lessons.map((lesson) => {
-            const isViewing = activeAction === `view:${lesson.id}`;
-            const isDownloading = activeAction === `download:${lesson.id}`;
+            const isDownloading = downloadingLessonId === lesson.id;
+            const isLiked = likedRootIds.has(lesson.root_lesson_id);
             return (
-              <article key={lesson.id} className="flex min-h-64 flex-col rounded-2xl border border-border bg-secondary-bg p-5 shadow-lg shadow-stone-950/20">
-                <header className="flex items-start gap-3">
-                  <LessonFormatIcon format={lesson.format} />
-                  <section className="min-w-0">
-                    <h2 className="line-clamp-2 text-xl font-semibold leading-snug">{lesson.topic}</h2>
-                    <p className="mt-1 text-sm text-secondary-text">
-                      By{' '}
+              <LessonCardLayout
+                key={lesson.id}
+                format={lesson.format}
+                title={lesson.topic}
+                subtitle={(
+                  <p>
+                    By{' '}
+                    <Link
+                      href={`/profile/${lesson.author_profile_id}`}
+                      className="font-medium text-primary-text underline decoration-border underline-offset-4 transition-colors hover:text-accent"
+                    >
+                      {lesson.author_display_name}
+                    </Link>
+                  </p>
+                )}
+                subtitleInteractive
+                description={lesson.summary || 'A published Chalksmith lesson.'}
+                tags={lesson.tags}
+                footer={(
+                  <section className="flex min-h-8 items-center justify-between gap-3">
+                    <section className="flex items-center gap-2">
                       <Link
-                        href={`/profile/${lesson.author_profile_id}`}
-                        className="font-medium text-primary-text underline decoration-border underline-offset-4 transition-colors hover:text-accent"
+                        href={`/content/${lesson.id}?returnTo=${encodeURIComponent(returnTo)}`}
+                        className="inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1.5 text-xs font-medium text-primary-text transition-colors hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-accent"
                       >
-                        {lesson.author_display_name}
+                        <Eye size={14} aria-hidden="true" />
+                        View
                       </Link>
-                    </p>
-                  </section>
-                </header>
-                <p className="mt-4 line-clamp-4 text-sm leading-6 text-secondary-text">
-                  {lesson.summary || 'A published Chalksmith lesson.'}
-                </p>
-                {lesson.tags.length > 0 && (
-                  <section className="mt-4 flex flex-wrap gap-1.5" aria-label="Lesson tags">
-                    {lesson.tags.map((tag) => (
-                      <span key={tag.toLocaleLowerCase()} className="rounded-full bg-accent/10 px-2.5 py-1 text-xs text-accent">
-                        {tag}
-                      </span>
-                    ))}
+                      <button
+                        type="button"
+                        disabled={isDownloading}
+                        onClick={() => void downloadLesson(lesson.id)}
+                        className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-secondary-text transition-colors hover:border-accent hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent disabled:cursor-wait disabled:opacity-60"
+                      >
+                        <Download size={14} aria-hidden="true" />
+                        {isDownloading ? 'Preparing…' : 'Download'}
+                      </button>
+                    </section>
+                    <PublishedLessonLikeButton
+                      count={lesson.like_count}
+                      isLiked={isLiked}
+                      isSignedIn={Boolean(isSignedIn)}
+                      isBusy={likingRootId === lesson.root_lesson_id}
+                      onToggle={() => void toggleLike(lesson)}
+                    />
                   </section>
                 )}
-                <section className="mt-auto flex gap-3 pt-6">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="flex-1 gap-1.5"
-                    disabled={Boolean(activeAction)}
-                    onClick={() => void viewLesson(lesson.id)}
-                  >
-                    <ExternalLink size={14} />
-                    {isViewing ? 'Opening…' : 'View'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 gap-1.5"
-                    disabled={Boolean(activeAction)}
-                    onClick={() => void downloadLesson(lesson.id)}
-                  >
-                    <Download size={14} />
-                    {isDownloading ? 'Preparing…' : 'Download'}
-                  </Button>
-                </section>
-              </article>
+                footerInteractive
+              />
             );
           })}
         </section>

@@ -141,7 +141,14 @@ class PublishedLessonItem(BaseModel):
     updated_at: datetime
     author_profile_id: UUID
     author_display_name: str
+    like_count: int = 0
     tags: list[str] = Field(default_factory=list)
+
+
+class PublishedLessonLikeResponse(BaseModel):
+    root_lesson_id: UUID
+    liked: bool
+    like_count: int
 
 
 class PublishedTagItem(BaseModel):

@@ -23,6 +23,7 @@ COLUMNS = (
 # owner_id and object_key are rewritten per environment, so they are compared separately.
 COMPARED = tuple(name for name in COLUMNS if name not in {"owner_id", "object_key"})
 TAG_COLUMNS = ("root_lesson_id", "owner_id", "normalized_value", "label", "created_at")
+LIKE_COLUMNS = ("root_lesson_id", "owner_id", "created_at")
 
 
 def parse_args() -> argparse.Namespace:
@@ -72,6 +73,15 @@ def read_tags(url: str) -> dict[tuple[str, str], dict]:
         }
 
 
+def read_likes(url: str) -> dict[tuple[str, str], dict]:
+    with psycopg.connect(url) as connection, connection.cursor() as cursor:
+        cursor.execute(f"SELECT {', '.join(LIKE_COLUMNS)} FROM lesson_likes")
+        return {
+            (str(row[0]), row[1]): dict(zip(LIKE_COLUMNS, row))
+            for row in cursor.fetchall()
+        }
+
+
 def target_key_for(row: dict, owner_id: str) -> str | None:
     if not row["object_key"]:
         return None
@@ -104,6 +114,8 @@ def main() -> None:
     target_rows = read_lessons(target_url)
     source_tags = read_tags(source_url)
     target_tags = read_tags(target_url)
+    source_likes = read_likes(source_url)
+    target_likes = read_likes(target_url)
     client = storage.Client()
     source_bucket = client.bucket(required("SOURCE_GCS_BUCKET"))
     target_bucket = client.bucket(required("GCS_BUCKET"))
@@ -139,6 +151,24 @@ def main() -> None:
         elif any(current[name] != planned[name] for name in TAG_COLUMNS):
             tag_updates.append(planned)
     prunable_tags = [row for key, row in target_tags.items() if key not in source_tags]
+    like_inserts, like_updates = [], []
+    planned_like_keys: set[tuple[str, str]] = set()
+    for row in source_likes.values():
+        if row["owner_id"] not in owner_map:
+            continue
+        planned = dict(row)
+        planned["owner_id"] = owner_map[row["owner_id"]]
+        key = (str(planned["root_lesson_id"]), planned["owner_id"])
+        planned_like_keys.add(key)
+        current = target_likes.get(key)
+        if current is None:
+            like_inserts.append(planned)
+        elif current["created_at"] != planned["created_at"]:
+            like_updates.append(planned)
+    prunable_likes = [
+        row for key, row in target_likes.items()
+        if key not in planned_like_keys
+    ]
 
     print(f"owners: {len(owner_map)} mapped" + (f", {len(unmapped)} unmapped (their lessons are skipped)" if unmapped else ""))
     for owner in unmapped:
@@ -146,6 +176,8 @@ def main() -> None:
     print(f"lessons: {len(inserts)} to insert, {len(updates)} to update, {len(prunable)} to delete"
           + ("" if args.prune else " (pass --prune to delete)"))
     print(f"tags: {len(tag_inserts)} to insert, {len(tag_updates)} to update, {len(prunable_tags)} to delete"
+          + ("" if args.prune else " (pass --prune to delete)"))
+    print(f"likes: {len(like_inserts)} to insert, {len(like_updates)} to update, {len(prunable_likes)} to delete"
           + ("" if args.prune else " (pass --prune to delete)"))
     if not args.apply:
         print("\ndry-run: nothing written. Re-run with --apply.")
@@ -179,8 +211,22 @@ def main() -> None:
                 f"ON CONFLICT (root_lesson_id, normalized_value) DO UPDATE SET {tag_assignments}",
                 planned,
             )
+        like_columns = ", ".join(LIKE_COLUMNS)
+        like_placeholders = ", ".join(f"%({name})s" for name in LIKE_COLUMNS)
+        for planned in like_inserts + like_updates:
+            cursor.execute(
+                f"INSERT INTO lesson_likes ({like_columns}) VALUES ({like_placeholders}) "
+                "ON CONFLICT (root_lesson_id, owner_id) DO UPDATE SET "
+                "created_at = EXCLUDED.created_at",
+                planned,
+            )
         pruned_objects = 0
         if args.prune:
+            for row in prunable_likes:
+                cursor.execute(
+                    "DELETE FROM lesson_likes WHERE root_lesson_id = %s AND owner_id = %s",
+                    (row["root_lesson_id"], row["owner_id"]),
+                )
             for row in prunable_tags:
                 cursor.execute(
                     "DELETE FROM lesson_tags WHERE root_lesson_id = %s AND normalized_value = %s",
@@ -202,7 +248,9 @@ def main() -> None:
           f"{len(prunable) if args.prune else 0} deleted, {copied} objects copied"
           + (f", {pruned_objects} objects deleted" if args.prune else "")
           + f"; tags: {len(tag_inserts)} inserted, {len(tag_updates)} updated, "
-          f"{len(prunable_tags) if args.prune else 0} deleted")
+          f"{len(prunable_tags) if args.prune else 0} deleted"
+          + f"; likes: {len(like_inserts)} inserted, {len(like_updates)} updated, "
+          f"{len(prunable_likes) if args.prune else 0} deleted")
 
 
 if __name__ == "__main__":

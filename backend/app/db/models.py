@@ -95,6 +95,18 @@ class LessonTag(SQLModel, table=True):
     )
 
 
+class LessonLike(SQLModel, table=True):
+    __tablename__ = "lesson_likes"
+
+    # Likes follow the lesson lineage so selecting a new final revision keeps its social proof.
+    root_lesson_id: UUID = Field(primary_key=True)
+    owner_id: str = Field(primary_key=True, max_length=128)
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
 class UserProfile(SQLModel, table=True):
     __tablename__ = "user_profiles"
 

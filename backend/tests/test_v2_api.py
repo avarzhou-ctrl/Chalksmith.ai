@@ -16,8 +16,14 @@ from starlette.datastructures import Headers
 
 from backend.app.api.dependencies import get_renderers
 from backend.app.core.config import Settings
-from backend.app.db.lessons import create_lesson, get_owned_lesson, save_lesson
-from backend.app.db.models import LessonFolder, LessonTag
+from backend.app.db.lessons import (
+    create_lesson,
+    get_owned_lesson,
+    save_lesson,
+    set_lesson_publication,
+)
+from backend.app.db.profiles import ensure_user_profile
+from backend.app.db.models import LessonFolder, LessonLike, LessonTag
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.llm.base import LLMResult, LLMSource, LLMStreamChunk
@@ -571,6 +577,28 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual(published.json()[0]["author_profile_id"], profile_id)
         self.assertEqual(published.json()[0]["author_display_name"], "Ada Teacher")
         self.assertEqual(published.json()[0]["tags"], ["Math", "Grade 6"])
+        self.assertEqual(published.json()[0]["like_count"], 0)
+        detail = self.client.get(f"/v2/explore/lessons/{edited_id}")
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["tags"], ["Math", "Grade 6"])
+        self.assertEqual(detail.json()["like_count"], 0)
+        liked = self.client.put(f"/v2/explore/lessons/{edited_id}/like")
+        self.assertEqual(liked.status_code, 200)
+        self.assertTrue(liked.json()["liked"])
+        self.assertEqual(liked.json()["like_count"], 1)
+        self.assertEqual(
+            self.client.put(f"/v2/explore/lessons/{edited_id}/like").json()["like_count"],
+            1,
+        )
+        self.assertEqual(
+            self.client.get(
+                f"/v2/explore/lessons/liked?root_id={published.json()[0]['root_lesson_id']}"
+            ).json(),
+            [published.json()[0]["root_lesson_id"]],
+        )
+        unliked = self.client.delete(f"/v2/explore/lessons/{edited_id}/like")
+        self.assertFalse(unliked.json()["liked"])
+        self.assertEqual(unliked.json()["like_count"], 0)
         self.assertEqual(
             [lesson["id"] for lesson in self.client.get("/v2/explore/lessons?q=ada").json()],
             [edited_id],
@@ -639,6 +667,38 @@ class V2ApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["error"]["code"], "lesson_not_ready")
+
+    def test_my_published_lessons_are_owner_scoped(self) -> None:
+        with Session(self.app.state.engine) as session:
+            for owner_id, topic in (
+                ("teacher-a", "My published lesson"),
+                ("teacher-b", "Another teacher's lesson"),
+            ):
+                lesson = create_lesson(
+                    session,
+                    owner_id=owner_id,
+                    topic=topic,
+                    lesson_format="interactive",
+                )
+                lesson.status = "ready"
+                lesson.object_key = f"lessons/{owner_id}/{lesson.id}/lesson.html"
+                save_lesson(session, lesson)
+                ensure_user_profile(
+                    session,
+                    owner_id=owner_id,
+                    display_name=owner_id,
+                )
+                set_lesson_publication(session, lesson, True)
+
+        mine = self.client.get("/v2/explore/lessons/mine")
+        public = self.client.get("/v2/explore/lessons")
+
+        self.assertEqual(mine.status_code, 200)
+        self.assertEqual([lesson["topic"] for lesson in mine.json()], ["My published lesson"])
+        self.assertCountEqual(
+            [lesson["topic"] for lesson in public.json()],
+            ["My published lesson", "Another teacher's lesson"],
+        )
 
     def test_version_numbers_are_unique_within_a_lesson(self) -> None:
         with Session(self.app.state.engine) as session:
@@ -1083,13 +1143,23 @@ class V2ApiTests(unittest.TestCase):
             lesson.object_key = f"lessons/teacher-a/{lesson.id}/lesson.html"
             lesson_id = lesson.id
             save_lesson(session, lesson)
+            object_key = lesson.object_key
+            session.add(LessonLike(root_lesson_id=lesson.root_lesson_id, owner_id="teacher-b"))
+            session.commit()
 
         response = self.client.delete(f"/v2/lessons/{lesson_id}")
 
         self.assertEqual(response.status_code, 204)
         self.assertEqual(self.storage.deletions[0][0], "prefix")
-        self.assertEqual(self.storage.deletions[1], ("object", lesson.object_key))
+        self.assertEqual(self.storage.deletions[1], ("object", object_key))
         self.assertEqual(self.client.get(f"/v2/lessons/{lesson_id}").status_code, 404)
+        with Session(self.app.state.engine) as session:
+            self.assertEqual(
+                session.exec(
+                    select(LessonLike).where(LessonLike.root_lesson_id == lesson_id)
+                ).all(),
+                [],
+            )
 
     def test_source_count_and_combined_byte_limits(self) -> None:
         count_settings = Settings(app_env="test", max_source_files=1)

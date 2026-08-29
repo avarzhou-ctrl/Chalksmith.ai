@@ -34,7 +34,7 @@ backend/
 │   ├── renderer_main.py         # Private POST /internal/render/manim app
 │   ├── api/                     # HTTP validation, delegation, serialization
 │   │   ├── dependencies.py      # Request settings and renderer wiring
-│   │   ├── explore.py           # Public published-lesson list and access URLs
+│   │   ├── explore.py           # Public published lessons, access URLs, and authenticated likes
 │   │   ├── folders.py           # Private lesson-folder tree CRUD
 │   │   ├── generations.py       # POST /v2/generations SSE endpoint
 │   │   ├── health.py            # Health check
@@ -174,6 +174,8 @@ bounded form, but must not appear in public API schemas.
 - `lesson_tags` — tags are stored once against the root row, normalized case-insensitively, and
   shared by every revision. Private tag reads stay owner-scoped; Explore tag counts include only
   roots whose selected final revision is ready and currently published.
+- `lesson_likes` — one row per Clerk owner and lesson root. Counts are public only while the root
+  is published; likes survive final-version changes and are deleted with the lesson lineage.
 
 Consequences to respect:
 

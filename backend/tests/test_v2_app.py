@@ -2189,6 +2189,7 @@ class LessonSchemaMigrationTests(unittest.TestCase):
             )
             self.assertIn("user_profiles", inspect(engine).get_table_names())
             self.assertIn("lesson_tags", inspect(engine).get_table_names())
+            self.assertIn("lesson_likes", inspect(engine).get_table_names())
             indexes = {index["name"]: index for index in inspect(engine).get_indexes("lessons")}
             self.assertTrue(indexes["uq_lessons_owner_root_version"]["unique"])
             with engine.connect() as connection:

@@ -31,6 +31,7 @@ from backend.app.db.lessons import (
     list_owned_lessons,
     list_owned_tag_summaries,
     normalize_lesson_tags,
+    remove_lesson_likes,
     remove_lesson_tags,
     replace_lesson_tags,
     save_lessons,
@@ -287,6 +288,7 @@ def remove_lesson(
                     status_code=503,
                 ) from error
     remove_lesson_tags(session, root)
+    remove_lesson_likes(session, root)
     for version in versions:
         session.delete(version)
     session.commit()

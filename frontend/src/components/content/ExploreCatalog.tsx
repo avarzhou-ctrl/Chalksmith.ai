@@ -121,6 +121,7 @@ export default function ExploreCatalog() {
           query={debouncedQuery}
           format={(format || undefined) as LessonFormat | undefined}
           tags={selectedTags}
+          returnTo={`${window.location.pathname}${window.location.search}`}
         />
       )}
     </>
