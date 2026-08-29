@@ -32,8 +32,8 @@ export function AuthButton() {
 
   return (
     <SignUpButton mode="modal" forceRedirectUrl="/generation" signInForceRedirectUrl="/generation">
-      <button type="button" className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-stone-950 hover:bg-amber-500">
-        Start Free
+      <button type="button" aria-label="Start Free" className="grid size-10 shrink-0 place-items-center rounded-lg bg-amber-600 text-sm font-medium text-stone-950 hover:bg-amber-500 sm:flex sm:size-auto sm:gap-2 sm:px-4 sm:py-2">
+        <span className="hidden sm:inline">Start Free</span>
         <LogIn className="size-4" />
       </button>
     </SignUpButton>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState, type PointerEvent } from 'react';
 import { ChevronLeft, ChevronRight, MousePointerClick, Presentation, Video, type LucideIcon } from 'lucide-react';
 
 type ExampleItem = {
@@ -37,6 +37,7 @@ const examples: ExampleItem[] = [
 
 export default function ExamplesCarousel() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const activeExample = examples[activeIndex];
   const ActiveIcon = activeExample.icon;
 
@@ -48,8 +49,30 @@ export default function ExamplesCarousel() {
     setActiveIndex((currentIndex) => (currentIndex === examples.length - 1 ? 0 : currentIndex + 1));
   }
 
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    pointerStart.current = { x: event.clientX, y: event.clientY };
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
+    const start = pointerStart.current;
+    pointerStart.current = null;
+    if (!start) return;
+
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    if (Math.abs(deltaX) < 48 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+
+    if (deltaX < 0) showNext();
+    else showPrevious();
+  }
+
   return (
-    <div className="mt-10 overflow-hidden rounded-lg border border-secondary-bg bg-secondary-bg text-left shadow-2xl shadow-black/30">
+    <div
+      className="mt-10 touch-pan-y overflow-hidden rounded-lg border border-secondary-bg bg-secondary-bg text-left shadow-2xl shadow-black/30"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => { pointerStart.current = null; }}
+    >
       <div className="grid gap-0 lg:grid-cols-[0.82fr_1.18fr]">
         <div className="flex flex-col justify-between border-b border-border p-5 sm:p-6 lg:border-b-0 lg:border-r">
           <div>
@@ -71,7 +94,7 @@ export default function ExamplesCarousel() {
               <button
                 type="button"
                 onClick={showPrevious}
-                className="grid size-10 place-items-center rounded-lg border border-border text-secondary-text transition-colors hover:border-accent hover:text-accent"
+                className="relative z-10 grid size-12 cursor-pointer touch-manipulation place-items-center rounded-lg border border-border text-secondary-text transition-colors hover:border-accent hover:text-accent sm:size-10"
                 aria-label="Show previous example"
               >
                 <ChevronLeft className="size-5" aria-hidden />
@@ -79,7 +102,7 @@ export default function ExamplesCarousel() {
               <button
                 type="button"
                 onClick={showNext}
-                className="grid size-10 place-items-center rounded-lg border border-border text-secondary-text transition-colors hover:border-accent hover:text-accent"
+                className="relative z-10 grid size-12 cursor-pointer touch-manipulation place-items-center rounded-lg border border-border text-secondary-text transition-colors hover:border-accent hover:text-accent sm:size-10"
                 aria-label="Show next example"
               >
                 <ChevronRight className="size-5" aria-hidden />

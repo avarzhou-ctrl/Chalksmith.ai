@@ -33,7 +33,7 @@ export default function RootLayout({
         <ClerkProvider>
           <header
             data-site-header
-            className="sticky top-0 z-50 mx-auto flex w-full max-w-7xl items-center justify-between border-b border-stone-800 bg-primary-bg/90 px-4 py-5 backdrop-blur sm:px-6 lg:px-8"
+            className="sticky top-0 z-50 mx-auto flex w-full max-w-7xl flex-nowrap items-center justify-between gap-1 border-b border-stone-800 bg-primary-bg/90 px-4 py-5 backdrop-blur sm:px-6 lg:px-8"
           >
             <Link href={homeHref} className="flex items-center gap-3" aria-label="Chalksmith.ai home">
               <span className="grid size-10 place-items-center rounded-lg text-stone-950">
@@ -41,7 +41,7 @@ export default function RootLayout({
               </span>
               <span className="hidden text-base font-semibold text-stone-50 sm:inline">Chalksmith.ai</span>
             </Link>
-            <nav className="hidden items-center gap-10 text-sm font-medium text-stone-300 sm:flex">
+            <nav className="flex min-w-0 flex-1 items-center justify-center gap-3 text-base font-medium text-stone-300 max-[359px]:gap-2 max-[359px]:text-sm sm:flex-none sm:gap-10 sm:text-base">
               <Link className="transition-colors hover:text-stone-50" href="/dashboard">
                 Dashboard
               </Link>

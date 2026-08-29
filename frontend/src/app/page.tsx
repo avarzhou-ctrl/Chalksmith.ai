@@ -63,7 +63,7 @@ export default function Home() {
     <main className="relative min-h-screen overflow-hidden bg-primary-bg text-primary-text">
       <ChalkDust />
       <div className="relative z-10">
-        <section id="landing" className="relative isolate w-full overflow-hidden border-b border-stone-900 px-4 pb-12 pt-12 text-center sm:px-6 sm:pb-16 sm:pt-16 lg:px-8">
+        <section id="landing" className="relative isolate w-full overflow-hidden border-b border-stone-900 px-4 py-12 text-center sm:px-6 sm:py-16 lg:px-8">
           <div className="absolute inset-0 z-1 bg-[radial-gradient(ellipse_at_center,rgba(28,25,23,0.08)_0%,rgba(12,10,9,0.24)_58%,rgba(12,10,9,0.7)_100%)]" />
           <div className="absolute inset-x-0 bottom-0 z-1 h-32 bg-gradient-to-b from-transparent to-primary-bg" />
           <div className="relative z-10 mx-auto w-full max-w-6xl">
@@ -89,7 +89,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8" id="content" aria-label="Chalksmith product preview">
+        <section className="relative mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8" id="content" aria-label="Chalksmith product preview">
           <ForgeFrame>
             <video
               src="/demo-1.mp4"
@@ -104,7 +104,7 @@ export default function Home() {
 
         <section id="about" className="relative border-y border-stone-900 bg-stone-950/40">
           <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(217,119,6,0.07),transparent_58%)]" />
-          <div className="relative mx-auto w-full max-w-6xl px-4 py-20 text-center sm:px-6 lg:px-8">
+          <div className="relative mx-auto w-full max-w-6xl px-4 py-12 text-center sm:px-6 sm:py-16 lg:px-8">
             <h2 className="text-4xl font-bold text-primary-text sm:text-5xl">The Educator&apos;s Dilemma</h2>
             <EducatorEquation />
             <p className="mx-auto mt-8 max-w-xl text-base leading-6 text-secondary-text">
@@ -113,9 +113,9 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="why_choose_chalksmith" className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+        <section id="why_choose_chalksmith" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
           <div className="max-w-3xl">
-            <h2 className="text-4xl font-bold text-primary-text sm:text-5xl">Why choose Chalksmith?</h2>
+            <h2 className="text-4xl font-bold text-primary-text sm:text-5xl">Why Chalksmith?</h2>
           </div>
           <div className="mt-10 grid gap-6">
             <article className="relative overflow-hidden rounded-2xl border border-stone-800 bg-secondary-bg p-6 shadow-2xl shadow-black/20 sm:p-8">
@@ -137,7 +137,7 @@ export default function Home() {
               <article className="group flex flex-col rounded-2xl border border-stone-800 bg-secondary-bg p-6 shadow-xl shadow-black/15 transition-colors duration-300 hover:border-amber-600/40 sm:p-8">
                 <div className="mb-8">
                   <h3 className="text-2xl font-semibold text-primary-text">Source uploads.</h3>
-                  <p className="mt-3 text-sm leading-6 text-secondary-text">
+                  <p className="mt-4 text-base leading-7 text-secondary-text">
                     Start from syllabus notes, readings, or lesson goals so every generated asset stays close to your curriculum.
                   </p>
                 </div>
@@ -158,7 +158,7 @@ export default function Home() {
               <article className="group flex flex-col rounded-2xl border border-stone-800 bg-secondary-bg p-6 shadow-xl shadow-black/15 transition-colors duration-300 hover:border-amber-600/40 sm:p-8">
                 <div className="mb-8">
                   <h3 className="text-2xl font-semibold text-primary-text">Built-in transparency.</h3>
-                  <p className="mt-3 text-sm leading-6 text-secondary-text">
+                  <p className="mt-4 text-base leading-7 text-secondary-text">
                     Make edits within seconds while reviewing the code and lesson structure that produced the final result.
                   </p>
                 </div>
@@ -180,7 +180,7 @@ export default function Home() {
         </section>
         
         <section id="examples" className="border-y border-stone-900 bg-stone-950/40">
-          <div className="mx-auto w-full max-w-6xl px-4 py-20 text-center sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-6xl px-4 py-12 text-center sm:px-6 sm:py-16 lg:px-8">
             <h2 className="text-4xl font-bold text-primary-text sm:text-5xl">Examples</h2>
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-secondary-text">
               Flip through generated lesson formats: video, interactive display, and slides.
@@ -198,7 +198,7 @@ export default function Home() {
 
         <FaqSection />
 
-        <section id="call_to_action" className="mx-auto w-full max-w-6xl px-4 pb-40 pt-12 sm:px-6 lg:px-8">
+        <section id="call_to_action" className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
           <div className="relative overflow-hidden rounded-2xl border border-amber-700/30 bg-secondary-bg p-6 text-left shadow-2xl shadow-black/20 sm:p-10">
             <span aria-hidden="true" className="absolute -right-20 -top-24 size-64 rounded-full bg-amber-600/10 blur-3xl" />
             <span aria-hidden="true" className="absolute inset-x-20 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/70 to-transparent" />

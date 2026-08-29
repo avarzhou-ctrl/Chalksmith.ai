@@ -33,7 +33,7 @@ const faqs = [
 
 export default function FaqSection() {
   return (
-    <section id="faq" className="mx-auto w-full max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
+    <section id="faq" className="mx-auto w-full max-w-4xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
       <div className="text-center">
         <h2 className="text-4xl font-bold text-primary-text sm:text-5xl">FAQ</h2>
         <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-secondary-text">

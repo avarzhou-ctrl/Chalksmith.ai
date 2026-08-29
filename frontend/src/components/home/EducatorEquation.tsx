@@ -66,7 +66,10 @@ export default function EducatorEquation() {
           <article className="group relative overflow-hidden rounded-2xl border border-stone-700/80 bg-secondary-bg p-6 text-center shadow-xl shadow-black/15 transition-colors duration-300 hover:border-amber-600/50">
             <span aria-hidden="true" className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/70 to-transparent" />
             <p className="text-4xl font-bold tracking-tight text-accent sm:text-5xl">
-              <AnimatedNumber value={statistic.value} start={hasEntered} />{' '}
+              <span className="md:hidden">{statistic.value}</span>
+              <span className="hidden md:inline">
+                <AnimatedNumber value={statistic.value} start={hasEntered} />
+              </span>{' '}
               <span className="text-2xl">{statistic.suffix}</span>
             </p>
             <p className="mx-auto mt-3 max-w-48 text-base leading-6 text-primary-text">{statistic.label}</p>
@@ -74,8 +77,8 @@ export default function EducatorEquation() {
           {index < statistics.length - 1 && (
             <p
               aria-hidden="true"
-              className={`grid place-items-center text-4xl font-light text-amber-300 transition-all duration-500 motion-reduce:transition-none ${
-                hasEntered ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+              className={`grid translate-y-0 place-items-center text-4xl font-light text-amber-300 opacity-100 transition-all duration-500 motion-reduce:transition-none ${
+                hasEntered ? 'md:translate-y-0 md:opacity-100' : 'md:translate-y-2 md:opacity-0'
               } ${index === 0 ? 'delay-300' : 'delay-700'}`}
             >
               {index === 0 ? '+' : '='}

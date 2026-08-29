@@ -1,5 +1,27 @@
 # Changelog
 
+**2026-08-29**: Shortened the homepage section heading from “Why choose Chalksmith?” to “Why Chalksmith?” for a cleaner, more direct message (`frontend/src/app/page.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Consolidated the site header into one responsive row on mobile and desktop, retaining standard-size navigation on typical phones, adding an extra-narrow fallback, and compacting the signed-out mobile action to prevent overflow (`frontend/src/app/layout.tsx`, `frontend/src/components/auth/AuthButton.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Added a two-row mobile site header that keeps Dashboard, Explore, and About Us visible at the standard navigation size beneath the logo and account control, while preserving the existing single-row desktop layout (`frontend/src/app/layout.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Made the homepage Examples carousel reliably touch-operable with 48px mobile navigation targets, explicit touch-action styling, and horizontal swipe navigation that preserves vertical page scrolling (`frontend/src/components/home/ExamplesCarousel.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Matched the Source uploads and Built-in transparency card descriptions to Code-driven production with the same body size, line height, and title spacing for a consistent homepage card hierarchy (`frontend/src/app/page.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Increased the shared site-header Dashboard, Explore, and About Us navigation links from small to standard body text for clearer readability (`frontend/src/app/layout.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Tightened every primary homepage segment to a shared 48px mobile and 64px desktop vertical-padding scale, preserving consistent spacing while reducing excess page length (`frontend/src/app/page.tsx`, `frontend/src/components/home/FaqSection.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Brought the homepage Landing section into the shared 64px mobile and 80px desktop vertical-spacing system so every primary segment follows the same rhythm (`frontend/src/app/page.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Standardized the homepage's non-hero sections to 64px mobile and 80px desktop vertical padding, including symmetric final CTA spacing, so the page maintains a consistent visual rhythm (`frontend/src/app/page.tsx`, `frontend/src/components/home/FaqSection.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Rendered the educator-equation totals directly on mobile while retaining desktop count-up animation, preventing `5 hours`, `7 hours`, and `12 hours` from remaining at zero when narrow viewports do not trigger the section observer (`frontend/src/components/home/EducatorEquation.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Kept the educator-equation operators visible on mobile while preserving their desktop entrance animation, preventing the plus sign from disappearing when narrow viewports do not meet the section visibility threshold (`frontend/src/components/home/EducatorEquation.tsx`, `CHANGELOG.md`).
+
 **2026-08-29**: Moved the lesson pipeline's left and right node groups toward the forge and realigned their connectors so the frame has more balanced top, bottom, left, and right whitespace (`frontend/src/components/home/LessonPipeline.tsx`, `CHANGELOG.md`).
 
 **2026-08-29**: Expanded the lesson-pipeline frame to the same maximum width as the product-preview section below it for consistent homepage alignment (`frontend/src/components/home/LessonPipeline.tsx`, `CHANGELOG.md`).
