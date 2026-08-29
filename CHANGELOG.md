@@ -1,5 +1,7 @@
 # Changelog
 
+**2026-08-29**: Added deterministic Interactive HTML validation that rejects learner-visible static LaTeX unless approved KaTeX assets and document-wide typesetting are present, and enabled the existing single repair pass for Interactive render failures so invalid lessons are fixed before saving (`backend/app/lessons/render/html.py`, `backend/app/lessons/formats/code.py`, `backend/tests/test_v2_api.py`, `CHANGELOG.md`).
+
 **2026-08-29**: Expanded the landing-page `demo-1.mp4` preview to the same full-block width as the first “Why choose Chalksmith?” card for consistent section alignment (`frontend/src/app/page.tsx`, `CHANGELOG.md`).
 
 **2026-08-29**: Vertically centered both desktop landing-page lesson pipeline node groups with equal outer spacing and aligned every connector with the midpoint of its source and output card (`frontend/src/components/home/LessonPipeline.tsx`, `CHANGELOG.md`).

@@ -1,4 +1,5 @@
 import re
+from html.parser import HTMLParser
 from pathlib import Path
 
 from backend.app.lessons.render.base import RenderError, RenderedAsset
@@ -23,6 +24,36 @@ _COUNTER_FOR_LOOP = re.compile(
     r"(?P=counter)\s*(?P<comparison>>=|>|<=|<)\s*[^;]+;\s*"
     r"(?P<update>(?:(?P=counter)\s*(?:\+\+|--)|(?:\+\+|--)\s*(?P=counter)))\s*\)"
 )
+_VISIBLE_LATEX = re.compile(
+    r"\$\$.+?\$\$|(?<!\\)\$(?!\$).+?(?<!\\)\$(?!\$)|\\\(.+?\\\)|\\\[.+?\\\]",
+    re.DOTALL,
+)
+_GLOBAL_MATH_RENDER = re.compile(
+    r"\b(?:renderMathInElement|typesetMath|renderMath)\s*\(\s*"
+    r"document\.(?:body|documentElement)\b",
+    re.IGNORECASE,
+)
+_KATEX_ASSETS = ("katex.min.css", "katex.min.js", "auto-render.min.js")
+_NON_VISIBLE_TAGS = {"head", "script", "style", "template", "textarea", "noscript"}
+
+
+class _VisibleTextParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._hidden_depth = 0
+        self.text: list[str] = []
+
+    def handle_starttag(self, tag: str, _attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() in _NON_VISIBLE_TAGS:
+            self._hidden_depth += 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() in _NON_VISIBLE_TAGS and self._hidden_depth:
+            self._hidden_depth -= 1
+
+    def handle_data(self, data: str) -> None:
+        if not self._hidden_depth:
+            self.text.append(data)
 
 
 class HTMLRenderer:
@@ -45,6 +76,8 @@ class HTMLRenderer:
                 "Generated HTML contains a counter loop whose update moves away from its "
                 f"stopping condition: {bad_loop}"
             )
+        if self.required_marker == "p5":
+            _validate_interactive_math(code)
         secured = secure_html_document(code)
         output = workdir / "lesson.html"
         output.write_text(secured, encoding="utf-8")
@@ -79,6 +112,29 @@ def _find_nonterminating_counter_loop(code: str) -> str | None:
             ):
                 return " ".join(loop.group(0).split())
     return None
+
+
+def _validate_interactive_math(code: str) -> None:
+    parser = _VisibleTextParser()
+    parser.feed(code)
+    if not _VISIBLE_LATEX.search(" ".join(parser.text)):
+        return
+    if any(asset not in code for asset in _KATEX_ASSETS):
+        raise RenderError(
+            "Generated HTML contains learner-visible LaTeX but is missing the approved "
+            "KaTeX CSS, script, or auto-render script."
+        )
+    executable_scripts = "\n".join(
+        _mask_js_non_code(script.group("body"))
+        for script in _SCRIPT_BLOCK.finditer(code)
+        if not _SRC_ATTRIBUTE.search(script.group("attrs"))
+    )
+    if not _GLOBAL_MATH_RENDER.search(executable_scripts):
+        raise RenderError(
+            "Generated HTML contains learner-visible static LaTeX without global KaTeX "
+            "typesetting. Typeset document.body after DOMContentLoaded so legends, labels, "
+            "buttons, headings, and lesson content cannot expose raw delimiters."
+        )
 
 
 def _mask_js_non_code(script: str) -> str:

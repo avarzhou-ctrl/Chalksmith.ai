@@ -143,7 +143,9 @@ class CodeLessonStrategy:
         return PreparedLesson(summary=generated.summary, source_code=generated.code)
 
     def can_repair(self, error: Exception) -> bool:
-        return self.lesson_format == "video" and isinstance(error, RenderError)
+        return self.lesson_format in {"interactive", "video"} and isinstance(
+            error, RenderError
+        )
 
     def build_repair_prompt(self, original_prompt: str, response: str, error: Exception) -> str:
         generated = parse_generated_lesson(response, self.lesson_format)

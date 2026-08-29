@@ -24,8 +24,9 @@ from backend.app.integrations.llm.base import LLMResult, LLMSource, LLMStreamChu
 from backend.app.integrations.llm.factory import get_llm_provider
 from backend.app.integrations.storage import get_storage
 from backend.app.main import create_app
-from backend.app.lessons.formats.interactive.prompt import INTERACTIVE_RULES
 from backend.app.lessons.formats.code import build_code_repair_prompt
+from backend.app.lessons.formats.interactive.prompt import INTERACTIVE_RULES
+from backend.app.lessons.formats.interactive.strategy import InteractiveStrategy
 from backend.app.lessons.formats.slides.compiler import (
     KATEX_AUTO_RENDER_SCRIPT,
     KATEX_SCRIPT,
@@ -1059,6 +1060,39 @@ for (let i = steps; i >= 0; i--) drawPoint(i);
 
         self.assertEqual(asset.extension, "html")
 
+    def test_html_renderer_rejects_static_latex_without_global_typesetting(self) -> None:
+        generated = r'''<!doctype html><html><head>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+</head><body><div id="legend">$\triangle WXM$</div><script>
+const p5 = true;
+// renderMathInElement(document.body) is not an actual typesetting call.
+renderMathInElement(document.getElementById("content"));
+</script></body></html>'''
+        with TemporaryDirectory() as directory, self.assertRaisesRegex(
+            RenderError, "without global KaTeX typesetting"
+        ):
+            asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+
+    def test_html_renderer_accepts_static_latex_with_global_typesetting(self) -> None:
+        generated = r'''<!doctype html><html><head>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+</head><body><div id="legend">$\triangle WXM$</div><script>
+const p5 = true;
+window.addEventListener("DOMContentLoaded", () => renderMathInElement(document.body));
+</script></body></html>'''
+        with TemporaryDirectory() as directory:
+            asset = asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+
+        self.assertEqual(asset.extension, "html")
+
     def test_interactive_prompt_and_repair_prompt_cover_generation_constraints(self) -> None:
         for section in (
             "<DELIVERABLE>",
@@ -1096,6 +1130,9 @@ for (let i = steps; i >= 0; i--) drawPoint(i);
         )
         self.assertIn("cannot throw an exception, freeze draw()", normalized_rules)
         self.assertIn("decrement toward a lower bound", INTERACTIVE_RULES)
+        self.assertTrue(
+            InteractiveStrategy().can_repair(RenderError("raw LaTeX is visible"))
+        )
         repair = build_code_repair_prompt(
             original_prompt="Create an interactive lesson.",
             code="<html><script>const p5 = true;</script></html>",
