@@ -25,7 +25,12 @@ from backend.app.core.errors import AppError
 from backend.app.core.logging import JsonFormatter
 from backend.app.db.session import create_db_and_tables
 from backend.app.integrations.auth import _decode_clerk_token, get_current_user
-from backend.app.integrations.llm.base import LLMProviderError, LLMResult, LLMSource
+from backend.app.integrations.llm.base import (
+    LLMProviderError,
+    LLMResult,
+    LLMSource,
+    ProviderTruncationError,
+)
 from backend.app.integrations.llm.deepseek import DeepSeekProvider
 from backend.app.integrations.llm.factory import create_llm_provider
 from backend.app.integrations.llm.gemini import VertexGeminiProvider
@@ -35,6 +40,7 @@ from backend.app.integrations.storage.gcp import GCSStorage
 from backend.app.integrations.storage.local import LocalStorage
 from backend.app.main import create_app
 from backend.app.lessons.formats import FormatRequest, get_lesson_format_strategy
+from backend.app.lessons.formats.contracts import ModelOutputError
 from backend.app.lessons.formats.code import build_code_generation_prompt, parse_generated_lesson
 from backend.app.lessons.formats.slides import compiler as slides_compiler
 from backend.app.lessons.formats.slides.registry import (
@@ -65,8 +71,13 @@ from backend.app.lessons.formats.video.compiler import (
 )
 from backend.app.lessons.formats.video.prompt import VIDEO_RULES
 from backend.app.lessons.formats.video.strategy import VideoStrategy
-from backend.app.lessons.generation import GenerationService, LLMProgress, _public_error
-from backend.app.lessons.render.base import RenderError
+from backend.app.lessons.generation import (
+    GenerationService,
+    LLMProgress,
+    _public_error,
+    _should_attempt_repair,
+)
+from backend.app.lessons.render.base import GeneratedCodeError, RenderError
 from backend.app.lessons.render.manim import (
     LocalManimRenderer,
     is_local_renderer_url,
@@ -76,6 +87,9 @@ from backend.app.renderer_main import renderer_app
 
 
 class SettingsTests(unittest.TestCase):
+    def test_default_output_budget_allows_lessons_beyond_16k_tokens(self) -> None:
+        self.assertEqual(Settings().llm_max_output_tokens, 32_768)
+
     def test_settings_load_selected_provider_and_origins(self) -> None:
         environment = {
             "APP_ENV": "test",
@@ -574,6 +588,20 @@ class RendererSecurityTests(unittest.TestCase):
 
 
 class GenerationDeadlineTests(unittest.IsolatedAsyncioTestCase):
+    async def test_video_repair_is_skipped_when_deadline_budget_is_too_small(self) -> None:
+        class RepairableStrategy:
+            def can_repair(self, _error: Exception) -> bool:
+                return True
+
+        self.assertFalse(
+            _should_attempt_repair(
+                strategy=RepairableStrategy(),
+                error=GeneratedCodeError("bad code"),
+                lesson_format="video",
+                deadline=monotonic() + 60,
+            )
+        )
+
     async def test_generation_deadline_limits_each_async_operation(self) -> None:
         service = GenerationService(
             session=None,  # type: ignore[arg-type]
@@ -721,6 +749,24 @@ class GeminiStreamingTests(unittest.IsolatedAsyncioTestCase):
 
 
 class OpenAISourceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_generate_reports_output_budget_truncation(self) -> None:
+        provider = OpenAIProvider(
+            api_key="test-key",
+            model="test-model",
+            timeout_seconds=1,
+            max_output_tokens=100,
+        )
+        provider.client = MagicMock()
+        provider.client.responses.create = AsyncMock(
+            return_value=SimpleNamespace(
+                status="incomplete",
+                incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+            )
+        )
+
+        with self.assertRaises(ProviderTruncationError):
+            await provider.generate("prompt")
+
     async def test_generate_sends_images_and_pdfs_as_data_urls(self) -> None:
         provider = OpenAIProvider(
             api_key="test-key",
@@ -1109,19 +1155,20 @@ class StructuredSlidesTests(unittest.TestCase):
     def test_invalid_json_can_use_the_bounded_model_repair_fallback(self) -> None:
         self.assertTrue(
             StructuredSlidesStrategy().can_repair(
-                ValueError("Invalid JSON at line 1, column 12: Expecting ',' delimiter")
+                ModelOutputError("Invalid JSON at line 1, column 12: Expecting ',' delimiter")
             )
         )
         self.assertTrue(
             StructuredSlidesStrategy().can_repair(
-                ValueError("The model response did not contain a JSON object.")
+                ModelOutputError("The model response did not contain a JSON object.")
             )
         )
         self.assertTrue(
             StructuredSlidesStrategy().can_repair(
-                ValueError("Invalid Slides specification: payload.slides: Field required")
+                ModelOutputError("Invalid Slides specification: payload.slides: Field required")
             )
         )
+        self.assertFalse(StructuredSlidesStrategy().can_repair(ValueError("platform error")))
 
     def test_prompt_requires_json_escaping_inside_custom_html(self) -> None:
         prompt = StructuredSlidesStrategy().build_prompt(
@@ -2182,6 +2229,7 @@ class LessonSchemaMigrationTests(unittest.TestCase):
                     "runtime_version",
                     "compiler_version",
                     "first_error",
+                    "repair_error",
                     "raw_model_output",
                     "final_lesson_id",
                     "published_at",

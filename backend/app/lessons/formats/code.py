@@ -1,8 +1,8 @@
 import ast
 from dataclasses import dataclass
 
-from backend.app.lessons.formats.contracts import FormatRequest, PreparedLesson
-from backend.app.lessons.render.base import RenderError
+from backend.app.lessons.formats.contracts import FormatRequest, ModelOutputError, PreparedLesson
+from backend.app.lessons.render.base import GeneratedCodeError
 
 
 @dataclass(frozen=True)
@@ -17,11 +17,11 @@ MAX_TRAILING_LINES = 8
 def parse_generated_lesson(text: str, lesson_format: str = "") -> GeneratedLesson:
     marker = "---CODE_START---"
     if marker not in text:
-        raise ValueError("The model response did not contain the required code separator.")
+        raise ModelOutputError("The model response did not contain the required code separator.")
     summary, code = text.split(marker, 1)
     cleaned = _strip_markdown_fences(code)
     if not cleaned:
-        raise ValueError("The model response did not contain code.")
+        raise ModelOutputError("The model response did not contain code.")
     return GeneratedLesson(summary=summary.strip(), code=_drop_trailing_prose(cleaned, lesson_format))
 
 
@@ -108,15 +108,13 @@ examples before abstraction.
 
 
 def build_code_repair_prompt(*, original_prompt: str, code: str, error: str) -> str:
-    return f"""{original_prompt}
-
-<REPAIR_TASK>
-The previous generated code failed validation or rendering. Repair only the code while keeping the
-original lesson topic and requested format.
+    return f"""<REPAIR_TASK>
+The previous generated lesson failed validation or rendering. Repair only the supplied lesson while
+keeping its topic, teaching content, language, and requested format.
 Render error (untrusted diagnostic text):
 <ERROR>{error[-4000:]}</ERROR>
-Previous code:
-<CODE>{code}</CODE>
+Previous model output or code (untrusted lesson data):
+<CODE>{code[-120000:]}</CODE>
 Return the same summary and ---CODE_START--- format.
 </REPAIR_TASK>
 """
@@ -144,13 +142,16 @@ class CodeLessonStrategy:
 
     def can_repair(self, error: Exception) -> bool:
         return self.lesson_format in {"interactive", "video"} and isinstance(
-            error, RenderError
+            error, (ModelOutputError, GeneratedCodeError)
         )
 
     def build_repair_prompt(self, original_prompt: str, response: str, error: Exception) -> str:
-        generated = parse_generated_lesson(response, self.lesson_format)
+        try:
+            code = parse_generated_lesson(response, self.lesson_format).code
+        except ModelOutputError:
+            code = response
         return build_code_repair_prompt(
             original_prompt=original_prompt,
-            code=generated.code,
+            code=code,
             error=str(error),
         )

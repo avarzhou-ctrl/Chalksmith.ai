@@ -39,7 +39,7 @@ class Settings(BaseModel):
     llm_provider: Literal["vertex", "openai", "deepseek"] = "vertex"
     llm_model: str | None = None
     llm_timeout_seconds: int = Field(default=120, gt=0)
-    llm_max_output_tokens: int = Field(default=16_384, gt=0)
+    llm_max_output_tokens: int = Field(default=32_768, gt=0)
     vertex_ai_location: str = "global"
     openai_api_key: SecretStr | None = None
     deepseek_api_key: SecretStr | None = None
@@ -161,7 +161,7 @@ class Settings(BaseModel):
             llm_provider=os.getenv("LLM_PROVIDER", "vertex"),
             llm_model=os.getenv("LLM_MODEL"),
             llm_timeout_seconds=os.getenv("LLM_TIMEOUT_SECONDS", "120"),
-            llm_max_output_tokens=os.getenv("LLM_MAX_OUTPUT_TOKENS", "16384"),
+            llm_max_output_tokens=os.getenv("LLM_MAX_OUTPUT_TOKENS", "32768"),
             vertex_ai_location=os.getenv("VERTEX_AI_LOCATION", "global"),
             openai_api_key=os.getenv("OPENAI_API_KEY"),
             deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),

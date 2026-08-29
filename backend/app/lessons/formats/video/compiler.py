@@ -1,7 +1,7 @@
 import ast
 from textwrap import dedent
 
-from backend.app.lessons.render.base import RenderError
+from backend.app.lessons.render.base import GeneratedCodeError
 
 
 VIDEO_RUNTIME_VERSION = "manim-runtime.v1.1"
@@ -113,7 +113,7 @@ def strip_video_runtime(source: str) -> str:
     if not starts and not ends:
         return source.strip()
     if len(starts) != 1 or len(ends) != 1 or ends[0] <= starts[0]:
-        raise RenderError("Generated Manim code contains malformed platform style markers.")
+        raise GeneratedCodeError("Generated Manim code contains malformed platform style markers.")
     return "\n".join((*lines[: starts[0]], *lines[ends[0] + 1 :])).strip()
 
 
@@ -123,7 +123,9 @@ def compile_video(source: str) -> str:
     try:
         tree = ast.parse(clean_source)
     except SyntaxError as error:
-        raise RenderError(f"Generated Manim code has invalid syntax: {error.msg}.") from error
+        raise GeneratedCodeError(
+            f"Generated Manim code has invalid syntax: {error.msg}."
+        ) from error
 
     _validate_style_contract(tree)
     insertion_line = _runtime_insertion_line(tree)
@@ -151,7 +153,9 @@ def _runtime_insertion_line(tree: ast.Module) -> int:
         if isinstance(node, ast.ImportFrom) and node.module == "manim":
             imports_manim = any(alias.name == "*" for alias in node.names)
     if not imports_manim:
-        raise RenderError("Generated Manim code must begin with `from manim import *`.")
+        raise GeneratedCodeError(
+            "Generated Manim code must begin with `from manim import *`."
+        )
     return insertion_line
 
 
@@ -164,16 +168,20 @@ def _validate_style_contract(tree: ast.Module) -> None:
             elif isinstance(node.func, ast.Attribute):
                 called_name = node.func.attr
             if called_name in _DIRECT_TEXT_OBJECTS:
-                raise RenderError(
+                raise GeneratedCodeError(
                     f"Generated Manim code must use Chalksmith helpers instead of {called_name}()."
                 )
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
             if node.id in _RUNTIME_NAMES or node.id.startswith("_cs_"):
-                raise RenderError("Generated Manim code redefines a platform style name.")
+                raise GeneratedCodeError(
+                    "Generated Manim code redefines a platform style name."
+                )
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and (
             node.name in _RUNTIME_NAMES or node.name.startswith("_cs_")
         ):
-            raise RenderError("Generated Manim code redefines a platform style helper.")
+            raise GeneratedCodeError(
+                "Generated Manim code redefines a platform style helper."
+            )
         if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             for target in targets:
@@ -183,4 +191,6 @@ def _validate_style_contract(tree: ast.Module) -> None:
                     and target.value.id == "config"
                     and target.attr == "background_color"
                 ):
-                    raise RenderError("Generated Manim code must not override the platform background.")
+                    raise GeneratedCodeError(
+                        "Generated Manim code must not override the platform background."
+                    )

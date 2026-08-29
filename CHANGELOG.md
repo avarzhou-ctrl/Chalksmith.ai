@@ -1,5 +1,7 @@
 # Changelog
 
+**2026-08-30**: Classified generation failures by ownership so only model output and generated-code errors receive one deadline-aware repair, detected provider truncation without retrying, persisted repair diagnostics, raised the default output budget from 16K to 32K tokens, and rebuilt HTML validation as focused checks that preserve model-selected p5.js/KaTeX/Reveal versions, deterministically complete and typeset KaTeX, allow inline handlers, sandboxed forms, and optional HTTPS jsDelivr/cdnjs libraries, and reserve hard policy rejection for remote executable resources outside those origins (`backend/app/lessons/`, `backend/app/integrations/llm/`, `backend/app/db/`, `backend/app/core/config.py`, `backend/app/renderer_main.py`, `backend/tests/`, `bin/deploy.sh`, `bin/env.local.template`, `bin/env.deploy.template`, `doc/GCP.md`, `backend/AGENTS.md`, `CHANGELOG.md`).
+
 **2026-08-29**: Standardized all three Examples carousel descriptions to the same 16px body size, 28px line height, and 16px title spacing used by the Code-driven production description across mobile and desktop (`frontend/src/components/home/ExamplesCarousel.tsx`, `CHANGELOG.md`).
 
 **2026-08-29**: Centered the “Why Chalksmith?” heading container to match the alignment of the homepage's other primary section headings (`frontend/src/app/page.tsx`, `CHANGELOG.md`).

@@ -18,3 +18,19 @@ class Renderer(Protocol):
 
 class RenderError(RuntimeError):
     pass
+
+
+class GeneratedCodeError(RenderError):
+    """The model-authored lesson is invalid but can be repaired and validated again."""
+
+
+class PolicyViolationError(RenderError):
+    """The model-authored lesson violates a security policy and must be rejected."""
+
+
+class ArtifactLimitError(RenderError):
+    """The lesson exceeded a platform render time or artifact-size limit."""
+
+
+class InfrastructureRenderError(RenderError):
+    """The rendering service failed independently of the generated lesson code."""

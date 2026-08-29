@@ -4,6 +4,10 @@ from typing import Protocol
 from pydantic import BaseModel, ConfigDict
 
 
+class ModelOutputError(ValueError):
+    """The model response violates a repairable format or lesson specification contract."""
+
+
 class StrictSpecModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

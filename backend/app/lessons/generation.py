@@ -24,6 +24,7 @@ from backend.app.integrations.llm.base import (
     LLMProviderError,
     LLMResult,
     LLMSource,
+    ProviderTruncationError,
     StreamingLLMProvider,
 )
 from backend.app.integrations.storage import Storage
@@ -32,7 +33,15 @@ from backend.app.lessons.formats import (
     PreparedLesson,
     get_lesson_format_strategy,
 )
-from backend.app.lessons.render.base import RenderError, Renderer
+from backend.app.lessons.formats.contracts import LessonFormatStrategy, ModelOutputError
+from backend.app.lessons.render.base import (
+    ArtifactLimitError,
+    GeneratedCodeError,
+    InfrastructureRenderError,
+    PolicyViolationError,
+    RenderError,
+    Renderer,
+)
 from backend.app.lessons.sources import SourceDocument, model_sources, source_context
 
 logger = logging.getLogger(__name__)
@@ -40,6 +49,11 @@ T = TypeVar("T")
 LLM_HEARTBEAT_SECONDS = 10.0
 LLM_PROGRESS_INTERVAL_SECONDS = 0.5
 LLM_PROGRESS_CHARACTER_STEP = 500
+MIN_REPAIR_REMAINING_SECONDS = {
+    "interactive": 30.0,
+    "slides": 30.0,
+    "video": 360.0,
+}
 
 
 @dataclass(frozen=True)
@@ -339,7 +353,12 @@ class GenerationService:
                     generated = strategy.prepare(result.text)
                     asset = await self._await(renderer.render(generated.source_code, workdir))
                 except Exception as first_error:
-                    if not strategy.can_repair(first_error):
+                    if not _should_attempt_repair(
+                        strategy=strategy,
+                        error=first_error,
+                        lesson_format=lesson_format,
+                        deadline=self.deadline,
+                    ):
                         raise
                     first_error_text = str(first_error)[:4000]
                     lesson.first_error = first_error_text
@@ -359,26 +378,32 @@ class GenerationService:
                         "progress",
                         {"stage": "repairing", "message": strategy.repair_message},
                     )
-                    repair = None
-                    async for llm_event in self._generate_with_progress(
-                        strategy.build_repair_prompt(prompt, result.text, first_error),
-                        sources=llm_sources,
-                        lesson_id=lesson.id,
-                        owner_hash=owner_hash,
-                        stage="repairing",
-                        message=strategy.repair_message,
-                    ):
-                        if isinstance(llm_event, LLMResult):
-                            repair = llm_event
-                        else:
-                            yield _event("progress", _progress_data(llm_event))
-                    if repair is None:
-                        raise RuntimeError("The AI provider returned no repair result.")
-                    last_model_text = repair.text
-                    generated = strategy.prepare(repair.text)
-                    render_started = monotonic()
-                    render_stage = "repairing"
-                    asset = await self._await(renderer.render(generated.source_code, workdir))
+                    try:
+                        repair = None
+                        async for llm_event in self._generate_with_progress(
+                            strategy.build_repair_prompt(prompt, result.text, first_error),
+                            lesson_id=lesson.id,
+                            owner_hash=owner_hash,
+                            stage="repairing",
+                            message=strategy.repair_message,
+                        ):
+                            if isinstance(llm_event, LLMResult):
+                                repair = llm_event
+                            else:
+                                yield _event("progress", _progress_data(llm_event))
+                        if repair is None:
+                            raise RuntimeError("The AI provider returned no repair result.")
+                        last_model_text = repair.text
+                        generated = strategy.prepare(repair.text)
+                        render_started = monotonic()
+                        render_stage = "repairing"
+                        asset = await self._await(
+                            renderer.render(generated.source_code, workdir)
+                        )
+                    except Exception as repair_error:
+                        lesson.repair_error = str(repair_error)[:4000]
+                        save_lesson(self.session, lesson)
+                        raise
 
                 output_bytes = asset.path.stat().st_size
                 logger.info(
@@ -477,7 +502,7 @@ class GenerationService:
             yield _event(
                 "error",
                 {
-                    "code": "generation_failed",
+                    "code": _public_error_code(error),
                     "message": lesson.error_message,
                     "lesson_id": str(lesson.id),
                 },
@@ -502,7 +527,47 @@ def _progress_data(progress: LLMProgress) -> dict[str, object]:
     }
 
 
+def _should_attempt_repair(
+    *,
+    strategy: LessonFormatStrategy,
+    error: Exception,
+    lesson_format: str,
+    deadline: float,
+) -> bool:
+    # Repair only model-owned failures when enough request budget remains for a useful retry.
+    if not strategy.can_repair(error):
+        return False
+    minimum = MIN_REPAIR_REMAINING_SECONDS.get(lesson_format, 30.0)
+    return deadline - monotonic() >= minimum
+
+
+def _public_error_code(error: Exception) -> str:
+    # Map each failure owner to a stable browser-facing code without exposing diagnostics.
+    if isinstance(error, ProviderTruncationError):
+        return "provider_output_truncated"
+    if isinstance(error, PolicyViolationError):
+        return "lesson_policy_violation"
+    if isinstance(error, InfrastructureRenderError):
+        return "renderer_unavailable"
+    if isinstance(error, ArtifactLimitError):
+        return "artifact_limit_exceeded"
+    if isinstance(error, ModelOutputError):
+        return "model_output_invalid"
+    if isinstance(error, (GeneratedCodeError, RenderError)):
+        return "generated_code_invalid"
+    if isinstance(error, TimeoutError):
+        return "generation_timeout"
+    if isinstance(error, LLMProviderError):
+        return "provider_failed"
+    return "generation_failed"
+
+
 def _public_error(error: Exception, *, app_env: str) -> str:
+    if isinstance(error, ProviderTruncationError):
+        return (
+            "The AI response reached its output limit before the lesson was complete. "
+            "Narrow the lesson scope or split it into multiple parts."
+        )
     if isinstance(error, LLMProviderError):
         # The upstream text is what makes this actionable: an exhausted balance, an
         # unknown model id, and a rejected key all arrive as the same generic
@@ -511,6 +576,14 @@ def _public_error(error: Exception, *, app_env: str) -> str:
         if app_env == "production":
             return "The configured AI provider could not complete this request."
         return f"The configured AI provider could not complete this request. Upstream: {error}"
+    if isinstance(error, PolicyViolationError):
+        return "The generated lesson violated the platform safety policy and was rejected."
+    if isinstance(error, InfrastructureRenderError):
+        return "The lesson renderer is currently unavailable. Please try again later."
+    if isinstance(error, ArtifactLimitError):
+        return "The lesson exceeded the platform render time or file size limit."
+    if isinstance(error, GeneratedCodeError):
+        return "The generated lesson code was invalid and could not be repaired."
     if isinstance(error, RenderError):
         return "The generated lesson could not be rendered. Please try again."
     if isinstance(error, TimeoutError):

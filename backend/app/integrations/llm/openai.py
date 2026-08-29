@@ -2,7 +2,12 @@ import base64
 
 from openai import AsyncOpenAI
 
-from backend.app.integrations.llm.base import LLMProviderError, LLMResult, LLMSource
+from backend.app.integrations.llm.base import (
+    LLMProviderError,
+    LLMResult,
+    LLMSource,
+    ProviderTruncationError,
+)
 
 
 class OpenAIProvider:
@@ -20,6 +25,14 @@ class OpenAIProvider:
                 input=_input(prompt, sources),
                 max_output_tokens=self.max_output_tokens,
             )
+            incomplete = getattr(response, "incomplete_details", None)
+            if (
+                getattr(response, "status", None) == "incomplete"
+                and getattr(incomplete, "reason", None) == "max_output_tokens"
+            ):
+                raise ProviderTruncationError(
+                    f"OpenAI hit the {self.max_output_tokens}-token output limit before finishing."
+                )
             usage = response.usage
             return LLMResult(
                 text=response.output_text,
@@ -28,6 +41,8 @@ class OpenAIProvider:
                 input_tokens=getattr(usage, "input_tokens", None),
                 output_tokens=getattr(usage, "output_tokens", None),
             )
+        except ProviderTruncationError:
+            raise
         except Exception as error:
             raise LLMProviderError(f"OpenAI request failed: {error}") from error
 

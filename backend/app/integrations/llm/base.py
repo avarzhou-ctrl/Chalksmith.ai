@@ -49,3 +49,7 @@ class StreamingLLMProvider(Protocol):
 
 class LLMProviderError(RuntimeError):
     pass
+
+
+class ProviderTruncationError(LLMProviderError):
+    """The provider stopped because the configured model output budget was exhausted."""

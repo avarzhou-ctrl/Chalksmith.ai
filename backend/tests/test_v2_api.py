@@ -31,6 +31,7 @@ from backend.app.integrations.llm.factory import get_llm_provider
 from backend.app.integrations.storage import get_storage
 from backend.app.main import create_app
 from backend.app.lessons.formats.code import build_code_repair_prompt
+from backend.app.lessons.formats.contracts import ModelOutputError
 from backend.app.lessons.formats.interactive.prompt import INTERACTIVE_RULES
 from backend.app.lessons.formats.interactive.strategy import InteractiveStrategy
 from backend.app.lessons.formats.slides.compiler import (
@@ -41,8 +42,17 @@ from backend.app.lessons.formats.slides.compiler import (
     REVEAL_SCRIPT,
     REVEAL_THEME_STYLESHEET,
 )
-from backend.app.lessons.render.base import RenderError
-from backend.app.lessons.render.html import HTMLRenderer
+from backend.app.lessons.render.base import (
+    GeneratedCodeError,
+    InfrastructureRenderError,
+    PolicyViolationError,
+    RenderError,
+)
+from backend.app.lessons.render.html import (
+    HTMLRenderer,
+    KATEX_SCRIPT as HTML_KATEX_SCRIPT,
+    P5_SCRIPT,
+)
 from backend.app.lessons.sources import extract_sources
 
 
@@ -282,6 +292,80 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual(self.storage.objects[source_key], pdf)
         self.assertEqual(self.storage.content_types[source_key], "application/pdf")
 
+    def test_repair_does_not_resend_source_files_or_original_prompt(self) -> None:
+        class RepairingSourceLLM:
+            supports_sources = True
+
+            def __init__(self) -> None:
+                self.prompts: list[str] = []
+                self.sources: list[tuple[LLMSource, ...]] = []
+
+            async def generate(
+                self,
+                prompt: str,
+                sources: tuple[LLMSource, ...] = (),
+            ) -> LLMResult:
+                self.prompts.append(prompt)
+                self.sources.append(sources)
+                text = (
+                    "missing separator"
+                    if len(self.prompts) == 1
+                    else (
+                        "Repaired lesson.\n---CODE_START---\n"
+                        "<!doctype html><html><body>"
+                        "<script>function setup(){createCanvas(320,180)}</script>"
+                        "</body></html>"
+                    )
+                )
+                return LLMResult(text=text, provider="fake", model="fake-model")
+
+        llm = RepairingSourceLLM()
+        self.app.dependency_overrides[get_llm_provider] = lambda: llm
+        image = b"\x89PNG\r\n\x1a\nsource-image-bytes"
+
+        response = self.client.post(
+            "/v2/generations",
+            data={"topic": "Explain this source-only phrase", "format": "interactive"},
+            files={"sources": ("diagram.png", image, "image/png")},
+        )
+
+        self.assertIn("event: complete", response.text)
+        self.assertEqual(len(llm.prompts), 2)
+        self.assertNotEqual(llm.sources[0], ())
+        self.assertEqual(llm.sources[1], ())
+        self.assertNotIn("source-only phrase", llm.prompts[1])
+
+    def test_renderer_infrastructure_failure_does_not_call_the_model_twice(self) -> None:
+        class CountingLLM(FakeLLM):
+            def __init__(self) -> None:
+                self.calls = 0
+
+            async def generate(self, prompt: str) -> LLMResult:
+                self.calls += 1
+                return await super().generate(prompt)
+
+        class FailingRenderer:
+            async def render(self, _code: str, _workdir: Path):
+                raise InfrastructureRenderError("renderer is not configured")
+
+        llm = CountingLLM()
+        self.app.dependency_overrides[get_llm_provider] = lambda: llm
+        self.app.dependency_overrides[get_renderers] = lambda: {
+            "interactive": FailingRenderer(),
+            "slides": FailingRenderer(),
+            "video": FailingRenderer(),
+        }
+
+        response = self.client.post(
+            "/v2/generations",
+            data={"topic": "Infrastructure ownership", "format": "interactive"},
+        )
+
+        self.assertIn("event: error", response.text)
+        self.assertIn('"code": "renderer_unavailable"', response.text)
+        self.assertNotIn('"stage": "repairing"', response.text)
+        self.assertEqual(llm.calls, 1)
+
     def test_source_file_requires_a_source_capable_model(self) -> None:
         response = self.client.post(
             "/v2/generations",
@@ -344,7 +428,8 @@ class V2ApiTests(unittest.TestCase):
         self.assertIn('"stage": "repairing"', response.text)
         self.assertIn("event: complete", response.text)
         self.assertEqual(len(llm.prompts), 2)
-        self.assertIn("Repair the specification, not the layout system", llm.prompts[1])
+        self.assertIn("Repair the supplied specification", llm.prompts[1])
+        self.assertNotIn("Equivalent fractions", llm.prompts[1])
         lesson_id = _completed_lesson_id(response.text)
         lesson = self.client.get(f"/v2/lessons/{lesson_id}").json()
         self.assertEqual(lesson["status"], "ready")
@@ -407,6 +492,7 @@ class V2ApiTests(unittest.TestCase):
             stored = get_owned_lesson(session, UUID(lesson_id), "teacher-a")
             self.assertEqual(stored.raw_model_output, broken)
             self.assertIn("Invalid JSON", stored.first_error)
+            self.assertIn("Invalid JSON", stored.repair_error)
 
     def test_structured_slides_edit_uses_the_previous_specification(self) -> None:
         llm = FakeSlidesLLM(_slides_response(), _slides_response())
@@ -924,6 +1010,7 @@ class V2ApiTests(unittest.TestCase):
             "lesson_spec",
             "raw_model_output",
             "first_error",
+            "repair_error",
             "object_key",
         ):
             self.assertNotIn(private_or_heavy_field, dashboard_select)
@@ -1235,18 +1322,161 @@ for (let i = steps; i >= 0; i--) drawPoint(i);
 
         self.assertEqual(asset.extension, "html")
 
-    def test_html_renderer_rejects_static_latex_without_global_typesetting(self) -> None:
+    def test_html_renderer_injects_global_typesetting_for_static_latex(self) -> None:
         generated = r'''<!doctype html><html><head>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 </head><body><div id="legend">$\triangle WXM$</div><script>
 const p5 = true;
-// renderMathInElement(document.body) is not an actual typesetting call.
-renderMathInElement(document.getElementById("content"));
+function triggerKaTeX(container) {
+  renderMathInElement(container || document.body, { throwOnError: false });
+}
+window.addEventListener("DOMContentLoaded", () => triggerKaTeX(document.body));
 </script></body></html>'''
-        with TemporaryDirectory() as directory, self.assertRaisesRegex(
-            RenderError, "without global KaTeX typesetting"
+        with TemporaryDirectory() as directory:
+            asset = asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+            rendered = asset.path.read_text(encoding="utf-8")
+
+        self.assertIn("data-chalksmith-katex", rendered)
+        self.assertIn("renderMathInElement(document.body", rendered)
+        self.assertLess(
+            rendered.index("data-chalksmith-katex"), rendered.index("</body>")
+        )
+
+    def test_html_renderer_injects_static_latex_assets_without_model_repair(self) -> None:
+        generated = r'''<!doctype html><html><body>
+<div id="legend">$\triangle WXM$</div><script>const p5 = true;</script>
+</body></html>'''
+        with TemporaryDirectory() as directory:
+            asset = asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+            rendered = asset.path.read_text(encoding="utf-8")
+
+        self.assertIn(HTML_KATEX_SCRIPT, rendered)
+        self.assertIn("data-chalksmith-katex", rendered)
+        self.assertIn(P5_SCRIPT, rendered)
+
+    def test_html_renderer_scans_only_executable_script_for_blocked_apis(self) -> None:
+        generated = '''<!doctype html><html><body>
+<p>Never call eval( or document.write( in a lesson.</p>
+<script>const warning = "new Function(";</script>
+</body></html>'''
+        with TemporaryDirectory() as directory:
+            asset = asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+
+        self.assertEqual(asset.extension, "html")
+
+    def test_html_renderer_repairs_executable_blocked_api(self) -> None:
+        generated = '''<!doctype html><html><body>
+<script>eval("console.log('unsafe')");</script>
+</body></html>'''
+        with TemporaryDirectory() as directory, self.assertRaises(
+            GeneratedCodeError
+        ):
+            asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+
+    def test_html_renderer_repairs_blocked_api_in_template_expression(self) -> None:
+        generated = '''<!doctype html><html><body>
+<script>const value = `unsafe ${eval("2 + 2")}`;</script>
+</body></html>'''
+        with TemporaryDirectory() as directory, self.assertRaises(
+            GeneratedCodeError
+        ):
+            asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+
+    def test_html_renderer_allows_inline_events_and_local_forms(self) -> None:
+        generated = '''<!doctype html><html><body>
+<form onsubmit="return false">
+<button type="button" onclick="setRadius(0)">Reset</button>
+</form>
+<script>function setRadius(value) { window.radius = value; }</script>
+</body></html>'''
+        with TemporaryDirectory() as directory:
+            asset = asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+
+        self.assertEqual(asset.extension, "html")
+
+    def test_html_renderer_allows_optional_library_from_approved_cdn(self) -> None:
+        generated = '''<!doctype html><html><head>
+<script src="https://cdn.jsdelivr.net/npm/lodash@4/lodash.min.js"></script>
+</head><body></body></html>'''
+        with TemporaryDirectory() as directory:
+            asset = asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+
+        self.assertEqual(asset.extension, "html")
+
+    def test_html_renderer_rejects_remote_library_outside_approved_cdns(self) -> None:
+        generated = '''<!doctype html><html><head>
+<script src="https://example.com/lodash.min.js"></script>
+</head><body></body></html>'''
+        with TemporaryDirectory() as directory, self.assertRaises(
+            PolicyViolationError
+        ):
+            asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+
+    def test_html_renderer_preserves_known_older_p5_version(self) -> None:
+        generated = '''<!doctype html><html><head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+</head><body><script>function setup(){createCanvas(320,180)}</script></body></html>'''
+        with TemporaryDirectory() as directory:
+            asset = asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+            rendered = asset.path.read_text(encoding="utf-8")
+
+        self.assertIn("p5.js/1.9.0", rendered)
+        self.assertNotIn(P5_SCRIPT, rendered)
+
+    def test_html_renderer_preserves_older_katex_version(self) -> None:
+        generated = r'''<!doctype html><html><head>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.15.6/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.15.6/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.15.6/contrib/auto-render.min.js"></script>
+</head><body><div>\(x^2\)</div><script>
+function setup(){createCanvas(320,180)}
+</script></body></html>'''
+        with TemporaryDirectory() as directory:
+            asset = asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+            rendered = asset.path.read_text(encoding="utf-8")
+
+        self.assertIn("KaTeX/0.15.6", rendered)
+        self.assertNotIn("KaTeX/0.16.9", rendered)
+
+    def test_html_renderer_accepts_versioned_reveal_runtime(self) -> None:
+        generated = '''<!doctype html><html><head>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css">
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+</head><body><div class="reveal"><div class="slides"></div></div></body></html>'''
+        with TemporaryDirectory() as directory:
+            asset = asyncio.run(
+                HTMLRenderer(required_marker="reveal").render(generated, Path(directory))
+            )
+
+        self.assertEqual(asset.extension, "html")
+
+    def test_html_renderer_requires_real_complete_document_tags(self) -> None:
+        generated = '''<!doctype html><body><p>Text saying &lt;html&gt;</p></body>'''
+        with TemporaryDirectory() as directory, self.assertRaises(
+            GeneratedCodeError
         ):
             asyncio.run(
                 HTMLRenderer(required_marker="p5").render(generated, Path(directory))
@@ -1265,8 +1495,10 @@ window.addEventListener("DOMContentLoaded", () => renderMathInElement(document.b
             asset = asyncio.run(
                 HTMLRenderer(required_marker="p5").render(generated, Path(directory))
             )
+            rendered = asset.path.read_text(encoding="utf-8")
 
         self.assertEqual(asset.extension, "html")
+        self.assertNotIn("data-chalksmith-katex", rendered)
 
     def test_interactive_prompt_and_repair_prompt_cover_generation_constraints(self) -> None:
         for section in (
@@ -1289,6 +1521,7 @@ window.addEventListener("DOMContentLoaded", () => renderMathInElement(document.b
         self.assertIn("do not crowd one area", normalized_rules)
         self.assertIn("Reflow, resize, or simplify content", normalized_rules)
         self.assertIn("KaTeX 0.16.9", normalized_rules)
+        self.assertIn("renderMathInElement(document.body, ...)` directly", normalized_rules)
         self.assertIn("auto-render to recognize `$...$`", normalized_rules)
         self.assertIn("After dynamically inserting or changing a formula", normalized_rules)
         self.assertIn("Never leave raw LaTeX delimiters visible", normalized_rules)
@@ -1305,8 +1538,11 @@ window.addEventListener("DOMContentLoaded", () => renderMathInElement(document.b
         )
         self.assertIn("cannot throw an exception, freeze draw()", normalized_rules)
         self.assertIn("decrement toward a lower bound", INTERACTIVE_RULES)
-        self.assertTrue(
-            InteractiveStrategy().can_repair(RenderError("raw LaTeX is visible"))
+        self.assertTrue(InteractiveStrategy().can_repair(GeneratedCodeError("bad loop")))
+        self.assertTrue(InteractiveStrategy().can_repair(ModelOutputError("missing code")))
+        self.assertFalse(InteractiveStrategy().can_repair(RenderError("renderer failed")))
+        self.assertFalse(
+            InteractiveStrategy().can_repair(InfrastructureRenderError("renderer unavailable"))
         )
         repair = build_code_repair_prompt(
             original_prompt="Create an interactive lesson.",

@@ -55,6 +55,13 @@ escape every double quote as \\", escape every backslash as \\\\, and do not inc
 Match learner-visible content to the language of REQUEST and provide its BCP 47 language tag.
 </OUTPUT_CONTRACT>
 
+<RESOURCE_RULES>
+The platform compiler owns Reveal.js and KaTeX assets, versions, initialization, and the Content
+Security Policy. Do not emit script or stylesheet URLs, Reveal configuration, or arbitrary remote
+resources in the JSON; use the semantic Blocks and text fields, and the platform will inject the
+approved runtime assets when needed.
+</RESOURCE_RULES>
+
 <LESSON_REQUIREMENTS>
 Create 5 to 9 slides.
 Choose the clearest teaching representation for each idea before selecting its slide kind and Blocks.

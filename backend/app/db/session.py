@@ -84,6 +84,7 @@ def _migrate_lesson_versions(engine) -> None:
         "compiler_version": "VARCHAR(64)",
         "published_at": "TIMESTAMP WITH TIME ZONE" if dialect == "postgresql" else "DATETIME",
         "first_error": "TEXT",
+        "repair_error": "TEXT",
         "raw_model_output": "TEXT",
     }
     with engine.begin() as connection:

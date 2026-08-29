@@ -4,7 +4,13 @@ from collections.abc import AsyncIterator
 from google import genai
 from google.genai import types
 
-from backend.app.integrations.llm.base import LLMProviderError, LLMResult, LLMSource, LLMStreamChunk
+from backend.app.integrations.llm.base import (
+    LLMProviderError,
+    LLMResult,
+    LLMSource,
+    LLMStreamChunk,
+    ProviderTruncationError,
+)
 
 
 class VertexGeminiProvider:
@@ -37,6 +43,7 @@ class VertexGeminiProvider:
                 ),
                 timeout=self.timeout_seconds,
             )
+            _raise_if_truncated(response, self.max_output_tokens)
             usage = response.usage_metadata
             return LLMResult(
                 text=response.text or "",
@@ -45,6 +52,8 @@ class VertexGeminiProvider:
                 input_tokens=getattr(usage, "prompt_token_count", None),
                 output_tokens=_billed_output_tokens(usage),
             )
+        except ProviderTruncationError:
+            raise
         except Exception as error:
             raise LLMProviderError(f"Gemini request failed: {error}") from error
 
@@ -64,6 +73,7 @@ class VertexGeminiProvider:
                     ),
                 )
                 async for response in responses:
+                    _raise_if_truncated(response, self.max_output_tokens)
                     usage = response.usage_metadata
                     yield LLMStreamChunk(
                         text=response.text or "",
@@ -72,6 +82,8 @@ class VertexGeminiProvider:
                         input_tokens=getattr(usage, "prompt_token_count", None),
                         output_tokens=_billed_output_tokens(usage),
                     )
+        except ProviderTruncationError:
+            raise
         except Exception as error:
             raise LLMProviderError(f"Gemini request failed: {error}") from error
 
@@ -93,3 +105,13 @@ def _billed_output_tokens(usage: object) -> int | None:
     if candidates is None and thoughts is None:
         return None
     return (candidates or 0) + (thoughts or 0)
+
+
+def _raise_if_truncated(response: object, max_output_tokens: int) -> None:
+    # Surface provider truncation before partial text can be mistaken for repairable formatting.
+    candidates = getattr(response, "candidates", None) or ()
+    finish_reason = getattr(candidates[0], "finish_reason", None) if candidates else None
+    if str(finish_reason).upper().endswith("MAX_TOKENS"):
+        raise ProviderTruncationError(
+            f"Gemini hit the {max_output_tokens}-token output limit before finishing."
+        )

@@ -6,7 +6,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from backend.app.core.config import get_settings
-from backend.app.lessons.render.base import RenderError
+from backend.app.lessons.render.base import (
+    ArtifactLimitError,
+    InfrastructureRenderError,
+    RenderError,
+)
 from backend.app.lessons.render.manim import LocalManimRenderer
 
 
@@ -32,7 +36,13 @@ async def render_manim(payload: RenderRequest):
         asset = await renderer.render(payload.code, Path(temporary.name))
     except RenderError as error:
         temporary.cleanup()
-        raise HTTPException(status_code=422, detail=str(error)) from error
+        if isinstance(error, ArtifactLimitError):
+            status_code = 504 if "timed out" in str(error).lower() else 413
+        elif isinstance(error, InfrastructureRenderError):
+            status_code = 503
+        else:
+            status_code = 422
+        raise HTTPException(status_code=status_code, detail=str(error)) from error
     response = FileResponse(asset.path, media_type=asset.content_type, filename="lesson.mp4")
     response.background = _CleanupTask(temporary)
     return response

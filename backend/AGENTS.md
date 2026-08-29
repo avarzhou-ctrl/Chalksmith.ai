@@ -144,8 +144,9 @@ Routine `__init__.py` files and generated `__pycache__/` directories are omitted
    without a specification remain readable from their stored artifact but are intentionally
    read-only.
 5. The renderer for the format runs in a `TemporaryDirectory`. Structured Slides get one bounded
-   specification-repair attempt for JSON/schema/capacity errors. Video gets one code-repair
-   attempt after `RenderError`; platform compiler/renderer defects are not sent to the model.
+   specification-repair attempt for JSON/schema/capacity errors. Interactive and Video get one
+   repair only for `ModelOutputError` or `GeneratedCodeError`, provided enough deadline remains;
+   policy, infrastructure, truncation, timeout, and artifact-size failures are not sent to the model.
 6. The output uploads to `lessons/{owner_id}/{lesson_id}/lesson.{ext}`; uploaded sources live at
    `sources/{owner_id}/{lesson_id}/{filename}`.
 
@@ -199,9 +200,13 @@ non-null `published_at` and expose only that root's selected ready final revisio
 unpublished, or not-yours private records are always a 404 via `_owned_or_404()`.
 
 **Generated code is never trusted.**
-- `interactive`/`slides`: `HTMLRenderer` requires the marker (`p5` / `reveal`), rejects
-  `eval(`/`document.write(`/`new Function(`, injects the CSP `<meta>` from
-  `backend/app/lessons/render/html.py`, and rejects obvious nonterminating counter loops.
+- `interactive`/`slides`: `HTMLRenderer` requires the marker (`p5` / `reveal`), treats
+  `eval(`/`document.write(`/`new Function(` as repairable generated-code failures, injects the CSP
+  `<meta>` from `backend/app/lessons/render/html.py`, rejects obvious nonterminating counter loops,
+  restricts remote libraries to the HTTPS jsDelivr and cdnjs origins, and injects
+  platform-owned p5/KaTeX assets only when missing, plus a document-wide typesetting pass when an
+  Interactive lesson needs them. Inline event attributes and local forms are allowed because the
+  sandbox omits `allow-forms` and the CSP retains `form-action 'none'`.
 - Structured Slides use validated semantic Blocks by default. Their only model-authored markup is
   the `custom-html` escape hatch: it must occupy a slide body alone, may appear on at most five
   slides per lesson, and passes through the tag, attribute, CSS-property, URL, node, depth, and

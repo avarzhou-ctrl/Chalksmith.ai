@@ -173,7 +173,7 @@ web_image="${registry}/web:${revision}"
 app_env="${APP_ENV_OVERRIDE:-production}"
 vertex_ai_location="${VERTEX_AI_LOCATION:-global}"
 llm_timeout_seconds="${LLM_TIMEOUT_SECONDS:-120}"
-llm_max_output_tokens="${LLM_MAX_OUTPUT_TOKENS:-16384}"
+llm_max_output_tokens="${LLM_MAX_OUTPUT_TOKENS:-32768}"
 # DeepSeek bills its chain of thought against LLM_MAX_OUTPUT_TOKENS, so leaving
 # thinking off keeps that budget available for the lesson itself.
 deepseek_thinking="${DEEPSEEK_THINKING:-false}"

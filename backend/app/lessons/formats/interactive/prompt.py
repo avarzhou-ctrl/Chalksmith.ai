@@ -1,6 +1,11 @@
 INTERACTIVE_RULES = """
 <DELIVERABLE>
-Return one complete HTML document using p5.js from cdn.jsdelivr.net or cdnjs.cloudflare.com.
+Return one complete HTML document using p5.js from one of these approved paths:
+https://cdn.jsdelivr.net/npm/p5@<version>/lib/p5.min.js or
+https://cdnjs.cloudflare.com/ajax/libs/p5.js/<version>/p5.min.js.
+Choose any compatible p5.js version needed by the lesson and keep that version unchanged; do not
+mix p5.js versions. The platform validates the path and injects its default only when p5.js is
+missing.
 </DELIVERABLE>
 
 <TEACHING_AND_INTERACTION>
@@ -19,14 +24,17 @@ or cramped regions.
 </VISUAL_LAYOUT>
 
 <MATH_RENDERING>
-When learner-visible mathematical notation is needed, load KaTeX 0.16.9 CSS, katex.min.js, and
-contrib/auto-render.min.js from cdn.jsdelivr.net or cdnjs.cloudflare.com. Typeset static formulas
-after the DOM and KaTeX scripts are ready, configuring auto-render to recognize `$...$`,
-`$$...$$`, `\\(...\\)`, and `\\[...\\]`. After dynamically inserting or changing a formula,
-typeset that formula's container again with the same delimiters; do not repeat typesetting on every
-animation frame when the expression has not changed. Never leave raw LaTeX delimiters visible to
-learners. Use plain text or HTML for rapidly changing numeric values that do not need mathematical
-typesetting.
+When learner-visible mathematical notation is needed, load KaTeX CSS, katex.min.js, and
+contrib/auto-render.min.js from the approved jsDelivr or cdnjs KaTeX paths. Any compatible KaTeX
+version is allowed; use one version consistently for all three files and keep the URLs unchanged.
+The platform default is KaTeX 0.16.9 only when all KaTeX files are missing; otherwise it supplies
+missing files using the version and CDN already present. Typeset static formulas
+after the DOM and KaTeX scripts are ready by calling `renderMathInElement(document.body, ...)`
+directly, configuring auto-render to recognize `$...$`, `$$...$$`, `\\(...\\)`, and `\\[...\\]`.
+After dynamically inserting or changing a formula, typeset that formula's container again with the
+same delimiters; do not repeat typesetting on every animation frame when the expression has not
+changed. Never leave raw LaTeX delimiters visible to learners. Use plain text or HTML for rapidly
+changing numeric values that do not need mathematical typesetting.
 </MATH_RENDERING>
 
 <POINTER_COORDINATES>
@@ -57,7 +65,10 @@ upper bound and decrement toward a lower bound. Never create an unbounded animat
 </RUNTIME_SAFETY>
 
 <SECURITY_RULES>
-Do not load remote content other than p5.js and the optional KaTeX assets above from the approved
-CDNs. Do not use eval, Function, document.write, inline event attributes, forms, or a build step.
+Load scripts and styles only over HTTPS from cdn.jsdelivr.net or cdnjs.cloudflare.com. Prefer p5.js
+and the optional KaTeX assets above, but another library from those CDNs is allowed when it is
+necessary for the lesson. Avoid eval, Function, and document.write because the platform CSP blocks
+dynamic code evaluation and document replacement makes lessons unreliable. Do not require a build
+step.
 </SECURITY_RULES>
 """

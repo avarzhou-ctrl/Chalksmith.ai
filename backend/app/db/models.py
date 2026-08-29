@@ -48,6 +48,8 @@ class Lesson(SQLModel, table=True):
     error_message: str | None = Field(default=None, sa_column=Column(Text))
     # First prepare/render failure that triggered a bounded repair; kept after success.
     first_error: str | None = Field(default=None, sa_column=Column(Text))
+    # Second prepare/render failure after repair; private diagnostic data only.
+    repair_error: str | None = Field(default=None, sa_column=Column(Text))
     # Private debugging payload; never serialized by an API response model.
     raw_model_output: str | None = Field(default=None, sa_column=Column(Text))
     edit_instruction: str | None = Field(default=None, sa_column=Column(Text))

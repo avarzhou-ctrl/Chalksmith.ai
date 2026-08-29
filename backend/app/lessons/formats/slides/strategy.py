@@ -1,4 +1,4 @@
-from backend.app.lessons.formats.contracts import FormatRequest, PreparedLesson
+from backend.app.lessons.formats.contracts import FormatRequest, ModelOutputError, PreparedLesson
 from backend.app.lessons.formats.slides.compiler import (
     SLIDES_COMPILER_VERSION,
     SLIDES_RUNTIME_VERSION,
@@ -30,7 +30,7 @@ class StructuredSlidesStrategy:
         )
 
     def can_repair(self, error: Exception) -> bool:
-        return isinstance(error, ValueError)
+        return isinstance(error, ModelOutputError)
 
     def build_repair_prompt(self, original_prompt: str, response: str, error: Exception) -> str:
         return build_slides_repair_prompt(original_prompt, response, error)

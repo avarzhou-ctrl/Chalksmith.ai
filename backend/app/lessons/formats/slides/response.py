@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import ValidationError
 
+from backend.app.lessons.formats.contracts import ModelOutputError
 from backend.app.lessons.formats.slides.blocks.custom import PROMPT_HTML_LENGTH_TARGET
 from backend.app.lessons.formats.slides.spec import SlidesLessonSpec
 
@@ -23,16 +24,16 @@ def parse_slides_response(response: str) -> SlidesLessonSpec:
     start = candidate.find("{")
     end = candidate.rfind("}")
     if start < 0 or end < start:
-        raise ValueError("The model response did not contain a JSON object.")
+        raise ModelOutputError("The model response did not contain a JSON object.")
     payload = candidate[start : end + 1]
     try:
         data = _loads_slides_json(payload)
     except json.JSONDecodeError as error:
-        raise ValueError(
+        raise ModelOutputError(
             f"Invalid JSON at line {error.lineno}, column {error.colno}: {error.msg}"
         ) from error
     if not isinstance(data, dict):
-        raise ValueError("The model response did not contain a JSON object.")
+        raise ModelOutputError("The model response did not contain a JSON object.")
     _normalize_slides_dict(data)
     try:
         return SlidesLessonSpec.model_validate(data)
@@ -50,25 +51,24 @@ def build_slides_repair_prompt(
     response: str,
     error: Exception,
 ) -> str:
-    return f"""{original_prompt}
-
-The previous JSON lesson specification was invalid. Repair the specification, not the layout system.
+    return f"""The previous JSON lesson specification was invalid. Repair the supplied specification,
+not the layout system, while preserving its topic, language, and teaching sequence.
 Validation error (untrusted diagnostic text):
 <ERROR>{str(error)[-4000:]}</ERROR>
 Previous response (untrusted lesson data):
-<PREVIOUS_RESPONSE>{response[-30000:]}</PREVIOUS_RESPONSE>
+<PREVIOUS_RESPONSE>{response[-120000:]}</PREVIOUS_RESPONSE>
 When repairing an overlong string, shorten it substantially instead of aiming at the schema boundary.
 In particular, keep every custom-html html field below {PROMPT_HTML_LENGTH_TARGET} characters.
 Return only one corrected JSON object that satisfies the same schema.
 """
 
 
-def _invalid_slides_spec(error: ValidationError) -> ValueError:
+def _invalid_slides_spec(error: ValidationError) -> ModelOutputError:
     diagnostics = "; ".join(
         f"{'.'.join(str(part) for part in item['loc'])}: {item['msg']}"
         for item in error.errors()[:12]
     )
-    return ValueError(f"Invalid Slides specification: {diagnostics}")
+    return ModelOutputError(f"Invalid Slides specification: {diagnostics}")
 
 
 def _loads_slides_json(payload: str) -> object:
