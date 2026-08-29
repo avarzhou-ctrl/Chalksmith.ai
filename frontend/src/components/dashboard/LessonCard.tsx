@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FolderInput, Globe2, PencilLine, EllipsisVertical, Trash2 } from "lucide-react";
-import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
+import LessonCardLayout from '@/components/lesson/LessonCardLayout';
 import FolderPicker from '@/components/dashboard/FolderPicker';
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
@@ -20,6 +20,7 @@ interface LessonCardProps {
     format: LessonFormat;
     status: LessonListItem['status'];
     isPublished: boolean;
+    tags: string[];
     createdAt: string;
     versionCount: number;
     folderId: string | null;
@@ -35,6 +36,7 @@ export default function LessonCard({
     format,
     status,
     isPublished,
+    tags,
     createdAt,
     versionCount,
     folderId,
@@ -141,18 +143,21 @@ export default function LessonCard({
     };
 
     return (
-        <article className="relative min-h-48 rounded-lg border border-border bg-surface p-4 flex flex-col">
-            {status !== 'deleting' && <Link
-                href={`/generation?lessonId=${id}`}
-                className="absolute inset-0 z-0 rounded-lg"
-                title="Open lesson"
-            />}
-            <div className="pointer-events-none relative z-30 flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-2">
-                    <LessonFormatIcon format={format} />
-                    <h3 className="min-w-0 text-xl font-semibold leading-snug text-primary-text line-clamp-2">{displayTitle}</h3>
-                </div>
-                <div className="pointer-events-auto relative ml-auto shrink-0" ref={actionsRef}>
+        <LessonCardLayout
+            format={format}
+            title={displayTitle}
+            subtitle={`Created ${formattedDate}`}
+            description={description}
+            tags={tags}
+            overlay={status !== 'deleting' ? (
+                <Link
+                    href={`/generation?lessonId=${id}`}
+                    className="absolute inset-0 z-0 rounded-2xl"
+                    title="Open lesson"
+                />
+            ) : undefined}
+            headerAction={(
+                <div className="relative" ref={actionsRef}>
                     <button
                         type="button"
                         onClick={() => setIsActionsOpen((current) => !current)}
@@ -199,31 +204,30 @@ export default function LessonCard({
                         </div>
                     )}
                 </div>
-            </div>
-            {description && (
-                <div className="pointer-events-none relative z-10 mt-3 line-clamp-2 text-sm leading-6 text-secondary-text">{description}</div>
             )}
-            {status !== 'ready' && (
-                <p className="pointer-events-none relative z-10 mt-3 text-xs font-medium text-amber-400">
+            statusMessage={status !== 'ready' ? (
+                <p className="text-xs font-medium text-amber-400">
                     {status === 'deleting' ? 'Deletion pending—retry from the menu.' : `Status: ${status}`}
                 </p>
-            )}
-            <div className="pointer-events-none relative z-10 mt-auto flex items-center justify-between gap-3 pt-4">
-                <section className="flex min-w-0 items-center gap-2">
-                    <p className="truncate text-xs text-secondary-text">{formattedDate}</p>
+            ) : undefined}
+            footer={(
+                <div className="flex min-h-8 items-center justify-between gap-3">
+                    <section className="flex min-w-0 items-center gap-2">
                     {isPublished && (
                         <span
-                            role="img"
                             title="Published to Explore"
                             aria-label="Published to Explore"
-                            className="pointer-events-auto grid size-5 shrink-0 place-items-center rounded bg-accent/10 text-accent"
+                            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1.5 text-xs font-medium text-accent"
                         >
-                            <Globe2 size={12} aria-hidden="true" />
+                            <Globe2 size={14} aria-hidden="true" />
+                            Published
                         </span>
                     )}
-                </section>
-                <p className="truncate text-xs text-secondary-text">{versionCount} {versionCount === 1 ? 'version' : 'versions'} · {formatLabel}</p>
-            </div>
+                    </section>
+                    <p className="truncate text-xs text-secondary-text">{versionCount} {versionCount === 1 ? 'version' : 'versions'} · {formatLabel}</p>
+                </div>
+            )}
+        >
             
             {/* Delete Confirmation Modal */}
             <Modal 
@@ -300,6 +304,6 @@ export default function LessonCard({
                 />
                 {moveError && <p className="mt-3 text-sm text-red-300">{moveError}</p>}
             </Modal>
-        </article>
+        </LessonCardLayout>
     );
 }

@@ -13,6 +13,9 @@ from backend.app.api.schemas import (
     LessonPublicationResponse,
     LessonPublicationUpdate,
     LessonResponse,
+    LessonTagItem,
+    LessonTagsResponse,
+    LessonTagsUpdate,
     LessonUpdate,
     LessonVersionResponse,
 )
@@ -22,9 +25,15 @@ from backend.app.db.lessons import (
     count_lesson_versions,
     get_owned_lesson,
     get_lesson_root,
+    list_tags_for_roots,
     list_lesson_version_summaries,
     list_lesson_versions,
     list_owned_lessons,
+    list_owned_tag_summaries,
+    normalize_lesson_tags,
+    remove_lesson_likes,
+    remove_lesson_tags,
+    replace_lesson_tags,
     save_lessons,
     set_final_lesson,
     set_lesson_publication,
@@ -55,18 +64,37 @@ def _lesson_response(session: Session, lesson) -> LessonResponse:
             "is_published": root.published_at is not None,
             "published_at": root.published_at,
             "folder_id": root.folder_id,
+            "tags": list_tags_for_roots(session, [root.id]).get(root.id, []),
         }
     )
+
+
+def _validated_tag_filters(tags: list[str]) -> list[str]:
+    try:
+        return [label for label, _ in normalize_lesson_tags(tags)]
+    except ValueError as error:
+        raise AppError(code="invalid_tags", message=str(error), status_code=422) from error
 
 
 @router.get("", response_model=list[LessonListItem])
 def list_lessons(
     q: str | None = Query(default=None, max_length=200),
     format: LessonFormat | None = None,
+    tag: list[str] | None = Query(default=None),
     user: AuthUser = Depends(get_current_user),
     session: Session = Depends(get_session, scope="function"),
 ):
-    lessons = list_owned_lessons(session, user.uid, query=q, lesson_format=format)
+    lessons = list_owned_lessons(
+        session,
+        user.uid,
+        query=q.strip() if q and q.strip() else None,
+        lesson_format=format,
+        tags=_validated_tag_filters(tag or []),
+    )
+    tags_by_root = list_tags_for_roots(
+        session,
+        [lesson.root_lesson_id for lesson in lessons],
+    )
     version_counts = count_lesson_versions(
         session,
         user.uid,
@@ -77,10 +105,19 @@ def list_lessons(
             update={
                 "version_count": version_counts.get(lesson.root_lesson_id, 0),
                 "is_published": lesson.is_published,
+                "tags": tags_by_root.get(lesson.root_lesson_id, []),
             }
         )
         for lesson in lessons
     ]
+
+
+@router.get("/tags", response_model=list[LessonTagItem])
+def list_lesson_tags(
+    user: AuthUser = Depends(get_current_user),
+    session: Session = Depends(get_session, scope="function"),
+):
+    return list_owned_tag_summaries(session, user.uid)
 
 
 @router.get("/{lesson_id}", response_model=LessonResponse)
@@ -198,6 +235,24 @@ def move_lesson_to_folder(
     return _lesson_response(session, lesson)
 
 
+@router.put("/{lesson_id}/tags", response_model=LessonTagsResponse)
+def update_lesson_tags(
+    lesson_id: UUID,
+    update: LessonTagsUpdate,
+    user: AuthUser = Depends(get_current_user),
+    session: Session = Depends(get_session, scope="function"),
+) -> LessonTagsResponse:
+    lesson = _owned_or_404(session, lesson_id, user.uid)
+    root = get_lesson_root(session, lesson)
+    if root is None:
+        raise AppError(code="lesson_not_found", message="Lesson not found.", status_code=404)
+    try:
+        tags = replace_lesson_tags(session, root, update.tags)
+    except ValueError as error:
+        raise AppError(code="invalid_tags", message=str(error), status_code=422) from error
+    return LessonTagsResponse(root_lesson_id=root.id, tags=tags)
+
+
 @router.delete("/{lesson_id}", status_code=204)
 def remove_lesson(
     lesson_id: UUID,
@@ -232,6 +287,8 @@ def remove_lesson(
                     message="The lesson file could not be deleted.",
                     status_code=503,
                 ) from error
+    remove_lesson_tags(session, root)
+    remove_lesson_likes(session, root)
     for version in versions:
         session.delete(version)
     session.commit()

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from sqlalchemy import Column, DateTime, Text, UniqueConstraint
+from sqlalchemy import Column, DateTime, Index, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -73,6 +73,35 @@ class LessonFolder(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
     updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
+class LessonTag(SQLModel, table=True):
+    __tablename__ = "lesson_tags"
+    __table_args__ = (
+        Index("ix_lesson_tags_owner_normalized", "owner_id", "normalized_value"),
+    )
+
+    # Tags classify the whole lesson lineage, so they always point at its root row.
+    root_lesson_id: UUID = Field(primary_key=True)
+    normalized_value: str = Field(primary_key=True, max_length=32)
+    owner_id: str = Field(index=True, max_length=128)
+    label: str = Field(max_length=32)
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
+class LessonLike(SQLModel, table=True):
+    __tablename__ = "lesson_likes"
+
+    # Likes follow the lesson lineage so selecting a new final revision keeps its social proof.
+    root_lesson_id: UUID = Field(primary_key=True)
+    owner_id: str = Field(primary_key=True, max_length=128)
+    created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )

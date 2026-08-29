@@ -29,7 +29,7 @@ export default function LessonGrid({
       {showCreateCard && (
         <Link
           href="/generation"
-          className="flex min-h-48 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface/30 p-6 text-center transition-colors hover:border-accent hover:bg-surface/40"
+          className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-secondary-bg p-5 text-center shadow-lg shadow-stone-950/20 transition-colors hover:border-accent hover:bg-surface/30"
         >
           <CirclePlus className="text-accent" size={55} />
           <p className="mt-4 text-lg">Create New Lesson</p>
@@ -37,13 +37,13 @@ export default function LessonGrid({
       )}
 
       {isLoading && (
-        <p className="min-h-48 rounded-lg border border-border bg-surface/30 p-4 text-sm text-secondary-text">
+        <p className="min-h-64 rounded-2xl border border-border bg-secondary-bg p-5 text-sm text-secondary-text shadow-lg shadow-stone-950/20">
           Loading lessons…
         </p>
       )}
 
       {!isLoading && lessons.length === 0 && !showCreateCard && (
-        <section className="rounded-lg border border-border bg-surface/30 p-8 text-center md:col-span-2 lg:col-span-3">
+        <section className="rounded-2xl border border-border bg-secondary-bg p-8 text-center md:col-span-2 lg:col-span-3">
           <h3 className="text-lg font-semibold text-primary-text">No lessons found</h3>
           <p className="mt-2 text-sm text-secondary-text">Try a different search term or format.</p>
         </section>
@@ -58,6 +58,7 @@ export default function LessonGrid({
           format={lesson.format}
           status={lesson.status}
           isPublished={lesson.is_published}
+          tags={lesson.tags}
           createdAt={lesson.created_at}
           versionCount={lesson.version_count}
           folderId={lesson.folder_id}

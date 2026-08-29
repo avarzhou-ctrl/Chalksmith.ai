@@ -34,7 +34,7 @@ backend/
 │   ├── renderer_main.py         # Private POST /internal/render/manim app
 │   ├── api/                     # HTTP validation, delegation, serialization
 │   │   ├── dependencies.py      # Request settings and renderer wiring
-│   │   ├── explore.py           # Public published-lesson list and access URLs
+│   │   ├── explore.py           # Public published lessons, access URLs, and authenticated likes
 │   │   ├── folders.py           # Private lesson-folder tree CRUD
 │   │   ├── generations.py       # POST /v2/generations SSE endpoint
 │   │   ├── health.py            # Health check
@@ -49,7 +49,7 @@ backend/
 │   ├── db/
 │   │   ├── folders.py           # Owner-scoped folder queries and leaf deletion
 │   │   ├── lessons.py           # Owner-scoped lesson queries and mutations
-│   │   ├── models.py            # Lesson, lesson-folder, and profile SQLModel tables
+│   │   ├── models.py            # Lesson, tag, lesson-folder, and profile SQLModel tables
 │   │   └── session.py           # Engine, sessions, schema creation, additive migration
 │   ├── integrations/
 │   │   ├── auth.py              # Clerk JWT verification and AuthUser
@@ -171,6 +171,11 @@ bounded form, but must not appear in public API schemas.
 - `folder_id` — stored only on the root row. Moving any revision moves the full lesson lineage.
   Folder parents must belong to the same owner. A folder can only be deleted when it has no child
   folders; its directly contained lessons move to its parent in the same transaction.
+- `lesson_tags` — tags are stored once against the root row, normalized case-insensitively, and
+  shared by every revision. Private tag reads stay owner-scoped; Explore tag counts include only
+  roots whose selected final revision is ready and currently published.
+- `lesson_likes` — one row per Clerk owner and lesson root. Counts are public only while the root
+  is published; likes survive final-version changes and are deleted with the lesson lineage.
 
 Consequences to respect:
 

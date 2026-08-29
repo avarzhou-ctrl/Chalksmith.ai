@@ -1,6 +1,6 @@
-import { Search, Video } from 'lucide-react';
+import { Video } from 'lucide-react';
 
-import PublishedLessonGrid from '@/components/content/PublishedLessonGrid';
+import ExploreCatalog from '@/components/content/ExploreCatalog';
 
 export default function Content() {
   return (
@@ -25,19 +25,7 @@ export default function Content() {
           </a>
         </header>
 
-        <section className="my-8 flex items-center gap-3 rounded-2xl border border-border bg-secondary-bg px-4 py-3">
-          <Search size={20} className="shrink-0 text-secondary-text" />
-          <input
-            type="search"
-            readOnly
-            aria-label="Search published lessons"
-            placeholder="Search lessons"
-            className="min-w-0 flex-1 bg-transparent text-sm text-primary-text outline-none placeholder:text-secondary-text"
-          />
-          <span className="hidden rounded-lg bg-surface px-3 py-1 text-xs text-secondary-text sm:block">Coming soon</span>
-        </section>
-
-        <PublishedLessonGrid />
+        <ExploreCatalog />
       </section>
     </main>
   );

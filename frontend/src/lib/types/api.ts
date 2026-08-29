@@ -35,6 +35,7 @@ export interface Lesson {
   error_message: string | null;
   is_published: boolean;
   published_at: string | null;
+  tags: string[];
   created_at: string;
   updated_at: string;
 }
@@ -53,7 +54,7 @@ export interface LessonVersion {
 
 export type LessonListItem = Pick<
   Lesson,
-  'id' | 'root_lesson_id' | 'folder_id' | 'topic' | 'format' | 'status' | 'summary' | 'is_published' | 'created_at' | 'updated_at'
+  'id' | 'root_lesson_id' | 'folder_id' | 'topic' | 'format' | 'status' | 'summary' | 'is_published' | 'tags' | 'created_at' | 'updated_at'
 > & { version_count: number };
 
 export interface LessonFolder {
@@ -104,6 +105,11 @@ export interface LessonPublication {
   published_at: string | null;
 }
 
+export interface LessonTags {
+  root_lesson_id: string;
+  tags: string[];
+}
+
 export interface PublishedLessonItem {
   id: string;
   root_lesson_id: string;
@@ -114,7 +120,23 @@ export interface PublishedLessonItem {
   updated_at: string;
   author_profile_id: string;
   author_display_name: string;
+  like_count: number;
+  tags: string[];
 }
+
+export interface PublishedLessonLikeResponse {
+  root_lesson_id: string;
+  liked: boolean;
+  like_count: number;
+}
+
+export interface PublishedTagItem {
+  label: string;
+  value: string;
+  lesson_count: number;
+}
+
+export type LessonTagItem = PublishedTagItem;
 
 export interface PublicProfile {
   id: string;

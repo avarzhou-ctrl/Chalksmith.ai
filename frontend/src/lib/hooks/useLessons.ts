@@ -9,6 +9,7 @@ import type { LessonFormat, LessonListItem } from '@/lib/types/api';
 interface LessonFilters {
   q?: string;
   format?: LessonFormat;
+  tags?: string[];
 }
 
 export function useLessons(filters: LessonFilters = {}, debounceMs = 0) {
@@ -16,7 +17,8 @@ export function useLessons(filters: LessonFilters = {}, debounceMs = 0) {
   const [lessons, setLessons] = useState<LessonListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { q, format } = filters;
+  const { q, format, tags } = filters;
+  const tagKey = tags?.join('\u0000') ?? '';
 
   useEffect(() => {
     let isActive = true;
@@ -26,7 +28,7 @@ export function useLessons(filters: LessonFilters = {}, debounceMs = 0) {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await listLessons(api, { q, format }, controller.signal);
+        const data = await listLessons(api, { q, format, tags }, controller.signal);
         if (isActive) setLessons(data);
       } catch (caught) {
         if (isActive && !controller.signal.aborted) {
@@ -43,7 +45,7 @@ export function useLessons(filters: LessonFilters = {}, debounceMs = 0) {
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [api, debounceMs, format, q]);
+  }, [api, debounceMs, format, q, tagKey]);
 
   const removeLesson = useCallback(async (lessonId: string) => {
     try {

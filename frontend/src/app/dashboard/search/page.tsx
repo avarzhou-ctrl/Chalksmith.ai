@@ -1,27 +1,55 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
 
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import LessonGrid from '@/components/dashboard/LessonGrid';
 import { useLessonFolders } from '@/components/dashboard/LessonFoldersProvider';
 import SearchFilter from '@/components/dashboard/SearchFilter';
+import TagFilterChips from '@/components/ui/TagFilterChips';
+import { listLessonTags } from '@/lib/api/lessons';
+import { useApi } from '@/lib/hooks/useApi';
 import { useLessons } from '@/lib/hooks/useLessons';
-import type { LessonFormat } from '@/lib/types/api';
+import type { LessonFormat, LessonTagItem } from '@/lib/types/api';
 
 export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [format, setFormat] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<LessonTagItem[]>([]);
+  const [tagError, setTagError] = useState<string | null>(null);
+  const api = useApi();
   const { lessons, isLoading, error, removeLesson, moveLessonToFolder } = useLessons(
     {
       q: query.trim() || undefined,
       format: (format || undefined) as LessonFormat | undefined,
+      tags: selectedTags,
     },
     300,
   );
   const { folders, resolveFolderId } = useLessonFolders();
   const normalizedLessons = lessons.map((lesson) => ({ ...lesson, folder_id: resolveFolderId(lesson.folder_id) }));
+
+  useEffect(() => {
+    const controller = new AbortController();
+    listLessonTags(api, controller.signal)
+      .then(setAvailableTags)
+      .catch((caught) => {
+        if (!controller.signal.aborted) {
+          setTagError(caught instanceof Error ? caught.message : 'Failed to load tags.');
+        }
+      });
+    return () => controller.abort();
+  }, [api]);
+
+  function toggleTag(value: string) {
+    setSelectedTags((current) => (
+      current.includes(value)
+        ? current.filter((tag) => tag !== value)
+        : [...current, value]
+    ));
+  }
 
   return (
     <DashboardShell layoutId="search-layout">
@@ -53,11 +81,32 @@ export default function SearchPage() {
               <SearchFilter format={format} onFormatChange={setFormat} />
             </div>
           </div>
+          <section className="mt-4 flex flex-col gap-3">
+            <TagFilterChips
+              tags={availableTags}
+              selected={selectedTags}
+              onToggle={toggleTag}
+              ariaLabel="Filter lessons by tag"
+            />
+            {(query || format || selectedTags.length > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery('');
+                  setFormat('');
+                  setSelectedTags([]);
+                }}
+                className="w-fit text-xs font-medium text-accent hover:text-amber-500"
+              >
+                Clear all filters
+              </button>
+            )}
+          </section>
         </header>
 
-        {error && (
+        {(error || tagError) && (
           <p className="mb-4 rounded-lg border border-red-900/60 bg-red-950/30 p-3 text-sm text-red-200">
-            {error}
+            {error || tagError}
           </p>
         )}
 

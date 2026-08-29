@@ -2,11 +2,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import func
+from sqlalchemy import exists, func, or_
 from sqlalchemy.orm import aliased
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 
-from backend.app.db.models import Lesson, UserProfile, utc_now
+from backend.app.db.models import Lesson, LessonLike, LessonTag, UserProfile, utc_now
+
+
+MAX_LESSON_TAGS = 5
+MAX_LESSON_TAG_LENGTH = 32
 
 
 @dataclass(frozen=True)
@@ -47,6 +51,51 @@ class PublishedLessonSummary:
     updated_at: datetime
     author_profile_id: UUID
     author_display_name: str
+    like_count: int
+
+
+@dataclass(frozen=True)
+class PublishedTagSummary:
+    label: str
+    value: str
+    lesson_count: int
+
+
+def normalize_lesson_tag(value: str) -> tuple[str, str]:
+    label = " ".join(value.split())
+    normalized = label.casefold()
+    if not label:
+        raise ValueError("Tags cannot be empty.")
+    if len(label) > MAX_LESSON_TAG_LENGTH or len(normalized) > MAX_LESSON_TAG_LENGTH:
+        raise ValueError(f"Tags must be {MAX_LESSON_TAG_LENGTH} characters or fewer.")
+    return label, normalized
+
+
+def normalize_lesson_tags(values: list[str]) -> list[tuple[str, str]]:
+    normalized_tags: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for value in values:
+        label, normalized = normalize_lesson_tag(value)
+        if normalized not in seen:
+            normalized_tags.append((label, normalized))
+            seen.add(normalized)
+    if len(normalized_tags) > MAX_LESSON_TAGS:
+        raise ValueError(f"Lessons can have at most {MAX_LESSON_TAGS} tags.")
+    return normalized_tags
+
+
+def _contains_pattern(value: str) -> str:
+    escaped = value.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def _matching_tag_roots(normalized_tags: list[str]):
+    return (
+        select(LessonTag.root_lesson_id)
+        .where(col(LessonTag.normalized_value).in_(normalized_tags))
+        .group_by(LessonTag.root_lesson_id)
+        .having(func.count(func.distinct(LessonTag.normalized_value)) == len(normalized_tags))
+    )
 
 
 def create_lesson(
@@ -92,6 +141,7 @@ def list_owned_lessons(
     *,
     query: str | None = None,
     lesson_format: str | None = None,
+    tags: list[str] | None = None,
 ) -> list[LessonListSummary]:
     root = aliased(Lesson)
     statement = (
@@ -115,9 +165,25 @@ def list_owned_lessons(
         )
     )
     if query:
-        statement = statement.where(col(Lesson.topic).ilike(f"%{query.strip()}%"))
+        pattern = _contains_pattern(query)
+        statement = statement.where(
+            or_(
+                col(Lesson.topic).ilike(pattern, escape="\\"),
+                col(Lesson.summary).ilike(pattern, escape="\\"),
+                exists(
+                    select(LessonTag.root_lesson_id).where(
+                        LessonTag.root_lesson_id == root.id,
+                        LessonTag.owner_id == owner_id,
+                        col(LessonTag.label).ilike(pattern, escape="\\"),
+                    )
+                ),
+            )
+        )
     if lesson_format:
         statement = statement.where(Lesson.format == lesson_format)
+    normalized_tags = [normalized for _, normalized in normalize_lesson_tags(tags or [])]
+    if normalized_tags:
+        statement = statement.where(root.id.in_(_matching_tag_roots(normalized_tags)))
     statement = statement.order_by(col(Lesson.updated_at).desc())
     return [
         LessonListSummary(
@@ -136,10 +202,23 @@ def list_owned_lessons(
     ]
 
 
-def list_published_lessons(session: Session) -> list[PublishedLessonSummary]:
+def list_published_lessons(
+    session: Session,
+    *,
+    owner_id: str | None = None,
+    query: str | None = None,
+    lesson_format: str | None = None,
+    tags: list[str] | None = None,
+) -> list[PublishedLessonSummary]:
     """Return only selected final revisions whose root is currently published."""
     root = aliased(Lesson)
-    rows = session.exec(
+    like_count = (
+        select(func.count(LessonLike.owner_id))
+        .where(LessonLike.root_lesson_id == root.id)
+        .correlate(root)
+        .scalar_subquery()
+    )
+    statement = (
         select(
             Lesson.id,
             Lesson.root_lesson_id,
@@ -150,6 +229,7 @@ def list_published_lessons(session: Session) -> list[PublishedLessonSummary]:
             Lesson.updated_at,
             UserProfile.id,
             UserProfile.display_name,
+            like_count,
         )
         .join(root, Lesson.id == root.final_lesson_id)
         .join(UserProfile, UserProfile.owner_id == root.owner_id)
@@ -158,9 +238,150 @@ def list_published_lessons(session: Session) -> list[PublishedLessonSummary]:
             root.published_at.is_not(None),
             Lesson.status == "ready",
         )
-        .order_by(root.published_at.desc())
-    ).all()
+    )
+    if owner_id:
+        statement = statement.where(root.owner_id == owner_id)
+    if query:
+        pattern = _contains_pattern(query)
+        statement = statement.where(
+            or_(
+                col(Lesson.topic).ilike(pattern, escape="\\"),
+                col(Lesson.summary).ilike(pattern, escape="\\"),
+                col(UserProfile.display_name).ilike(pattern, escape="\\"),
+                exists(
+                    select(LessonTag.root_lesson_id).where(
+                        LessonTag.root_lesson_id == root.id,
+                        col(LessonTag.label).ilike(pattern, escape="\\"),
+                    )
+                ),
+            )
+        )
+    if lesson_format:
+        statement = statement.where(Lesson.format == lesson_format)
+    normalized_tags = [normalized for _, normalized in normalize_lesson_tags(tags or [])]
+    if normalized_tags:
+        statement = statement.where(root.id.in_(_matching_tag_roots(normalized_tags)))
+    rows = session.exec(statement.order_by(root.published_at.desc())).all()
     return [PublishedLessonSummary(*row) for row in rows]
+
+
+def get_published_lesson_summary(
+    session: Session,
+    lesson_id: UUID,
+) -> PublishedLessonSummary | None:
+    root = aliased(Lesson)
+    like_count = (
+        select(func.count(LessonLike.owner_id))
+        .where(LessonLike.root_lesson_id == root.id)
+        .correlate(root)
+        .scalar_subquery()
+    )
+    row = session.exec(
+        select(
+            Lesson.id,
+            Lesson.root_lesson_id,
+            Lesson.topic,
+            Lesson.format,
+            Lesson.summary,
+            root.published_at,
+            Lesson.updated_at,
+            UserProfile.id,
+            UserProfile.display_name,
+            like_count,
+        )
+        .join(root, Lesson.id == root.final_lesson_id)
+        .join(UserProfile, UserProfile.owner_id == root.owner_id)
+        .where(
+            Lesson.id == lesson_id,
+            root.id == root.root_lesson_id,
+            root.published_at.is_not(None),
+            Lesson.status == "ready",
+        )
+    ).first()
+    return PublishedLessonSummary(*row) if row else None
+
+
+def list_liked_published_root_ids(
+    session: Session,
+    owner_id: str,
+    root_lesson_ids: list[UUID],
+) -> list[UUID]:
+    if not root_lesson_ids:
+        return []
+    root = aliased(Lesson)
+    return list(
+        session.exec(
+            select(LessonLike.root_lesson_id)
+            .join(root, LessonLike.root_lesson_id == root.id)
+            .join(Lesson, Lesson.id == root.final_lesson_id)
+            .where(
+                LessonLike.owner_id == owner_id,
+                col(LessonLike.root_lesson_id).in_(root_lesson_ids),
+                root.id == root.root_lesson_id,
+                root.published_at.is_not(None),
+                Lesson.status == "ready",
+            )
+        ).all()
+    )
+
+
+def set_published_lesson_like(
+    session: Session,
+    lesson: Lesson,
+    owner_id: str,
+    liked: bool,
+) -> tuple[bool, int]:
+    existing = session.get(LessonLike, (lesson.root_lesson_id, owner_id))
+    if liked and existing is None:
+        session.add(LessonLike(root_lesson_id=lesson.root_lesson_id, owner_id=owner_id))
+    elif not liked and existing is not None:
+        session.delete(existing)
+    session.commit()
+    count = session.exec(
+        select(func.count(LessonLike.owner_id)).where(
+            LessonLike.root_lesson_id == lesson.root_lesson_id
+        )
+    ).one()
+    return liked, count
+
+
+def list_published_tag_summaries(session: Session) -> list[PublishedTagSummary]:
+    """Count tags only across lessons that are currently visible in Explore."""
+    root = aliased(Lesson)
+    rows = session.exec(
+        select(
+            func.min(LessonTag.label),
+            LessonTag.normalized_value,
+            func.count(func.distinct(root.id)),
+        )
+        .join(root, LessonTag.root_lesson_id == root.id)
+        .join(Lesson, Lesson.id == root.final_lesson_id)
+        .where(
+            root.id == root.root_lesson_id,
+            root.published_at.is_not(None),
+            Lesson.status == "ready",
+        )
+        .group_by(LessonTag.normalized_value)
+        .order_by(func.count(func.distinct(root.id)).desc(), func.min(LessonTag.label))
+    ).all()
+    return [PublishedTagSummary(*row) for row in rows]
+
+
+def list_owned_tag_summaries(session: Session, owner_id: str) -> list[PublishedTagSummary]:
+    rows = session.exec(
+        select(
+            func.min(LessonTag.label),
+            LessonTag.normalized_value,
+            func.count(func.distinct(LessonTag.root_lesson_id)),
+        )
+        .where(LessonTag.owner_id == owner_id)
+        .group_by(LessonTag.normalized_value)
+        .order_by(
+            func.count(func.distinct(LessonTag.root_lesson_id)).desc(),
+            func.min(LessonTag.label),
+        )
+    ).all()
+    return [PublishedTagSummary(*row) for row in rows]
 
 
 def get_published_lesson(session: Session, lesson_id: UUID) -> Lesson | None:
@@ -180,6 +401,61 @@ def get_published_lesson(session: Session, lesson_id: UUID) -> Lesson | None:
 
 def get_lesson_root(session: Session, lesson: Lesson) -> Lesson | None:
     return get_owned_lesson(session, lesson.root_lesson_id, lesson.owner_id)
+
+
+def list_tags_for_roots(
+    session: Session,
+    root_lesson_ids: list[UUID],
+) -> dict[UUID, list[str]]:
+    if not root_lesson_ids:
+        return {}
+    rows = session.exec(
+        select(LessonTag.root_lesson_id, LessonTag.label)
+        .where(col(LessonTag.root_lesson_id).in_(root_lesson_ids))
+        .order_by(LessonTag.created_at, LessonTag.label)
+    ).all()
+    tags_by_root: dict[UUID, list[str]] = {root_id: [] for root_id in root_lesson_ids}
+    for root_id, label in rows:
+        tags_by_root.setdefault(root_id, []).append(label)
+    return tags_by_root
+
+
+def replace_lesson_tags(session: Session, root: Lesson, values: list[str]) -> list[str]:
+    tags = normalize_lesson_tags(values)
+    session.exec(
+        delete(LessonTag).where(
+            LessonTag.root_lesson_id == root.id,
+            LessonTag.owner_id == root.owner_id,
+        )
+    )
+    session.add_all(
+        [
+            LessonTag(
+                root_lesson_id=root.id,
+                owner_id=root.owner_id,
+                normalized_value=normalized,
+                label=label,
+            )
+            for label, normalized in tags
+        ]
+    )
+    root.updated_at = utc_now()
+    session.add(root)
+    session.commit()
+    return [label for label, _ in tags]
+
+
+def remove_lesson_tags(session: Session, root: Lesson) -> None:
+    session.exec(
+        delete(LessonTag).where(
+            LessonTag.root_lesson_id == root.id,
+            LessonTag.owner_id == root.owner_id,
+        )
+    )
+
+
+def remove_lesson_likes(session: Session, root: Lesson) -> None:
+    session.exec(delete(LessonLike).where(LessonLike.root_lesson_id == root.id))
 
 
 def list_lesson_versions(session: Session, lesson: Lesson) -> list[Lesson]:
@@ -261,6 +537,9 @@ def set_final_lesson(session: Session, lesson: Lesson) -> Lesson:
     if root is None:
         raise ValueError("Lesson root was not found.")
     root.final_lesson_id = lesson.id
+    if root.published_at is not None:
+        # A new public revision should re-enter Explore as recently updated.
+        root.published_at = utc_now()
     return save_lesson(session, root)
 
 

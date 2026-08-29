@@ -6,23 +6,30 @@ import type {
   LessonFormat,
   LessonListItem,
   LessonPublication,
+  LessonTags,
+  LessonTagItem,
   LessonVersion,
 } from '@/lib/types/api';
 
 export function listLessons(
   client: ApiClient,
-  filters: { q?: string; format?: LessonFormat } = {},
+  filters: { q?: string; format?: LessonFormat; tags?: string[] } = {},
   signal?: AbortSignal,
 ) {
   const query = new URLSearchParams();
   if (filters.q) query.set('q', filters.q);
   if (filters.format) query.set('format', filters.format);
+  filters.tags?.forEach((tag) => query.append('tag', tag));
   const suffix = query.size ? `?${query}` : '';
   return client.request<LessonListItem[]>(`/v2/lessons${suffix}`, { signal });
 }
 
 export function getLesson(client: ApiClient, lessonId: string, signal?: AbortSignal) {
   return client.request<Lesson>(`/v2/lessons/${lessonId}`, { signal });
+}
+
+export function listLessonTags(client: ApiClient, signal?: AbortSignal) {
+  return client.request<LessonTagItem[]>('/v2/lessons/tags', { signal });
 }
 
 export function getLessonVersions(client: ApiClient, lessonId: string, signal?: AbortSignal) {
@@ -65,6 +72,13 @@ export function setLessonPublication(
       published,
       ...(published && displayName ? { display_name: displayName } : {}),
     }),
+  });
+}
+
+export function setLessonTags(client: ApiClient, lessonId: string, tags: string[]) {
+  return client.request<LessonTags>(`/v2/lessons/${lessonId}/tags`, {
+    method: 'PUT',
+    body: JSON.stringify({ tags }),
   });
 }
 
