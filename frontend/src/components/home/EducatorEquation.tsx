@@ -67,14 +67,14 @@ export default function EducatorEquation() {
             <span aria-hidden="true" className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/70 to-transparent" />
             <p className="text-4xl font-bold tracking-tight text-accent sm:text-5xl">
               <AnimatedNumber value={statistic.value} start={hasEntered} />{' '}
-              <span className="text-2xl sm:text-3xl">{statistic.suffix}</span>
+              <span className="text-2xl">{statistic.suffix}</span>
             </p>
             <p className="mx-auto mt-3 max-w-48 text-base leading-6 text-primary-text">{statistic.label}</p>
           </article>
           {index < statistics.length - 1 && (
             <p
               aria-hidden="true"
-              className={`grid place-items-center text-3xl font-light text-amber-300 transition-all duration-500 motion-reduce:transition-none md:text-4xl ${
+              className={`grid place-items-center text-4xl font-light text-amber-300 transition-all duration-500 motion-reduce:transition-none ${
                 hasEntered ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
               } ${index === 0 ? 'delay-300' : 'delay-700'}`}
             >

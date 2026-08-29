@@ -60,7 +60,7 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
         <div className="absolute top-4 right-4 z-10">
           <Button
             onClick={() => setShowCode(!showCode)}
-            className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border transition-all duration-200 backdrop-blur-md ${
+            className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-all duration-200 backdrop-blur-md ${
               showCode
                 ? 'bg-accent/90 text-primary-text border-accent shadow-lg shadow-accent/20'
                 : 'bg-surface/80 text-secondary-text border-border hover:bg-surface hover:text-primary-text'
@@ -75,7 +75,7 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
         </div>
 
         {!showCode && (
-          <div className="group absolute bottom-4 left-4 z-10 flex cursor-default items-center gap-2 rounded-lg border border-accent bg-accent/90 shadow-lg shadow-accent/20 px-3 py-1.5 text-xs font-medium text-primary-text backdrop-blur-md">
+          <div className="group absolute bottom-4 left-4 z-10 flex cursor-default items-center gap-2 rounded-lg border border-accent bg-accent/90 shadow-lg shadow-accent/20 px-3 py-1.5 text-sm font-medium text-primary-text backdrop-blur-md">
             <MousePointerClick size={14} className="text-primary-text"/>
             <span>Try the slider in this preview!</span>
           </div>

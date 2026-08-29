@@ -58,7 +58,7 @@ export default function ExamplesCarousel() {
                 <ActiveIcon className="size-5" aria-hidden />
               </span>
             </div>
-            <h3 className="mt-6 text-2xl font-semibold leading-tight text-primary-text sm:text-3xl">
+            <h3 className="mt-6 text-2xl font-semibold leading-tight text-primary-text">
               {activeExample.title}
             </h3>
             <p className="mt-4 text-sm leading-6 text-secondary-text sm:text-base sm:leading-7">

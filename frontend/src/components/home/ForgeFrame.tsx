@@ -9,7 +9,7 @@ export default function ForgeFrame({ children, label }: { children: ReactNode; l
       />
       <div className="relative overflow-hidden rounded-3xl bg-primary-bg">
         {label && (
-          <span className="absolute left-4 top-4 z-20 rounded-full border border-amber-500/30 bg-stone-950/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-300 backdrop-blur-md">
+          <span className="absolute left-4 top-4 z-20 rounded-full border border-amber-500/30 bg-stone-950/80 px-3 py-1 text-sm font-semibold uppercase tracking-[0.16em] text-amber-300 backdrop-blur-md">
             {label}
           </span>
         )}

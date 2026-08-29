@@ -1,5 +1,17 @@
 # Changelog
 
+**2026-08-29**: Moved the lesson pipeline's left and right node groups toward the forge and realigned their connectors so the frame has more balanced top, bottom, left, and right whitespace (`frontend/src/components/home/LessonPipeline.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Expanded the lesson-pipeline frame to the same maximum width as the product-preview section below it for consistent homepage alignment (`frontend/src/components/home/LessonPipeline.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Matched the Chalksmith forge card width to the surrounding lesson-pipeline nodes, realigned its animated connectors, and increased the six cards' primary labels for clearer hierarchy (`frontend/src/components/home/LessonPipeline.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Consolidated homepage typography into five sizes—small labels, body copy, card headings, mobile display headings, and desktop display headings—to create a more consistent visual hierarchy across the header, landing content, demos, and supporting sections (`frontend/src/app/layout.tsx`, `frontend/src/app/page.tsx`, `frontend/src/components/home/CodeDrivenDemo.tsx`, `frontend/src/components/home/EducatorEquation.tsx`, `frontend/src/components/home/ExamplesCarousel.tsx`, `frontend/src/components/home/FaqSection.tsx`, `frontend/src/components/home/ForgeFrame.tsx`, `frontend/src/components/home/LessonPipeline.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Kept the homepage time-saving headline on one line at desktop widths while preserving responsive wrapping on smaller screens (`frontend/src/app/page.tsx`, `CHANGELOG.md`).
+
+**2026-08-29**: Reframed the homepage closing headline around the positive benefit of saving 12 hours each week on lesson creation (`frontend/src/app/page.tsx`, `CHANGELOG.md`).
+
 **2026-08-29**: Added deterministic Interactive HTML validation that rejects learner-visible static LaTeX unless approved KaTeX assets and document-wide typesetting are present, and enabled the existing single repair pass for Interactive render failures so invalid lessons are fixed before saving (`backend/app/lessons/render/html.py`, `backend/app/lessons/formats/code.py`, `backend/tests/test_v2_api.py`, `CHANGELOG.md`).
 
 **2026-08-29**: Standardized lesson cards across Dashboard, Search, Dashboard Published Lessons, and Explore with one reusable layout for sizing, surfaces, typography, summaries, tag limits, and footer alignment while preserving context-specific management and public actions; aligned create, loading, and empty grid states with the same card geometry (`frontend/src/components/lesson/LessonCardLayout.tsx`, `frontend/src/components/dashboard/LessonCard.tsx`, `frontend/src/components/dashboard/LessonGrid.tsx`, `frontend/src/components/content/PublishedLessonGrid.tsx`, `CHANGELOG.md`).

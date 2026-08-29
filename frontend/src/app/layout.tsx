@@ -39,7 +39,7 @@ export default function RootLayout({
               <span className="grid size-10 place-items-center rounded-lg text-stone-950">
                 <img src="/logo.png" alt="Logo" className="h-8 w-8 object-contain" />
               </span>
-              <span className="hidden text-md font-semibold text-stone-50 sm:inline">Chalksmith.ai</span>
+              <span className="hidden text-base font-semibold text-stone-50 sm:inline">Chalksmith.ai</span>
             </Link>
             <nav className="hidden items-center gap-10 text-sm font-medium text-stone-300 sm:flex">
               <Link className="transition-colors hover:text-stone-50" href="/dashboard">

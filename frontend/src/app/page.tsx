@@ -16,7 +16,7 @@ import RotatingFormats from '@/components/home/RotatingFormats';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text shadow-lg shadow-amber-950/30 transition-all duration-300 hover:-translate-y-0.5 hover:bg-amber-700 hover:shadow-amber-900/30 active:translate-y-0 motion-reduce:transform-none';
 const ctaSizeClasses = {
-  sm: 'px-3 py-1.5 text-xs',
+  sm: 'px-3 py-1.5 text-sm',
   md: 'px-4 py-2 text-sm',
   lg: 'px-6 py-3 text-base',
 };
@@ -68,10 +68,10 @@ export default function Home() {
           <div className="absolute inset-x-0 bottom-0 z-1 h-32 bg-gradient-to-b from-transparent to-primary-bg" />
           <div className="relative z-10 mx-auto w-full max-w-6xl">
             <div className="mx-auto max-w-5xl">
-              <h1 className="mx-auto max-w-4xl text-4xl font-bold leading-tight text-primary-text sm:text-5xl lg:text-6xl">
+              <h1 className="mx-auto max-w-4xl text-4xl font-bold leading-tight text-primary-text sm:text-5xl">
                 Forge stunning <span className="bg-gradient-to-r from-amber-300 via-amber-500 to-amber-700 bg-clip-text text-transparent">code-driven STEM animations</span> in minutes.
               </h1>
-              <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-secondary-text">
+              <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-secondary-text">
                 Upload your syllabus or describe a lesson, select a teaching format, and generate editable, code-driven videos, interactives, and slides instead of one-off static files.
               </p>
               <RotatingFormats />
@@ -105,9 +105,9 @@ export default function Home() {
         <section id="about" className="relative border-y border-stone-900 bg-stone-950/40">
           <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(217,119,6,0.07),transparent_58%)]" />
           <div className="relative mx-auto w-full max-w-6xl px-4 py-20 text-center sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-primary-text sm:text-5xl">The Educator&apos;s Dilemma</h2>
+            <h2 className="text-4xl font-bold text-primary-text sm:text-5xl">The Educator&apos;s Dilemma</h2>
             <EducatorEquation />
-            <p className="mx-auto mt-8 max-w-xl text-md leading-6 text-secondary-text">
+            <p className="mx-auto mt-8 max-w-xl text-base leading-6 text-secondary-text">
               — Marci Goldberg, K-12 Market Advisors.
             </p>
           </div>
@@ -115,14 +115,14 @@ export default function Home() {
 
         <section id="why_choose_chalksmith" className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
-            <h2 className="text-3xl font-bold text-primary-text sm:text-5xl">Why choose Chalksmith?</h2>
+            <h2 className="text-4xl font-bold text-primary-text sm:text-5xl">Why choose Chalksmith?</h2>
           </div>
           <div className="mt-10 grid gap-6">
             <article className="relative overflow-hidden rounded-2xl border border-stone-800 bg-secondary-bg p-6 shadow-2xl shadow-black/20 sm:p-8">
               <span aria-hidden="true" className="absolute inset-x-20 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
               <div className="mb-8">
-                <h3 className="text-3xl font-semibold text-primary-text">Code-driven production.</h3>
-                <p className="mt-4 text-lg leading-7 text-secondary-text">
+                <h3 className="text-2xl font-semibold text-primary-text">Code-driven production.</h3>
+                <p className="mt-4 text-base leading-7 text-secondary-text">
                   Unlike black-box lesson generators, Chalksmith lets you inspect and reuse the source behind every lesson.
                 </p>
               </div>
@@ -181,7 +181,7 @@ export default function Home() {
         
         <section id="examples" className="border-y border-stone-900 bg-stone-950/40">
           <div className="mx-auto w-full max-w-6xl px-4 py-20 text-center sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-primary-text sm:text-5xl">Examples</h2>
+            <h2 className="text-4xl font-bold text-primary-text sm:text-5xl">Examples</h2>
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-secondary-text">
               Flip through generated lesson formats: video, interactive display, and slides.
             </p>
@@ -202,8 +202,8 @@ export default function Home() {
           <div className="relative overflow-hidden rounded-2xl border border-amber-700/30 bg-secondary-bg p-6 text-left shadow-2xl shadow-black/20 sm:p-10">
             <span aria-hidden="true" className="absolute -right-20 -top-24 size-64 rounded-full bg-amber-600/10 blur-3xl" />
             <span aria-hidden="true" className="absolute inset-x-20 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/70 to-transparent" />
-            <h2 className="relative mt-5 max-w-4xl text-3xl font-bold text-primary-text sm:text-5xl">
-              Stop spending 12 hours a week creating lessons.
+            <h2 className="relative mt-5 max-w-5xl text-4xl font-bold text-primary-text lg:whitespace-nowrap xl:text-5xl">
+              Save 12 hours every week on lesson creation.
             </h2>
             <p className="relative mt-4 text-2xl font-semibold text-accent">Try Chalksmith.ai today.</p>
             <div className="relative mb-4 mt-7 inline-flex">
