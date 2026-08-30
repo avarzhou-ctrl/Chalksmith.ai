@@ -16,6 +16,11 @@ export function AuthButton() {
           elements: {
             userButtonAvatarBox: 'size-10',
             userButtonTrigger: 'size-10',
+            userButtonPopoverActionButton: '!text-stone-50 hover:!bg-stone-700',
+            userButtonPopoverActionButtonIcon: '!text-stone-400',
+            userButtonPopoverCustomItemButton: '!text-stone-50 hover:!bg-stone-700',
+            userButtonPopoverCustomItemButtonIconBox: '!text-stone-400',
+            userButtonPopoverActionItemButtonIcon: '!text-stone-400',
           },
         }}
       >

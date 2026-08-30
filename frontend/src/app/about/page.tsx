@@ -1,11 +1,8 @@
 import Footer from "@/components/home/Footer";
 import {
-    BookOpen,
     Camera,
     Code2,
     Mail,
-    MessageCircle,
-    Newspaper,
     Play,
     type LucideIcon,
 } from 'lucide-react';
@@ -28,24 +25,6 @@ const socialContacts: { icon: LucideIcon; label: string; detail: string; href: s
         label: 'YouTube',
         detail: '@SquishBJ',
         href: 'https://www.youtube.com/@SquishBJ',
-    },
-    {
-        icon: MessageCircle,
-        label: 'X (Twitter)',
-        detail: '@SquishBJ',
-        href: 'https://x.com/SquishBJ',
-    },
-    {
-        icon: Newspaper,
-        label: 'Substack',
-        detail: '@squishbj',
-        href: 'https://substack.com/@squishbj',
-    },
-    {
-        icon: BookOpen,
-        label: 'Medium',
-        detail: '@SquishBJ',
-        href: 'https://medium.com/@SquishBJ',
     },
     {
         icon: Camera,

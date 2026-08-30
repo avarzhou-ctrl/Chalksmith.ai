@@ -1,5 +1,15 @@
 # Changelog
 
+**2026-08-30**: Restored the Clerk avatar menu's custom Public profile row by explicitly styling Clerk's separate custom-item label and icon elements for visible light-on-dark rendering (`frontend/src/components/auth/AuthButton.tsx`, `CHANGELOG.md`).
+
+**2026-08-30**: Restored visible Clerk social-login and account-menu actions on dark surfaces by reserving light foregrounds for transparent controls, retaining dark text specifically on amber primary buttons, and explicitly styling account action labels, icons, borders, and hover states (`frontend/src/app/layout.tsx`, `frontend/src/components/auth/AuthButton.tsx`, `CHANGELOG.md`).
+
+**2026-08-30**: Removed the redundant “Explore” eyebrow above the “Explore lessons” heading on the public content page (`frontend/src/app/content/page.tsx`, `CHANGELOG.md`).
+
+**2026-08-30**: Removed the Medium, Substack, and X (Twitter) contact links from the About page (`frontend/src/app/about/page.tsx`, `CHANGELOG.md`).
+
+**2026-08-30**: Themed all Clerk authentication and account surfaces with Chalksmith's stone backgrounds, amber actions and focus states, light typography, dark inputs, borders, modal backdrop, Inter font stack, and shared corner radius so sign-in, sign-up, account menus, and profile controls match the rest of the site (`frontend/src/app/layout.tsx`, `CHANGELOG.md`).
+
 **2026-08-30**: Classified generation failures by ownership so only model output and generated-code errors receive one deadline-aware repair, detected provider truncation without retrying, persisted repair diagnostics, raised the default output budget from 16K to 32K tokens, and rebuilt HTML validation as focused checks that preserve model-selected p5.js/KaTeX/Reveal versions, deterministically complete and typeset KaTeX, allow inline handlers, sandboxed forms, and optional HTTPS jsDelivr/cdnjs libraries, and reserve hard policy rejection for remote executable resources outside those origins (`backend/app/lessons/`, `backend/app/integrations/llm/`, `backend/app/db/`, `backend/app/core/config.py`, `backend/app/renderer_main.py`, `backend/tests/`, `bin/deploy.sh`, `bin/env.local.template`, `bin/env.deploy.template`, `doc/GCP.md`, `backend/AGENTS.md`, `CHANGELOG.md`).
 
 **2026-08-29**: Standardized all three Examples carousel descriptions to the same 16px body size, 28px line height, and 16px title spacing used by the Code-driven production description across mobile and desktop (`frontend/src/components/home/ExamplesCarousel.tsx`, `CHANGELOG.md`).
