@@ -4,11 +4,11 @@ import { SignInButton, useAuth } from '@clerk/nextjs';
 import { LogIn } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-export function RequireAuth({ children }: { children: ReactNode }) {
+export function RequireAuth({ children, fallback }: { children: ReactNode; fallback?: ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
 
   if (!isLoaded) {
-    return <main className="grid min-h-screen place-items-center bg-stone-950 text-stone-400">Loading session…</main>;
+    return fallback ?? <main className="grid min-h-screen place-items-center bg-stone-950 text-stone-400">Loading session…</main>;
   }
   if (!isSignedIn) {
     return (

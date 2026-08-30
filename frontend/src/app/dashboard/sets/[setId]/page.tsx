@@ -9,6 +9,7 @@ import DashboardShell from '@/components/dashboard/DashboardShell';
 import AddLessonsToSetModal from '@/components/lesson-sets/AddLessonsToSetModal';
 import LessonSetLessonRow from '@/components/lesson-sets/LessonSetLessonRow';
 import Button from '@/components/ui/Button';
+import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
 import {
   getLessonSet,
   removeLessonFromSet,
@@ -127,7 +128,30 @@ export default function LessonSetDetailPage() {
         </header>
 
         {error && <p className="mb-4 rounded-lg border border-red-900/60 bg-red-950/30 p-3 text-sm text-red-200">{error}</p>}
-        {isLoading && <p className="text-sm text-secondary-text">Loading lesson set…</p>}
+        {isLoading && (
+          <section aria-busy="true">
+            <section className="mb-8 rounded-2xl border border-border bg-secondary-bg p-5">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="mt-2 h-12 w-full rounded-lg" />
+              <Skeleton className="mt-5 h-4 w-24" />
+              <Skeleton className="mt-2 h-28 w-full rounded-lg" />
+              <Skeleton className="ml-auto mt-4 h-9 w-28 rounded-lg" />
+            </section>
+            <header className="mb-4 flex items-end justify-between">
+              <section className="space-y-2">
+                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-4 w-64" />
+              </section>
+              <Skeleton className="h-4 w-12" />
+            </header>
+            <section className="space-y-3">
+              {Array.from({ length: 3 }, (_, index) => (
+                <Skeleton key={index} className="h-20 w-full rounded-xl" />
+              ))}
+            </section>
+            <SkeletonStatus>Loading lesson set</SkeletonStatus>
+          </section>
+        )}
         {!isLoading && !lessonSet && !error && <p className="text-sm text-secondary-text">Lesson set not found.</p>}
 
         {lessonSet && (

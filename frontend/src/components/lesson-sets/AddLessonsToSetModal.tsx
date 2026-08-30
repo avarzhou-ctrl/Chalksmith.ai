@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
 import Modal from '@/components/ui/Modal';
+import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
 import { addLessonToSet } from '@/lib/api/lesson-sets';
 import { listLessons } from '@/lib/api/lessons';
 import { useApi } from '@/lib/hooks/useApi';
@@ -69,11 +70,17 @@ export default function AddLessonsToSetModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add lessons">
       <section className="text-left">
-        {isLoading && <p className="py-5 text-center text-sm">Loading lessons…</p>}
+        {isLoading && lessons.length === 0 && (
+          <section className="space-y-2 py-2" aria-busy="true">
+            {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-14 w-full rounded-lg" />)}
+            <SkeletonStatus>Loading lessons</SkeletonStatus>
+          </section>
+        )}
+        {isLoading && lessons.length > 0 && <SkeletonStatus>Refreshing lessons</SkeletonStatus>}
         {!isLoading && available.length === 0 && (
           <p className="py-5 text-center text-sm">All ready lessons are already in this set.</p>
         )}
-        <ul className="space-y-2">
+        <ul className="space-y-2" aria-busy={isLoading}>
           {available.map((lesson) => (
             <li key={lesson.id}>
               <button

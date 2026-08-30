@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import PublishedLessonLikeButton from '@/components/content/PublishedLessonLikeButton';
 import LessonViewport from '@/components/generation/LessonViewport';
+import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
 import { createPublicApiClient } from '@/lib/api/client';
 import {
   getPublishedLesson,
@@ -124,7 +125,11 @@ export default function PublishedLessonPage() {
           <img src="/logo.png" alt="" className="size-7 object-contain" />
         </Link>
         <section className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold">{lesson?.topic || 'Published lesson'}</h1>
+          {isLoading ? (
+            <Skeleton className="h-6 w-48" />
+          ) : (
+            <h1 className="truncate text-lg font-semibold">{lesson?.topic || 'Published lesson'}</h1>
+          )}
           {lesson && (
             <p className="truncate text-xs text-secondary-text">
               By{' '}
@@ -154,6 +159,7 @@ export default function PublishedLessonPage() {
             </button>
           </section>
         )}
+        {isLoading && <Skeleton className="h-9 w-32 rounded-lg" />}
       </header>
 
       {error && (
@@ -165,7 +171,14 @@ export default function PublishedLessonPage() {
       <section className="relative flex min-h-0 flex-1 items-center justify-center p-5">
         <article className="relative flex size-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-border bg-stone-950 shadow-2xl">
           {isLoading ? (
-            <section className="m-auto text-sm text-secondary-text">Loading published lesson…</section>
+            <section className="relative size-full" aria-busy="true">
+              <Skeleton className="absolute inset-0 size-full rounded-none" />
+              <span className="absolute inset-x-6 bottom-6 mx-auto max-w-xl space-y-2 rounded-xl border border-border/60 bg-primary-bg/80 p-4 backdrop-blur">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-4 w-full" />
+              </span>
+              <SkeletonStatus>Loading published lesson</SkeletonStatus>
+            </section>
           ) : lesson && previewUrl ? (
             <LessonViewport>
               {lesson.format === 'video' ? (

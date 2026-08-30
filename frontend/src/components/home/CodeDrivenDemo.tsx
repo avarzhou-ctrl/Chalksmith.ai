@@ -5,6 +5,7 @@ import Button from '../ui/Button';
 import { Code, Eye, MousePointerClick } from 'lucide-react';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
 
 interface CodeDrivenDemoProps {
   filePath: string;
@@ -23,6 +24,7 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
   const [showCode, setShowCode] = useState(false);
   const [sourceCode, setSourceCode] = useState('');
   const [sourceError, setSourceError] = useState<string | null>(null);
+  const [isMaterialLoaded, setIsMaterialLoaded] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -48,6 +50,7 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
     }
 
     loadSourceCode();
+    setIsMaterialLoaded(false);
 
     return () => {
       isMounted = false;
@@ -85,6 +88,14 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
           <div className="min-w-0 min-h-full w-full overflow-auto bg-primary-bg p-8 font-mono text-sm">
             {sourceError ? (
               <p className="text-sm text-red-300">{sourceError}</p>
+            ) : !sourceCode ? (
+              <section className="space-y-3" aria-busy="true">
+                <Skeleton className="h-4 w-3/5" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-11/12" />
+                <Skeleton className="h-4 w-4/5" />
+                <SkeletonStatus>Loading source code</SkeletonStatus>
+              </section>
             ) : (
               <SyntaxHighlighter
                 language="javascript"
@@ -98,17 +109,22 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
                   overflowX: 'auto',
                 }}
               > 
-                {sourceCode || 'Loading source code...'}
+                {sourceCode}
               </SyntaxHighlighter>
             )}
           </div>
         ) : (
-          <iframe
-            title="Unit Circle and Sine Wave"
-            src={filePath}
-            className="w-full h-full border-none bg-primary-bg"
-            sandbox="allow-scripts"
-          />
+          <>
+            {!isMaterialLoaded && <Skeleton className="absolute inset-0 size-full rounded-none" />}
+            <iframe
+              title="Unit Circle and Sine Wave"
+              src={filePath}
+              onLoad={() => setIsMaterialLoaded(true)}
+              className={`h-full w-full border-none bg-primary-bg transition-opacity duration-300 ${isMaterialLoaded ? 'opacity-100' : 'opacity-0'}`}
+              sandbox="allow-scripts"
+            />
+            {!isMaterialLoaded && <SkeletonStatus>Loading interactive preview</SkeletonStatus>}
+          </>
         )}
       </div>
     </div>

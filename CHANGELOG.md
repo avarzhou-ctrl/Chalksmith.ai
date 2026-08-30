@@ -1,5 +1,9 @@
 # Changelog
 
+**2026-08-30**: Added accessible, reduced-motion-aware skeleton loading states for authentication shells, homepage media, lesson and lesson-set grids, dashboard navigation, published lesson previews, profile views, and lesson-set modals while retaining existing results during background refreshes (`frontend/src/components/ui/Skeleton.tsx`, `frontend/src/components/auth/`, `frontend/src/components/home/`, `frontend/src/components/dashboard/`, `frontend/src/components/content/`, `frontend/src/components/lesson/`, `frontend/src/components/lesson-sets/`, `frontend/src/components/profile/`, `frontend/src/components/generation/`, `frontend/src/app/`, `CHANGELOG.md`).
+
+**2026-08-30**: Added a Cloud Build upload ignore file to exclude local credentials, installed dependencies, virtual environments, generated output, databases, logs, and editor state from deployment source archives (`.gcloudignore`, `CHANGELOG.md`).
+
 **2026-08-30**: Reduced the dashboard-sidebar folder and lesson-set hierarchy indentation while preserving the same spacing increment for both content types (`frontend/src/components/dashboard/DashboardSidebar.tsx`, `CHANGELOG.md`).
 
 **2026-08-30**: Standardized dashboard-sidebar selection highlights on the shared stone surface color and normalized folder and lesson-set hierarchy spacing with one consistent indentation step and aligned chevron gutters (`frontend/src/components/dashboard/DashboardSidebar.tsx`, `CHANGELOG.md`).

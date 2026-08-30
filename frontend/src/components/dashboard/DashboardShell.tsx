@@ -7,6 +7,7 @@ import { Group, Panel, Separator, type PanelImperativeHandle } from 'react-resiz
 import { AuthButton } from '@/components/auth/AuthButton';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import DashboardSidebar from '@/components/dashboard/DashboardSidebar';
+import DashboardShellSkeleton from '@/components/dashboard/DashboardShellSkeleton';
 
 interface DashboardShellProps {
   children: ReactNode;
@@ -23,7 +24,7 @@ export default function DashboardShell({ children, layoutId }: DashboardShellPro
   }
 
   return (
-    <RequireAuth>
+    <RequireAuth fallback={<DashboardShellSkeleton />}>
       <main className="app-route-without-site-header flex h-screen w-full overflow-hidden bg-primary-bg font-sans text-primary-text">
         <Group orientation="horizontal" id={layoutId}>
           <Panel

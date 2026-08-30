@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 import Button from '@/components/ui/Button';
+import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
 import { ApiError } from '@/lib/api/client';
 import { getMyProfile, updateMyProfile } from '@/lib/api/profiles';
 import { useApi } from '@/lib/hooks/useApi';
@@ -79,7 +80,25 @@ export default function ProfileEditor() {
   }
 
   if (isLoading) {
-    return <p className="text-secondary-text">Loading your profile…</p>;
+    return (
+      <section className="grid gap-6" aria-busy="true">
+        <section className="grid gap-2">
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-12 w-full rounded-xl" />
+        </section>
+        <section className="grid gap-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="ml-auto h-3 w-12" />
+        </section>
+        <Skeleton className="h-4 w-4/5" />
+        <section className="flex gap-3">
+          <Skeleton className="h-10 w-28 rounded-lg" />
+          <Skeleton className="h-10 w-40 rounded-lg" />
+        </section>
+        <SkeletonStatus>Loading your profile</SkeletonStatus>
+      </section>
+    );
   }
 
   return (

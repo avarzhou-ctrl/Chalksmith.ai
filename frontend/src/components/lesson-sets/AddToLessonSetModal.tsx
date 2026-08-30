@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import CreateLessonSetModal from '@/components/lesson-sets/CreateLessonSetModal';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
 import { addLessonToSet, createLessonSet, listLessonSets } from '@/lib/api/lesson-sets';
 import { useApi } from '@/lib/hooks/useApi';
 import type { LessonSetListItem } from '@/lib/types/api';
@@ -94,11 +95,17 @@ export default function AddToLessonSetModal({ isOpen, lessonId, onClose, onAdded
             <Plus size={16} />
             Create new set
           </Button>
-          {isLoading && <p className="py-4 text-center text-sm">Loading lesson sets…</p>}
+          {isLoading && lessonSets.length === 0 && (
+            <section className="space-y-2 py-1" aria-busy="true">
+              {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-14 w-full rounded-lg" />)}
+              <SkeletonStatus>Loading lesson sets</SkeletonStatus>
+            </section>
+          )}
+          {isLoading && lessonSets.length > 0 && <SkeletonStatus>Refreshing lesson sets</SkeletonStatus>}
           {!isLoading && lessonSets.length === 0 && (
             <p className="py-4 text-center text-sm">Create your first lesson set to group related lessons.</p>
           )}
-          <ul className="space-y-2">
+          <ul className="space-y-2" aria-busy={isLoading}>
             {lessonSets.map((lessonSet) => (
               <li key={lessonSet.id}>
                 <button

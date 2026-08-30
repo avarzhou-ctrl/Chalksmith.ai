@@ -2,6 +2,7 @@
 
 import { useRef, useState, type PointerEvent } from 'react';
 import { ChevronLeft, ChevronRight, MousePointerClick, Presentation, Video, type LucideIcon } from 'lucide-react';
+import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
 
 type ExampleItem = {
   title: string;
@@ -37,16 +38,25 @@ const examples: ExampleItem[] = [
 
 export default function ExamplesCarousel() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isMediaLoaded, setIsMediaLoaded] = useState(false);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const activeExample = examples[activeIndex];
   const ActiveIcon = activeExample.icon;
 
   function showPrevious() {
+    setIsMediaLoaded(false);
     setActiveIndex((currentIndex) => (currentIndex === 0 ? examples.length - 1 : currentIndex - 1));
   }
 
   function showNext() {
+    setIsMediaLoaded(false);
     setActiveIndex((currentIndex) => (currentIndex === examples.length - 1 ? 0 : currentIndex + 1));
+  }
+
+  function selectExample(index: number) {
+    if (index === activeIndex) return;
+    setIsMediaLoaded(false);
+    setActiveIndex(index);
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -113,7 +123,7 @@ export default function ExamplesCarousel() {
                 <button
                   key={example.title}
                   type="button"
-                  onClick={() => setActiveIndex(index)}
+                  onClick={() => selectExample(index)}
                   className={`h-2.5 rounded-full transition-all ${
                     index === activeIndex ? 'w-8 bg-accent' : 'w-2.5 bg-stone-600 hover:bg-stone-400'
                   }`}
@@ -126,25 +136,30 @@ export default function ExamplesCarousel() {
         </div>
 
         <div className="bg-primary-bg p-3 sm:p-4">
-          <div className="aspect-video overflow-hidden rounded-lg border border-border bg-stone-950">
+          <div className="relative aspect-video overflow-hidden rounded-lg border border-border bg-stone-950">
+            {!isMediaLoaded && <Skeleton className="absolute inset-0 size-full rounded-none" />}
             {activeExample.kind === 'video' ? (
               <video
                 key={activeExample.src}
                 src={activeExample.src}
                 controls
                 playsInline
-                className="h-full w-full bg-stone-950 object-contain"
+                onLoadedData={() => setIsMediaLoaded(true)}
+                onError={() => setIsMediaLoaded(true)}
+                className={`h-full w-full bg-stone-950 object-contain transition-opacity duration-300 ${isMediaLoaded ? 'opacity-100' : 'opacity-0'}`}
               />
             ) : (
               <iframe
                 key={activeExample.src}
                 src={activeExample.src}
                 title={activeExample.title}
-                className="h-full w-full bg-stone-950"
+                onLoad={() => setIsMediaLoaded(true)}
+                className={`h-full w-full bg-stone-950 transition-opacity duration-300 ${isMediaLoaded ? 'opacity-100' : 'opacity-0'}`}
                 loading="lazy"
                 sandbox="allow-scripts"
               />
             )}
+            {!isMediaLoaded && <SkeletonStatus>Loading example preview</SkeletonStatus>}
           </div>
         </div>
       </div>

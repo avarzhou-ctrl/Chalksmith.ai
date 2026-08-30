@@ -22,6 +22,7 @@ import { type DragEvent, FormEvent, useState } from 'react';
 import { useLessonFolders } from '@/components/dashboard/LessonFoldersProvider';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
 import { moveLesson } from '@/lib/api/lessons';
 import { useApi } from '@/lib/hooks/useApi';
 import { useLessonSets } from '@/lib/hooks/useLessonSets';
@@ -401,7 +402,13 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
 
           {!isCollapsed && areFoldersExpanded && (
             <>
-              {isLoading && <p className="px-3 py-2 text-xs text-secondary-text">Loading folders...</p>}
+              {isLoading && (
+                <section className="ml-4 space-y-2 border-l border-border py-2 pl-3" aria-busy="true">
+                  <Skeleton className="h-8 w-4/5 rounded-lg" />
+                  <Skeleton className="h-8 w-3/5 rounded-lg" />
+                  <SkeletonStatus>Loading folders</SkeletonStatus>
+                </section>
+              )}
               {foldersError && <p className="px-3 py-2 text-xs text-red-300">{foldersError}</p>}
               <FolderBranch
                 folders={folders}
@@ -469,7 +476,13 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
 
           {!isCollapsed && areLessonSetsExpanded && (
             <ul className="ml-4 mt-1 space-y-1 border-l border-border pl-2">
-              {areLessonSetsLoading && <li className="px-3 py-2 text-xs text-secondary-text">Loading lesson sets...</li>}
+              {areLessonSetsLoading && (
+                <li className="space-y-2 px-3 py-2" aria-busy="true">
+                  <Skeleton className="h-7 w-full rounded-md" />
+                  <Skeleton className="h-7 w-4/5 rounded-md" />
+                  <SkeletonStatus>Loading lesson sets</SkeletonStatus>
+                </li>
+              )}
               {lessonSetsError && <li className="px-3 py-2 text-xs text-red-300">{lessonSetsError}</li>}
               {!areLessonSetsLoading && lessonSets.length === 0 && (
                 <li className="px-3 py-2 text-xs text-secondary-text">No lesson sets yet</li>

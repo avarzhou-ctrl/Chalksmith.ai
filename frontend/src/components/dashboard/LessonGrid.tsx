@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { CirclePlus } from 'lucide-react';
 
 import LessonCard from '@/components/dashboard/LessonCard';
+import LessonCardSkeleton from '@/components/lesson/LessonCardSkeleton';
 import FormatOutput from '@/components/ui/FormatOutput';
+import { SkeletonStatus } from '@/components/ui/Skeleton';
 import type { LessonFolder, LessonListItem } from '@/lib/types/api';
 
 interface LessonGridProps {
@@ -25,7 +27,7 @@ export default function LessonGrid({
   showCreateCard = false,
 }: LessonGridProps) {
   return (
-    <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" aria-busy={isLoading}>
       {showCreateCard && (
         <Link
           href="/generation"
@@ -36,11 +38,11 @@ export default function LessonGrid({
         </Link>
       )}
 
-      {isLoading && (
-        <p className="min-h-64 rounded-2xl border border-border bg-secondary-bg p-5 text-sm text-secondary-text shadow-lg shadow-stone-950/20">
-          Loading lessons…
-        </p>
+      {isLoading && lessons.length === 0 && Array.from(
+        { length: showCreateCard ? 2 : 3 },
+        (_, index) => <LessonCardSkeleton key={index} />,
       )}
+      {isLoading && <SkeletonStatus>Loading lessons</SkeletonStatus>}
 
       {!isLoading && lessons.length === 0 && !showCreateCard && (
         <section className="rounded-2xl border border-border bg-secondary-bg p-8 text-center md:col-span-2 lg:col-span-3">
@@ -49,7 +51,7 @@ export default function LessonGrid({
         </section>
       )}
 
-      {!isLoading && lessons.map((lesson) => (
+      {lessons.map((lesson) => (
         <LessonCard
           key={lesson.id}
           id={lesson.id}

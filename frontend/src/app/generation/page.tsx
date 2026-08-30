@@ -15,7 +15,9 @@ import LessonViewport from '@/components/generation/LessonViewport';
 import LoadingOverlay from '@/components/generation/LoadingOverlay';
 import LessonTagEditor from '@/components/generation/LessonTagEditor';
 import PublishLessonButton from '@/components/generation/PublishLessonButton';
+import GenerationShellSkeleton from '@/components/generation/GenerationShellSkeleton';
 import Button from '@/components/ui/Button';
+import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
 import { useApi } from '@/lib/hooks/useApi';
 import { useGeneration } from '@/lib/hooks/useGeneration';
 import { usePublicDisplayName } from '@/lib/hooks/usePublicDisplayName';
@@ -78,7 +80,7 @@ export default function GenerationPage() {
   }
 
   return (
-    <RequireAuth>
+    <RequireAuth fallback={<GenerationShellSkeleton />}>
       <main className="app-route-without-site-header flex h-screen w-full overflow-hidden bg-primary-bg font-sans text-primary-text">
         <Group orientation="horizontal" id="main-layout">
           <Panel defaultSize="75%" minSize="50%">
@@ -125,7 +127,7 @@ export default function GenerationPage() {
                           </LessonViewport>
                         : error
                           ? <section className="m-auto max-w-lg p-8 text-center"><h2 className="text-xl font-semibold">Lesson preview unavailable</h2><p className="mt-3 text-sm text-secondary-text">{error}</p><Button variant="outline" size="sm" className="mt-5" onClick={() => void loadLesson(lesson.id)}>Retry preview</Button></section>
-                          : <section className="m-auto p-8 text-center text-secondary-text">Loading lesson preview…</section>
+                          : <section className="relative size-full" aria-busy="true"><Skeleton className="absolute inset-0 size-full rounded-none" /><SkeletonStatus>Loading lesson preview</SkeletonStatus></section>
                   ) : <section className="m-auto max-w-md p-8 text-center"><h2 className="text-2xl font-bold">Lesson Preview</h2><p className="mt-4 text-lg text-secondary-text">Describe a topic and choose a format to create a lesson.</p></section>}
 
                   {(loading || previewIsLoading) && (

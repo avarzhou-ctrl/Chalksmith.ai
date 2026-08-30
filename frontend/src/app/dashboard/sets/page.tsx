@@ -6,6 +6,8 @@ import { useState } from 'react';
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import CreateLessonSetModal from '@/components/lesson-sets/CreateLessonSetModal';
 import LessonSetCard from '@/components/lesson-sets/LessonSetCard';
+import LessonSetCardSkeleton from '@/components/lesson-sets/LessonSetCardSkeleton';
+import { SkeletonStatus } from '@/components/ui/Skeleton';
 import { useLessonSets } from '@/lib/hooks/useLessonSets';
 
 export default function LessonSetsPage() {
@@ -20,7 +22,7 @@ export default function LessonSetsPage() {
           <p className="mt-2 text-sm text-secondary-text">Build reusable collections from lessons in your workspace.</p>
         </header>
         {error && <p className="mb-4 rounded-lg border border-red-900/60 bg-red-950/30 p-3 text-sm text-red-200">{error}</p>}
-        <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" aria-busy={isLoading}>
           <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
@@ -29,9 +31,11 @@ export default function LessonSetsPage() {
             <CirclePlus className="text-accent" size={55} />
             <span className="mt-4 text-lg">Create Lesson Set</span>
           </button>
-          {isLoading && (
-            <p className="min-h-64 rounded-2xl border border-border bg-secondary-bg p-5 text-sm text-secondary-text">Loading lesson sets…</p>
+          {isLoading && lessonSets.length === 0 && Array.from(
+            { length: 2 },
+            (_, index) => <LessonSetCardSkeleton key={index} />,
           )}
+          {isLoading && <SkeletonStatus>Loading lesson sets</SkeletonStatus>}
           {!isLoading && lessonSets.length === 0 && (
             <section className="flex min-h-64 flex-col justify-center rounded-2xl border border-border bg-secondary-bg p-6">
               <h2 className="text-lg font-semibold text-primary-text">Plan a reusable lesson set</h2>
@@ -40,7 +44,7 @@ export default function LessonSetsPage() {
               </p>
             </section>
           )}
-          {!isLoading && lessonSets.map((lessonSet) => (
+          {lessonSets.map((lessonSet) => (
             <LessonSetCard
               key={lessonSet.id}
               lessonSet={lessonSet}
