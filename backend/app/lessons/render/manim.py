@@ -18,6 +18,10 @@ from backend.app.lessons.render.base import (
     RenderedAsset,
 )
 
+ALLOWED_MANIM_IMPORTS = frozenset(
+    {"manim", "math", "numpy", "random", "itertools", "statistics", "fractions", "decimal"}
+)
+
 
 class LocalManimRenderer:
     def __init__(self, timeout_seconds: int, max_render_bytes: int) -> None:
@@ -100,7 +104,10 @@ class RemoteManimRenderer:
         except Exception as error:
             raise InfrastructureRenderError("The remote Manim renderer is unavailable.") from error
         if response.status_code == 422:
-            raise GeneratedCodeError(response.text[-4000:])
+            detail = _remote_error_detail(response)
+            if detail["error_type"] == "policy_violation":
+                raise PolicyViolationError(detail["message"])
+            raise GeneratedCodeError(detail["message"])
         if response.status_code in {413, 504}:
             raise ArtifactLimitError(response.text[-4000:])
         if response.status_code != 200:
@@ -112,6 +119,22 @@ class RemoteManimRenderer:
         output = workdir / "lesson.mp4"
         output.write_bytes(response.content)
         return RenderedAsset(path=output, content_type="video/mp4", extension="mp4")
+
+
+def _remote_error_detail(response: httpx.Response) -> dict[str, str]:
+    try:
+        payload = response.json()
+    except ValueError:
+        return {"error_type": "generated_code", "message": response.text[-4000:]}
+    detail = payload.get("detail") if isinstance(payload, dict) else None
+    if not isinstance(detail, dict):
+        return {"error_type": "generated_code", "message": response.text[-4000:]}
+    error_type = detail.get("error_type")
+    message = detail.get("message")
+    return {
+        "error_type": error_type if isinstance(error_type, str) else "generated_code",
+        "message": message[-4000:] if isinstance(message, str) else response.text[-4000:],
+    }
 
 
 class UnavailableManimRenderer:
@@ -154,10 +177,8 @@ def validate_manim_code(code: str) -> None:
             f"Generated Manim code has invalid syntax: {error.msg}."
         ) from error
 
-    allowed_imports = {"manim", "math", "numpy", "random"}
     forbidden_calls = {
         "breakpoint",
-        "classmethod",
         "compile",
         "delattr",
         "dir",
@@ -170,9 +191,7 @@ def validate_manim_code(code: str) -> None:
         "locals",
         "memoryview",
         "open",
-        "property",
         "setattr",
-        "staticmethod",
         "type",
         "vars",
         "__import__",
@@ -192,12 +211,18 @@ def validate_manim_code(code: str) -> None:
         "tofile",
     }
     forbidden_objects = {"Code", "ImageMobject", "SVGMobject"}
+    generated_scene_methods = _generated_scene_methods(tree)
     has_scene = False
     for node in ast.walk(tree):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             names = [alias.name for alias in node.names] if isinstance(node, ast.Import) else [node.module or ""]
-            if any(name.split(".", 1)[0] not in allowed_imports for name in names):
+            if any(name.split(".", 1)[0] not in ALLOWED_MANIM_IMPORTS for name in names):
                 raise PolicyViolationError("Generated Manim code imports a blocked module.")
+            if isinstance(node, ast.ImportFrom) and any(
+                alias.name in forbidden_attributes or alias.name in forbidden_objects
+                for alias in node.names
+            ):
+                raise PolicyViolationError("Generated Manim code imports a blocked runtime object.")
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in forbidden_calls:
             raise PolicyViolationError(
                 f"Generated Manim code calls blocked function {node.func.id}."
@@ -210,13 +235,30 @@ def validate_manim_code(code: str) -> None:
             node.id.startswith("__") or node.id in forbidden_calls
         ):
             raise PolicyViolationError("Generated Manim code uses blocked runtime internals.")
-        if isinstance(node, ast.Attribute) and (
-            node.attr.startswith("_")
-            or node.attr in forbidden_attributes
-            or node.attr in forbidden_objects
-        ):
-            raise PolicyViolationError("Generated Manim code uses blocked runtime introspection.")
+        if isinstance(node, ast.Attribute):
+            declared_scene_method = (
+                isinstance(node.value, ast.Name)
+                and node.value.id == "self"
+                and node.attr in generated_scene_methods
+            )
+            if not declared_scene_method and (
+                node.attr.startswith("_")
+                or node.attr in forbidden_attributes
+                or node.attr in forbidden_objects
+            ):
+                raise PolicyViolationError("Generated Manim code uses blocked runtime introspection.")
         if isinstance(node, ast.ClassDef) and node.name == "GeneratedScene":
             has_scene = True
     if not has_scene:
         raise GeneratedCodeError("Generated Manim code must define GeneratedScene.")
+
+
+def _generated_scene_methods(tree: ast.Module) -> frozenset[str]:
+    return frozenset(
+        member.name
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "GeneratedScene"
+        for member in node.body
+        if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and not member.name.startswith("__")
+    )

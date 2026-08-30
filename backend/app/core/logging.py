@@ -22,8 +22,12 @@ class JsonFormatter(logging.Formatter):
         for field in (
             "request_id",
             "lesson_id",
+            "lesson_format",
             "owner_id_hash",
             "stage",
+            "error_type",
+            "repair_reason",
+            "repair_outcome",
             "duration_ms",
             "provider",
             "model",

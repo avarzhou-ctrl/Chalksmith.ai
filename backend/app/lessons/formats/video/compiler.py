@@ -146,7 +146,16 @@ def compile_video(source: str) -> str:
 def _runtime_insertion_line(tree: ast.Module) -> int:
     insertion_line = 0
     imports_manim = False
-    for node in tree.body:
+    body = tree.body
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        insertion_line = body[0].end_lineno or body[0].lineno
+        body = body[1:]
+    for node in body:
         if not isinstance(node, (ast.Import, ast.ImportFrom)):
             break
         insertion_line = node.end_lineno or node.lineno

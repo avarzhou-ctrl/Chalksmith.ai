@@ -16,7 +16,6 @@ class BlockGuide:
     renders_as: str
     use_when: str
     example: str
-    standalone: bool = False
 
 
 @dataclass(frozen=True)

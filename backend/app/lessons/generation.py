@@ -361,14 +361,19 @@ class GenerationService:
                     ):
                         raise
                     first_error_text = str(first_error)[:4000]
+                    repair_reason = _repair_reason_code(first_error)
                     lesson.first_error = first_error_text
                     save_lesson(self.session, lesson)
                     logger.warning(
                         "lesson_generation_retry",
                         extra={
                             "lesson_id": str(lesson.id),
+                            "lesson_format": lesson_format,
                             "owner_id_hash": owner_hash,
                             "stage": "rendering",
+                            "error_type": type(first_error).__name__,
+                            "repair_reason": repair_reason,
+                            "repair_outcome": "started",
                             "error": first_error_text[:500],
                             "duration_ms": round((monotonic() - render_started) * 1000),
                             "request_id": self.request_id,
@@ -378,6 +383,7 @@ class GenerationService:
                         "progress",
                         {"stage": "repairing", "message": strategy.repair_message},
                     )
+                    repair_started = monotonic()
                     try:
                         repair = None
                         async for llm_event in self._generate_with_progress(
@@ -400,7 +406,40 @@ class GenerationService:
                         asset = await self._await(
                             renderer.render(generated.source_code, workdir)
                         )
+                        logger.info(
+                            "lesson_generation_repair_completed",
+                            extra={
+                                "lesson_id": str(lesson.id),
+                                "lesson_format": lesson_format,
+                                "owner_id_hash": owner_hash,
+                                "stage": "repairing",
+                                "error_type": type(first_error).__name__,
+                                "repair_reason": repair_reason,
+                                "repair_outcome": "completed",
+                                "duration_ms": round(
+                                    (monotonic() - repair_started) * 1000
+                                ),
+                                "request_id": self.request_id,
+                            },
+                        )
                     except Exception as repair_error:
+                        logger.warning(
+                            "lesson_generation_repair_failed",
+                            extra={
+                                "lesson_id": str(lesson.id),
+                                "lesson_format": lesson_format,
+                                "owner_id_hash": owner_hash,
+                                "stage": "repairing",
+                                "error_type": type(repair_error).__name__,
+                                "repair_reason": repair_reason,
+                                "repair_outcome": "failed",
+                                "duration_ms": round(
+                                    (monotonic() - repair_started) * 1000
+                                ),
+                                "error": str(repair_error)[:500],
+                                "request_id": self.request_id,
+                            },
+                        )
                         lesson.repair_error = str(repair_error)[:4000]
                         save_lesson(self.session, lesson)
                         raise
@@ -539,6 +578,31 @@ def _should_attempt_repair(
         return False
     minimum = MIN_REPAIR_REMAINING_SECONDS.get(lesson_format, 30.0)
     return deadline - monotonic() >= minimum
+
+
+def _repair_reason_code(error: Exception) -> str:
+    diagnostic = str(error).lower()
+    if isinstance(error, ModelOutputError):
+        if "separator" in diagnostic or "did not contain code" in diagnostic:
+            return "output_contract"
+        if "invalid json" in diagnostic or "json object" in diagnostic:
+            return "slides_json"
+        if "custom-html" in diagnostic:
+            return "slides_custom_html"
+        return "slides_spec"
+    if isinstance(error, GeneratedCodeError):
+        if "counter loop" in diagnostic:
+            return "interactive_counter_loop"
+        if "eval" in diagnostic or "new function" in diagnostic or "document.write" in diagnostic:
+            return "interactive_blocked_api"
+        if "html must contain" in diagnostic:
+            return "html_structure"
+        if "chalksmith helper" in diagnostic or "platform style" in diagnostic:
+            return "video_style_contract"
+        if "syntax" in diagnostic:
+            return "generated_syntax"
+        return "generated_code"
+    return "unknown"
 
 
 def _public_error_code(error: Exception) -> str:

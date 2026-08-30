@@ -51,7 +51,7 @@ _COUNTER_FOR_LOOP = re.compile(
     r"(?P<update>(?:(?P=counter)\s*(?:\+\+|--)|(?:\+\+|--)\s*(?P=counter)))\s*\)"
 )
 _VISIBLE_LATEX = re.compile(
-    r"\$\$.+?\$\$|(?<!\\)\$(?!\$).+?(?<!\\)\$(?!\$)|\\\(.+?\\\)|\\\[.+?\\\]",
+    r"\$\$.+?\$\$|(?<!\\)\$(?!\$).+?(?<!\\)\$(?![\d$])|\\\(.+?\\\)|\\\[.+?\\\]",
     re.DOTALL,
 )
 _GLOBAL_MATH_RENDER = re.compile(

@@ -1,4 +1,5 @@
 import ast
+import re
 from dataclasses import dataclass
 
 from backend.app.lessons.formats.contracts import FormatRequest, ModelOutputError, PreparedLesson
@@ -17,12 +18,60 @@ MAX_TRAILING_LINES = 8
 def parse_generated_lesson(text: str, lesson_format: str = "") -> GeneratedLesson:
     marker = "---CODE_START---"
     if marker not in text:
+        recovered = _recover_unmarked_lesson(text, lesson_format)
+        if recovered:
+            return recovered
         raise ModelOutputError("The model response did not contain the required code separator.")
     summary, code = text.split(marker, 1)
     cleaned = _strip_markdown_fences(code)
     if not cleaned:
         raise ModelOutputError("The model response did not contain code.")
     return GeneratedLesson(summary=summary.strip(), code=_drop_trailing_prose(cleaned, lesson_format))
+
+
+def _recover_unmarked_lesson(text: str, lesson_format: str) -> GeneratedLesson | None:
+    """Recover an unambiguous complete artifact before spending another model call."""
+    if lesson_format == "interactive":
+        starts = list(re.finditer(r"<html\b", text, re.IGNORECASE))
+        ends = list(re.finditer(r"</html\s*>", text, re.IGNORECASE))
+        if len(starts) != 1 or len(ends) != 1 or starts[0].start() >= ends[0].start():
+            return None
+        code_start = starts[0].start()
+        doctypes = list(re.finditer(r"<!doctype\s+html\b[^>]*>", text[:code_start], re.IGNORECASE))
+        if doctypes and not text[doctypes[-1].end() : code_start].strip():
+            code_start = doctypes[-1].start()
+        return GeneratedLesson(
+            summary=_clean_recovered_summary(text[:code_start]),
+            code=text[code_start : ends[0].end()].strip(),
+        )
+
+    if lesson_format == "video":
+        lines = text.splitlines()
+        imports = [
+            index
+            for index, line in enumerate(lines)
+            if re.fullmatch(r"\s*from\s+manim\s+import\s+\*\s*", line)
+        ]
+        if len(imports) != 1:
+            return None
+        start = imports[0]
+        code = _drop_trailing_prose("\n".join(lines[start:]).strip(), lesson_format)
+        try:
+            ast.parse(code)
+        except SyntaxError:
+            return None
+        return GeneratedLesson(
+            summary=_clean_recovered_summary("\n".join(lines[:start])),
+            code=code,
+        )
+    return None
+
+
+def _clean_recovered_summary(summary: str) -> str:
+    lines = summary.strip().splitlines()
+    while lines and lines[-1].strip().startswith("```"):
+        lines.pop()
+    return "\n".join(lines).strip()
 
 
 def _strip_markdown_fences(code: str) -> str:

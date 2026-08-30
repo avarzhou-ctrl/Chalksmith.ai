@@ -1,4 +1,9 @@
-VIDEO_RULES = """
+from backend.app.lessons.render.manim import ALLOWED_MANIM_IMPORTS
+
+
+_ALLOWED_IMPORTS = ", ".join(sorted(ALLOWED_MANIM_IMPORTS))
+
+VIDEO_RULES = f"""
 <DELIVERABLE>
 Return Python for a Manim Community scene. Define exactly one Scene subclass named GeneratedScene
 and begin with `from manim import *`. The platform injects its visual runtime after the import; call
@@ -38,6 +43,9 @@ learners.
 Keep all objects inside a 16:9 frame, preserve title and caption safe areas, and avoid simultaneous
 clutter. Clear or transform obsolete objects before introducing the next teaching beat. Do not use
 Code, images, or SVG assets. Do not access the network, filesystem, environment, subprocesses,
-runtime internals, or user input.
+runtime internals, or user input. Imports are limited to these audited computation modules:
+{_ALLOWED_IMPORTS}. Helper methods declared on GeneratedScene are allowed, including names that
+start with one underscore; do not access underscore-prefixed attributes from libraries or runtime
+objects.
 </LAYOUT_AND_SAFETY>
 """

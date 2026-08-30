@@ -8,7 +8,9 @@ from pydantic import BaseModel, Field
 from backend.app.core.config import get_settings
 from backend.app.lessons.render.base import (
     ArtifactLimitError,
+    GeneratedCodeError,
     InfrastructureRenderError,
+    PolicyViolationError,
     RenderError,
 )
 from backend.app.lessons.render.manim import LocalManimRenderer
@@ -42,7 +44,17 @@ async def render_manim(payload: RenderRequest):
             status_code = 503
         else:
             status_code = 422
-        raise HTTPException(status_code=status_code, detail=str(error)) from error
+        error_type = (
+            "policy_violation"
+            if isinstance(error, PolicyViolationError)
+            else "generated_code"
+            if isinstance(error, GeneratedCodeError)
+            else "render_error"
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail={"error_type": error_type, "message": str(error)},
+        ) from error
     response = FileResponse(asset.path, media_type=asset.content_type, filename="lesson.mp4")
     response.background = _CleanupTask(temporary)
     return response

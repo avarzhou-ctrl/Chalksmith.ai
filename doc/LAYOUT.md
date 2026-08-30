@@ -1,6 +1,6 @@
 # Lesson Output and Layout Architecture
 
-> Last reviewed: 2026-08-18
+> Last reviewed: 2026-08-30
 > Status: implementation in progress; the first structured Slides vertical slice is active
 > Scope: newly generated Slides, Interactive, and Video lessons
 
@@ -26,7 +26,7 @@ pixel coordinates.
 
 ### 1.1 Implementation status
 
-Implemented through 2026-08-17:
+Implemented through 2026-08-30:
 
 - the strict `chalksmith.slides.v1` specification and provider-neutral JSON prompt;
 - a deterministic Slides compiler with versioned embedded runtime CSS;
@@ -37,7 +37,7 @@ Implemented through 2026-08-17:
 - general Venn, cause/effect, strata, network, quadrant, spectrum, containment, and matrix diagrams,
   plus subject-owned math, physics, chemistry, and biology visual primitives, with reusable
   generation and visual-QA topics documented in [DIAGRAMS.md](DIAGRAMS.md);
-- a standalone `custom-html` Block for one-off representations absent from the Catalog, limited to
+- a bounded `custom-html` Block for one-off representations absent from the Catalog, limited to
   five slides per lesson and sanitized and scoped before compilation;
 - version metadata and canonical specification persistence with additive database migration;
 - bounded specification repair and specification-based lesson edits;
@@ -294,8 +294,8 @@ The v1 slide block vocabulary currently covers:
 - structured relationships: `comparison` and `process`;
 - a bounded escape hatch: `custom-html`.
 
-Only `custom-html` has a raw markup field. It accepts allowlisted HTML, CSS, and inline SVG, must be
-the only body Block on its slide, and may appear on at most five slides in a lesson. The sanitizer
+Only `custom-html` has a raw markup field. It accepts allowlisted HTML, CSS, and inline SVG and may
+appear on at most five slides in a lesson. The sanitizer
 rejects executable or remote content, bounds markup size and complexity, strips unsupported layout
 properties, and scopes classes, ids, selectors, and local SVG references to the owning Block.
 JavaScript and Reveal configuration are never accepted. Every other visual Block uses normalized
@@ -340,7 +340,7 @@ the bounded second-pass repair Prompt. `slides/strategy.py` only adapts that pip
 format strategy contract and invokes the compiler.
 
 The top-level `slides/registry.py` aggregates those vertical slices into one definition registry and
-derives the model-facing Catalog, visual and standalone capabilities, Prompt text, and render
+derives the model-facing Catalog, visual capabilities, Prompt text, and render
 dispatch. `blocks/__init__.py` retains an explicit Pydantic discriminated union so JSON Schema and
 static type information stay inspectable, while `spec.py` contains only Slide and lesson-level
 contracts and validators.
@@ -367,17 +367,13 @@ one internal layout from the validated block combination:
 | Three ordinary blocks | Equal `thirds` |
 | `steps` plus `equation` | `solution-split`, with steps given more width |
 | Two blocks containing exactly one visual block | `visual-split`, with the visual given more width |
-| A spatially dense block | Full-width block with its own internal deterministic layout |
-| `custom-html` | Full-width compiler-sized slot; author markup cannot change page composition |
-
-`comparison`, `process`, `bar-chart`, `labeled-diagram`, `cycle`, `timeline`, `pyramid-diagram`,
-`hierarchy-tree`, `flow-diagram`, `venn-diagram`, `cause-effect-diagram`, `layer-diagram`,
-`network-diagram`, `quadrant-diagram`, `spectrum-diagram`, `concentric-diagram`, `matrix-diagram`,
-`function-graph`, `force-diagram`, `wave-diagram`, `particle-diagram`, `reaction-diagram`, and
-`cell-diagram` and `custom-html` are too spatially dense to share a slide body with another block,
-so the validator rejects those combinations before compilation.
 Slide kinds remain teaching semantics; except for the specialized
 `comprehension-check`, they do not directly choose CSS layouts.
+
+The `steps` renderer wraps each item's complete authored content in one grid cell so KaTeX's
+generated inline spans cannot be placed beside or underneath the numbered marker. When an
+`equation` shares a slide with another Block, its source expression is limited to 80 characters;
+longer derivations use a full-width equation or another worked-example slide.
 
 ### 7.5 Slides compilation and validation
 
@@ -400,10 +396,10 @@ Hard generation gates:
 
 - slide count stays within the configured lesson range;
 - every slide kind satisfies its title, text, list, and visual capacity;
-- spatially dense blocks do not appear in incompatible multi-block bodies;
 - equations parse and currency is not misclassified as mathematics;
+- equations paired with another Block stay within the 80-character partial-width budget;
 - no slide contains unknown Blocks or raw markup outside `custom-html`;
-- no lesson uses `custom-html` on more than five slides, and each use occupies its slide body alone;
+- no lesson uses `custom-html` on more than five slides;
 - custom markup satisfies its element, attribute, CSS, URL, size, depth, and node allowlists;
 - compiled slides do not create scroll containers.
 
@@ -767,7 +763,7 @@ The architecture is complete when:
 - **No universal output language:** Slides, Interactive, and Video use different specifications
   because their rendering and failure modes are different.
 - **Bounded Slides escape hatch:** `custom-html` is for one-off teaching representations only; it is
-  standalone, limited to five slides, sanitized, and scoped. Recurring capability becomes a typed
+  limited to five slides, sanitized, and scoped. Recurring capability becomes a typed
   primitive or format-owned composition rule.
 - **No frontend styling dependency:** lesson artifacts own their embedded, versioned runtime.
 - **No responsive recomposition:** a stable 16:9 teaching stage scales uniformly.

@@ -8,14 +8,17 @@
 }
 
 .reveal .cs-equation__formula {
+  max-width: 100%;
   color: var(--cs-text);
   font-size: 2.4rem;
 }
 
 .reveal .cs-equation__explanation {
+  max-width: 100%;
   margin-top: 1.25rem;
   color: var(--cs-muted);
   font-size: 1.2rem;
+  overflow-wrap: anywhere;
 }
 
 .cs-fraction {

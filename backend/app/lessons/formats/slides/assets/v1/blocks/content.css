@@ -54,6 +54,10 @@
   font-weight: 800;
 }
 
+.cs-steps__content {
+  min-width: 0;
+}
+
 .cs-callout {
   display: grid;
   align-content: start;

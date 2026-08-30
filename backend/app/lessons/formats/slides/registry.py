@@ -50,11 +50,6 @@ BLOCK_TYPES = frozenset(BLOCK_REGISTRY)
 VISUAL_BLOCK_TYPES = frozenset(
     guide.type for guide in BLOCK_CATALOG if guide.category == "visual"
 )
-STANDALONE_BLOCK_TYPES = frozenset(
-    guide.type for guide in BLOCK_CATALOG if guide.standalone
-)
-
-
 def block_catalog_prompt() -> str:
     return "\n".join(
         f"- {guide.type} [{guide.category}]: {guide.purpose}. Renders as {guide.renders_as}. "

@@ -57,6 +57,7 @@ from backend.app.lessons.formats.slides.blocks.custom import (
 from backend.app.lessons.formats.slides.response import build_slides_repair_prompt
 from backend.app.lessons.formats.slides.spec import (
     MAX_CUSTOM_HTML_BLOCKS,
+    PAIRED_EQUATION_MAX_CHARACTERS,
     SLIDE_CAPACITY,
     SlidesLessonSpec,
     _block_text_length,
@@ -77,9 +78,14 @@ from backend.app.lessons.generation import (
     _public_error,
     _should_attempt_repair,
 )
-from backend.app.lessons.render.base import GeneratedCodeError, RenderError
+from backend.app.lessons.render.base import (
+    GeneratedCodeError,
+    PolicyViolationError,
+    RenderError,
+)
 from backend.app.lessons.render.manim import (
     LocalManimRenderer,
+    RemoteManimRenderer,
     is_local_renderer_url,
     validate_manim_code,
 )
@@ -530,14 +536,22 @@ class ApplicationTests(unittest.TestCase):
             exc_info=None,
         )
         record.lesson_id = "c72da3d5-0606-4649-afe1-9308df5b9bcb"
+        record.lesson_format = "slides"
         record.stage = "rendering"
+        record.error_type = "ModelOutputError"
+        record.repair_reason = "slides_custom_html"
+        record.repair_outcome = "started"
         record.error = "custom-html exceeds 6000 characters (7124 given)"
 
         payload = json.loads(JsonFormatter().format(record))
 
         self.assertEqual(payload["message"], "lesson_generation_retry")
         self.assertEqual(payload["lesson_id"], record.lesson_id)
+        self.assertEqual(payload["lesson_format"], "slides")
         self.assertEqual(payload["stage"], "rendering")
+        self.assertEqual(payload["error_type"], "ModelOutputError")
+        self.assertEqual(payload["repair_reason"], "slides_custom_html")
+        self.assertEqual(payload["repair_outcome"], "started")
         self.assertEqual(payload["error"], record.error)
 
     def test_provider_error_visibility_uses_the_injected_app_environment(self) -> None:
@@ -568,6 +582,24 @@ class RendererSecurityTests(unittest.TestCase):
             with self.subTest(code=code), self.assertRaises(RenderError):
                 validate_manim_code(code)
 
+    def test_manim_allows_audited_computation_imports_and_declared_helpers(self) -> None:
+        validate_manim_code(
+            "from manim import *\n"
+            "import itertools\n"
+            "from fractions import Fraction\n"
+            "class GeneratedScene(Scene):\n"
+            " def _make_label(self): return Fraction(1, 2)\n"
+            " def construct(self): self._make_label()"
+        )
+
+    def test_manim_still_blocks_dangerous_imports_from_allowed_modules(self) -> None:
+        with self.assertRaises(PolicyViolationError):
+            validate_manim_code(
+                "from manim import *\n"
+                "from numpy import load as read_data\n"
+                "class GeneratedScene(Scene): pass"
+            )
+
     def test_local_renderer_urls_are_detected(self) -> None:
         self.assertTrue(is_local_renderer_url("http://localhost:8081"))
         self.assertTrue(is_local_renderer_url("http://[::1]:8081"))
@@ -584,7 +616,52 @@ class RendererSecurityTests(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 422)
-        self.assertEqual(response.json(), {"detail": "bounded diagnostic"})
+        self.assertEqual(
+            response.json(),
+            {
+                "detail": {
+                    "error_type": "render_error",
+                    "message": "bounded diagnostic",
+                }
+            },
+        )
+
+    def test_remote_renderer_preserves_policy_violation_ownership(self) -> None:
+        class FakeResponse:
+            status_code = 422
+            text = "policy violation"
+            content = b""
+
+            @staticmethod
+            def json() -> dict[str, object]:
+                return {
+                    "detail": {
+                        "error_type": "policy_violation",
+                        "message": "Generated Manim code imports a blocked module.",
+                    }
+                }
+
+        class FakeClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return None
+
+            async def post(self, *_args, **_kwargs):
+                return FakeResponse()
+
+        renderer = RemoteManimRenderer(
+            "https://renderer.example",
+            timeout_seconds=60,
+            max_render_bytes=1_000_000,
+            authenticate=False,
+        )
+        with tempfile.TemporaryDirectory() as directory, patch(
+            "backend.app.lessons.render.manim.httpx.AsyncClient",
+            return_value=FakeClient(),
+        ), self.assertRaises(PolicyViolationError):
+            asyncio.run(renderer.render("blocked", Path(directory)))
 
 
 class GenerationDeadlineTests(unittest.IsolatedAsyncioTestCase):
@@ -844,6 +921,29 @@ class RendererCancellationTests(unittest.IsolatedAsyncioTestCase):
 
 
 class ParseGeneratedLessonTests(unittest.TestCase):
+    def test_recovers_complete_unmarked_interactive_without_model_repair(self) -> None:
+        lesson = parse_generated_lesson(
+            "Teacher summary.\n```html\n<!doctype html><html><body>Hi</body></html>\n```",
+            "interactive",
+        )
+
+        self.assertEqual(lesson.summary, "Teacher summary.")
+        self.assertEqual(
+            lesson.code,
+            "<!doctype html><html><body>Hi</body></html>",
+        )
+
+    def test_recovers_complete_unmarked_video_without_model_repair(self) -> None:
+        lesson = parse_generated_lesson(
+            "Teacher summary.\n```python\nfrom manim import *\n"
+            "class GeneratedScene(Scene):\n    def construct(self):\n        self.wait()\n```",
+            "video",
+        )
+
+        self.assertEqual(lesson.summary, "Teacher summary.")
+        self.assertIn("class GeneratedScene(Scene):", lesson.code)
+        ast.parse(lesson.code)
+
     def test_drops_invented_closing_separator(self) -> None:
         lesson = parse_generated_lesson(
             "A summary.\n---CODE_START---\nfrom manim import *\nx = 1\n---CODE_END---\n", "video"
@@ -941,6 +1041,8 @@ class VideoGenerationTests(unittest.TestCase):
         self.assertIn("Never represent a fraction with a slash", normalized_rules)
         self.assertIn("share one base font size", normalized_rules)
         self.assertIn("split a long equality chain", normalized_rules)
+        self.assertIn("decimal, fractions, itertools, manim, math, numpy, random, statistics", normalized_rules)
+        self.assertIn("Helper methods declared on GeneratedScene are allowed", normalized_rules)
         self.assertNotIn("Use Text and Unicode symbols instead of Tex", normalized_rules)
 
     def test_strategy_injects_the_platform_runtime_and_metadata(self) -> None:
@@ -975,6 +1077,18 @@ class GeneratedScene(Scene):
         self.assertIn("class GeneratedScene(Scene):", prepared.source_code)
         ast.parse(prepared.source_code)
         validate_manim_code(prepared.source_code)
+
+    def test_compiler_preserves_a_module_docstring_before_manim_imports(self) -> None:
+        compiled = compile_video(
+            '"""Generated teaching scene."""\n'
+            "from manim import *\n"
+            "class GeneratedScene(Scene):\n"
+            "    def construct(self):\n"
+            "        self.wait()"
+        )
+
+        self.assertTrue(compiled.startswith('"""Generated teaching scene."""'))
+        self.assertLess(compiled.index("from manim import *"), compiled.index(VIDEO_RUNTIME_START))
 
     def test_compiler_rejects_direct_text_and_math_objects(self) -> None:
         direct_calls = (
@@ -1035,6 +1149,24 @@ class StructuredSlidesTests(unittest.TestCase):
 
         self.assertIsInstance(strategy, StructuredSlidesStrategy)
 
+    def test_dense_visual_can_share_a_slide_with_supporting_content(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][1]["body"] = [
+            {
+                "type": "bar-chart",
+                "items": [
+                    {"label": "Before", "value": 2},
+                    {"label": "After", "value": 6},
+                ],
+                "unit": "cm",
+            },
+            {"type": "statement", "text": "The measured length triples."},
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertIn('data-chalksmith-layout="visual-split"', prepared.source_code)
+
     def test_prompt_exposes_a_schema_but_not_the_runtime_styles(self) -> None:
         prompt = StructuredSlidesStrategy().build_prompt(
             FormatRequest(topic="Equivalent fractions", lesson_format="slides")
@@ -1063,6 +1195,12 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertIn("avoid more than two", prompt)
         self.assertIn("consecutive text-only slides", prompt)
         self.assertIn("The compiler draws coordinates and mathematical markings", prompt)
+        self.assertIn(
+            f"equation.expression at or below\n{PAIRED_EQUATION_MAX_CHARACTERS} source characters",
+            prompt,
+        )
+        self.assertIn("do not repeat the same formula or calculation", prompt)
+        self.assertIn("split the worked example across multiple slides", prompt)
         self.assertNotIn('"template"', prompt)
         self.assertNotIn("--cs-bg", prompt)
         self.assertNotIn("Reveal.initialize({", prompt)
@@ -1348,14 +1486,15 @@ class StructuredSlidesTests(unittest.TestCase):
         # Sanitized markup is canonical lesson data and must survive a later edit unchanged.
         self.assertEqual(sanitize_slide_html(sanitized), sanitized)
 
-    def test_custom_html_must_occupy_the_slide_body_alone(self) -> None:
+    def test_custom_html_can_share_a_slide_with_supporting_content(self) -> None:
         lesson = json.loads(_custom_html_fixture())
         lesson["payload"]["slides"][2]["body"].append(
             {"type": "statement", "text": "Pairing is always A with T."}
         )
 
-        with self.assertRaisesRegex(ValueError, "must occupy a slide body by themselves"):
-            StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertIn('data-chalksmith-layout="visual-split"', prepared.source_code)
 
     def test_block_catalog_covers_every_schema_block(self) -> None:
         schema = SlidesLessonSpec.model_json_schema()
@@ -1385,7 +1524,7 @@ class StructuredSlidesTests(unittest.TestCase):
 
         self.assertIn("Fractions &lt;script&gt;alert(1)&lt;/script&gt;", prepared.source_code)
         self.assertNotIn("<script>alert(1)</script>", prepared.source_code)
-        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.1"', prepared.source_code)
+        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.2"', prepared.source_code)
         self.assertIn('.slides > section.present', prepared.source_code)
         self.assertIn(
             ".reveal .cs-card ul,\n.reveal .cs-card ol {\n  margin: 0;",
@@ -1454,6 +1593,50 @@ class StructuredSlidesTests(unittest.TestCase):
         for group in ("Data", "Diagrams", "Physics", "Chemistry", "Biology"):
             self.assertNotIn(f"/* Slides {group} styles. */", prepared.source_code)
 
+    def test_steps_keep_inline_katex_inside_the_content_grid_cell(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][2]["body"][0]["items"][0] = (
+            r"Start with \(\frac{1}{2}\)."
+        )
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertIn(
+            r'<li><span class="cs-steps__content">Start with \(\frac{1}{2}\).</span></li>',
+            prepared.source_code,
+        )
+        self.assertIn(".cs-steps__content", prepared.source_code)
+
+    def test_schema_rejects_an_oversized_equation_in_a_split_layout(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][2]["body"][1]["expression"] = (
+            "x" * (PAIRED_EQUATION_MAX_CHARACTERS + 1)
+        )
+
+        with self.assertRaisesRegex(
+            ModelOutputError,
+            f"at most {PAIRED_EQUATION_MAX_CHARACTERS} characters",
+        ):
+            StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+    def test_equation_content_is_bounded_by_its_compiler_owned_card(self) -> None:
+        prepared = StructuredSlidesStrategy().prepare(_slides_fixture())
+
+        self.assertIn(".reveal .cs-equation__formula {\n  max-width: 100%;", prepared.source_code)
+        self.assertIn("overflow-wrap: anywhere", prepared.source_code)
+
+    def test_schema_keeps_the_larger_equation_limit_for_a_single_block(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        expression = "x" * (PAIRED_EQUATION_MAX_CHARACTERS + 1)
+        lesson["payload"]["slides"][2]["body"] = [
+            {"type": "equation", "expression": expression}
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertIn('data-chalksmith-layout="single"', prepared.source_code)
+        self.assertIn(f"$${expression}$$", prepared.source_code)
+
     def test_compiler_omits_katex_when_no_equation_block_is_used(self) -> None:
         lesson = json.loads(_slides_fixture())
         lesson["payload"]["slides"][2]["body"] = [
@@ -1480,14 +1663,15 @@ class StructuredSlidesTests(unittest.TestCase):
 
         self.assertEqual(prepared.spec_version, "chalksmith.slides.v1")
 
-    def test_schema_rejects_a_complex_block_in_a_multi_block_body(self) -> None:
-        malformed = json.loads(_slides_fixture())
-        malformed["payload"]["slides"][0]["body"].append(
+    def test_schema_allows_a_complex_block_in_a_multi_block_body(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["body"].append(
             {"type": "process", "steps": ["Observe", "Explain"]}
         )
 
-        with self.assertRaisesRegex(ValueError, "must occupy a slide body by themselves"):
-            StructuredSlidesStrategy().prepare(json.dumps(malformed))
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertIn('data-chalksmith-layout="split"', prepared.source_code)
 
     def test_compiler_selects_a_visual_layout_and_places_the_visual_second(self) -> None:
         lesson = json.loads(_slides_fixture())

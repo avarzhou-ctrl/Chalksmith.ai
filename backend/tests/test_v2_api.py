@@ -397,9 +397,9 @@ class V2ApiTests(unittest.TestCase):
         lesson = self.client.get(f"/v2/lessons/{lesson_id}").json()
         self.assertEqual(lesson["spec_version"], "chalksmith.slides.v1")
         self.assertNotIn("template_id", lesson)
-        self.assertEqual(lesson["runtime_version"], "slides-runtime.v1.1")
-        self.assertEqual(lesson["compiler_version"], "slides-compiler.v1.1")
-        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.1"', lesson["source_code"])
+        self.assertEqual(lesson["runtime_version"], "slides-runtime.v1.2")
+        self.assertEqual(lesson["compiler_version"], "slides-compiler.v1.2")
+        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.2"', lesson["source_code"])
         self.assertNotIn("data-chalksmith-template", lesson["source_code"])
         for asset_url in (
             REVEAL_CORE_STYLESHEET,
@@ -1359,6 +1359,20 @@ window.addEventListener("DOMContentLoaded", () => triggerKaTeX(document.body));
         self.assertIn(HTML_KATEX_SCRIPT, rendered)
         self.assertIn("data-chalksmith-katex", rendered)
         self.assertIn(P5_SCRIPT, rendered)
+
+    def test_html_renderer_does_not_treat_currency_ranges_as_latex(self) -> None:
+        generated = """<!doctype html><html><body>
+<p>Tickets cost $5 for students and $10 for adults.</p>
+<script>function setup(){createCanvas(320,180)}</script>
+</body></html>"""
+        with TemporaryDirectory() as directory:
+            asset = asyncio.run(
+                HTMLRenderer(required_marker="p5").render(generated, Path(directory))
+            )
+            rendered = asset.path.read_text(encoding="utf-8")
+
+        self.assertNotIn(HTML_KATEX_SCRIPT, rendered)
+        self.assertNotIn("data-chalksmith-katex", rendered)
 
     def test_html_renderer_scans_only_executable_script_for_blocked_apis(self) -> None:
         generated = '''<!doctype html><html><body>

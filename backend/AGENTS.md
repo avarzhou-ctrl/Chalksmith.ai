@@ -208,16 +208,17 @@ unpublished, or not-yours private records are always a 404 via `_owned_or_404()`
   Interactive lesson needs them. Inline event attributes and local forms are allowed because the
   sandbox omits `allow-forms` and the CSP retains `form-action 'none'`.
 - Structured Slides use validated semantic Blocks by default. Their only model-authored markup is
-  the `custom-html` escape hatch: it must occupy a slide body alone, may appear on at most five
-  slides per lesson, and passes through the tag, attribute, CSS-property, URL, node, depth, and
-  length allowlists colocated with its contract and renderer in `slides/blocks/custom.py`. That
+  the `custom-html` escape hatch: it may appear on at most five slides per lesson and passes through
+  the tag, attribute, CSS-property, URL, node, depth, and length allowlists colocated with its
+  contract and renderer in `slides/blocks/custom.py`. That
   sanitizer scopes classes, ids, selectors, and local SVG references to the Block. JavaScript,
   event handlers, external resources, global CSS, Reveal configuration, and page-level positioning
   remain forbidden. The compiler still owns the complete document, pinned Reveal/KaTeX assets,
   CDN fallback, and all page composition.
 - `video`: `validate_manim_code()` AST-walks the source against an import allowlist
-  (`manim`, `math`, `numpy`, `random`), blocked builtins, dunder names, and blocked attributes,
-  and requires a `GeneratedScene` class. The API only ever *sends* the code onward.
+  (`manim`, `math`, `numpy`, `random`, `itertools`, `statistics`, `fractions`, `decimal`), blocked
+  builtins, dunder names, and blocked attributes, and requires a `GeneratedScene` class. The API
+  only ever *sends* the code onward.
 - `RemoteManimRenderer` attaches a Google OIDC ID token unless the target is localhost.
   With `MANIM_RENDERER_URL` unset the map gets `UnavailableManimRenderer`, which fails cleanly.
 

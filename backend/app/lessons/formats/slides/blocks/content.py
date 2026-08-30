@@ -60,7 +60,11 @@ def render_callout(block: CalloutBlock) -> str:
 
 
 def render_steps(block: StepsBlock) -> str:
-    items = "".join(f"<li>{escape(item)}</li>" for item in block.items)
+    # Keep KaTeX-generated spans inside one grid cell instead of beside the step counter.
+    items = "".join(
+        f'<li><span class="cs-steps__content">{escape(item)}</span></li>'
+        for item in block.items
+    )
     return f'<article class="cs-card cs-steps"><ol>{items}</ol></article>'
 
 

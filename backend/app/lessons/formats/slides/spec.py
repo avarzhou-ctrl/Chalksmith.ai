@@ -4,14 +4,19 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from backend.app.lessons.formats.contracts import StrictSpecModel
-from backend.app.lessons.formats.slides.blocks import CustomHtmlBlock, SlideBlock
+from backend.app.lessons.formats.slides.blocks import (
+    CustomHtmlBlock,
+    EquationBlock,
+    SlideBlock,
+)
 from backend.app.lessons.formats.slides.blocks.custom import custom_html_visible_length
-from backend.app.lessons.formats.slides.registry import STANDALONE_BLOCK_TYPES
 
 
 MAX_CUSTOM_HTML_BLOCKS = 5
 # Learner-visible characters on one 16:9 slide, excluding structural keys.
 SLIDE_CAPACITY = 640
+# Half-width equation cards cannot wrap KaTeX without compromising readability.
+PAIRED_EQUATION_MAX_CHARACTERS = 80
 _STRUCTURAL_CAPACITY_KEYS = frozenset(
     {
         "type",
@@ -87,10 +92,13 @@ class SlideSpec(StrictSpecModel):
         elif sum(_block_text_length(block) for block in self.body) > SLIDE_CAPACITY:
             raise ValueError(f"{self.kind} content exceeds the slide capacity")
         elif len(self.body) > 1 and any(
-            block.type in STANDALONE_BLOCK_TYPES for block in self.body
+            isinstance(block, EquationBlock)
+            and len(block.expression) > PAIRED_EQUATION_MAX_CHARACTERS
+            for block in self.body
         ):
             raise ValueError(
-                "spatially dense blocks must occupy a slide body by themselves"
+                "equation expressions paired with another block must contain at most "
+                f"{PAIRED_EQUATION_MAX_CHARACTERS} characters"
             )
         return self
 

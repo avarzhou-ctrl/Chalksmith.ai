@@ -426,14 +426,13 @@ CUSTOM_BLOCKS = (
             "a representation that no other Block can express",
             "author-written HTML and inline SVG inside a compiler-sized, style-scoped slot",
             "the teaching representation is not a listed relationship, figure, or dataset; "
-            "prefer any semantic Block that fits and use this as the only body block",
+            "prefer any semantic Block that fits",
             '{"type":"custom-html","description":"Complementary DNA strands","html":'
             '"<style>.row{display:flex;gap:.5rem;align-items:center}'
             '.base{padding:.25rem .75rem;border-radius:.4rem;font-weight:700}'
             '.a{background:#ef4444;color:#fff}.t{background:#22c55e;color:#000}</style>'
             '<div class=\\"row\\"><span class=\\"base a\\">A</span>'
             '<span class=\\"base t\\">T</span></div>"}',
-            standalone=True,
         ),
         render_custom_html,
     ),

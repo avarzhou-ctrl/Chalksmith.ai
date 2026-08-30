@@ -16,8 +16,8 @@ from backend.app.lessons.formats.slides.registry import (
 )
 from backend.app.lessons.formats.slides.spec import SlideSpec, SlidesLessonSpec
 
-SLIDES_RUNTIME_VERSION = "slides-runtime.v1.1"
-SLIDES_COMPILER_VERSION = "slides-compiler.v1.1"
+SLIDES_RUNTIME_VERSION = "slides-runtime.v1.2"
+SLIDES_COMPILER_VERSION = "slides-compiler.v1.2"
 REVEAL_CORE_STYLESHEET = (
     "https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css"
 )

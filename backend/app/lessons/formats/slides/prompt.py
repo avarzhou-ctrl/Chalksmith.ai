@@ -5,6 +5,7 @@ from backend.app.lessons.formats.slides.blocks.custom import allowlist_prompt
 from backend.app.lessons.formats.slides.registry import block_catalog_prompt
 from backend.app.lessons.formats.slides.spec import (
     MAX_CUSTOM_HTML_BLOCKS,
+    PAIRED_EQUATION_MAX_CHARACTERS,
     SLIDE_CAPACITY,
     SlidesLessonSpec,
 )
@@ -95,7 +96,21 @@ The compiler draws coordinates and mathematical markings.
 </GEOMETRY_RULES>
 
 <SLIDE_COMPOSITION>
-For a worked-example, prefer steps plus an equation, or a concise explanation paired with a visual.
+Use steps plus an equation only when the steps are concise reasoning cues and the equation is one
+focal expression. Otherwise split the worked example across multiple slides.
+In a steps plus equation composition:
+- use 2 to 3 steps whenever possible, with one short prose action or inference in each item;
+- keep LaTeX inside steps short and inline; put complete calculations and derivations in equation;
+- do not repeat the same formula or calculation in both Blocks;
+- avoid multi-stage equality chains and keep equation.explanation to one short sentence.
+If these limits cannot preserve the reasoning, create another worked-example slide instead of
+shrinking, crowding, or duplicating the content.
+
+Whenever equation shares a slide with any other Block, keep equation.expression at or below
+{PAIRED_EQUATION_MAX_CHARACTERS} source characters so it remains readable at the standard size in
+its partial-width card. A single equation Block may use the larger limit in JSON_SCHEMA.
+
+For other worked examples, use a concise explanation paired with a visual when appropriate.
 For a concept slide, prefer one visual representation plus at most one concise explanatory Block.
 For a recap, prefer a meaningful comparison, process, timeline, or short callout over repeated prose.
 
