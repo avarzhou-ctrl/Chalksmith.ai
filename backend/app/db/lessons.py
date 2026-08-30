@@ -6,7 +6,14 @@ from sqlalchemy import exists, func, or_
 from sqlalchemy.orm import aliased
 from sqlmodel import Session, col, delete, select
 
-from backend.app.db.models import Lesson, LessonLike, LessonTag, UserProfile, utc_now
+from backend.app.db.models import (
+    Lesson,
+    LessonLike,
+    LessonSetItem,
+    LessonTag,
+    UserProfile,
+    utc_now,
+)
 
 
 MAX_LESSON_TAGS = 5
@@ -25,6 +32,7 @@ class LessonListSummary:
     created_at: datetime
     updated_at: datetime
     is_published: bool
+    lesson_set_count: int
 
 
 @dataclass(frozen=True)
@@ -144,6 +152,12 @@ def list_owned_lessons(
     tags: list[str] | None = None,
 ) -> list[LessonListSummary]:
     root = aliased(Lesson)
+    lesson_set_count = (
+        select(func.count(LessonSetItem.lesson_set_id))
+        .where(LessonSetItem.root_lesson_id == root.id)
+        .correlate(root)
+        .scalar_subquery()
+    )
     statement = (
         select(
             Lesson.id,
@@ -156,6 +170,7 @@ def list_owned_lessons(
             Lesson.created_at,
             Lesson.updated_at,
             root.published_at,
+            lesson_set_count,
         )
         .join(root, Lesson.id == root.final_lesson_id)
         .where(
@@ -197,6 +212,7 @@ def list_owned_lessons(
             created_at=row[7],
             updated_at=row[8],
             is_published=row[9] is not None,
+            lesson_set_count=row[10],
         )
         for row in session.exec(statement).all()
     ]

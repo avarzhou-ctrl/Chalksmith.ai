@@ -24,6 +24,8 @@ COLUMNS = (
 COMPARED = tuple(name for name in COLUMNS if name not in {"owner_id", "object_key"})
 TAG_COLUMNS = ("root_lesson_id", "owner_id", "normalized_value", "label", "created_at")
 LIKE_COLUMNS = ("root_lesson_id", "owner_id", "created_at")
+SET_COLUMNS = ("id", "owner_id", "title", "description", "created_at", "updated_at")
+SET_ITEM_COLUMNS = ("lesson_set_id", "root_lesson_id", "position", "created_at")
 
 
 def parse_args() -> argparse.Namespace:
@@ -82,6 +84,21 @@ def read_likes(url: str) -> dict[tuple[str, str], dict]:
         }
 
 
+def read_lesson_sets(url: str) -> dict[str, dict]:
+    with psycopg.connect(url) as connection, connection.cursor() as cursor:
+        cursor.execute(f"SELECT {', '.join(SET_COLUMNS)} FROM lesson_sets")
+        return {str(row[0]): dict(zip(SET_COLUMNS, row)) for row in cursor.fetchall()}
+
+
+def read_lesson_set_items(url: str) -> dict[tuple[str, str], dict]:
+    with psycopg.connect(url) as connection, connection.cursor() as cursor:
+        cursor.execute(f"SELECT {', '.join(SET_ITEM_COLUMNS)} FROM lesson_set_items")
+        return {
+            (str(row[0]), str(row[1])): dict(zip(SET_ITEM_COLUMNS, row))
+            for row in cursor.fetchall()
+        }
+
+
 def target_key_for(row: dict, owner_id: str) -> str | None:
     if not row["object_key"]:
         return None
@@ -116,6 +133,10 @@ def main() -> None:
     target_tags = read_tags(target_url)
     source_likes = read_likes(source_url)
     target_likes = read_likes(target_url)
+    source_sets = read_lesson_sets(source_url)
+    target_sets = read_lesson_sets(target_url)
+    source_set_items = read_lesson_set_items(source_url)
+    target_set_items = read_lesson_set_items(target_url)
     client = storage.Client()
     source_bucket = client.bucket(required("SOURCE_GCS_BUCKET"))
     target_bucket = client.bucket(required("GCS_BUCKET"))
@@ -169,6 +190,50 @@ def main() -> None:
         row for key, row in target_likes.items()
         if key not in planned_like_keys
     ]
+    set_inserts, set_updates = [], []
+    planned_set_ids: set[str] = set()
+    for lesson_set_id, row in source_sets.items():
+        if row["owner_id"] not in owner_map:
+            continue
+        planned = dict(row)
+        planned["owner_id"] = owner_map[row["owner_id"]]
+        planned_set_ids.add(lesson_set_id)
+        current = target_sets.get(lesson_set_id)
+        if current is None:
+            set_inserts.append(planned)
+        elif any(current[name] != planned[name] for name in SET_COLUMNS):
+            set_updates.append(planned)
+    prunable_sets = [
+        row for lesson_set_id, row in target_sets.items()
+        if lesson_set_id not in planned_set_ids
+    ]
+    set_item_inserts, set_item_updates = [], []
+    planned_set_item_keys: set[tuple[str, str]] = set()
+    planned_set_items: dict[tuple[str, str], dict] = {}
+    for key, row in source_set_items.items():
+        if key[0] not in planned_set_ids or key[1] not in source_rows:
+            continue
+        planned_set_item_keys.add(key)
+        planned_set_items[key] = dict(row)
+        current = target_set_items.get(key)
+        if current is None:
+            set_item_inserts.append(dict(row))
+        elif any(current[name] != row[name] for name in SET_ITEM_COLUMNS):
+            set_item_updates.append(dict(row))
+    prunable_set_items = [
+        row for key, row in target_set_items.items()
+        if key not in planned_set_item_keys
+    ]
+    changed_item_set_ids = {
+        str(row["lesson_set_id"])
+        for row in set_item_inserts + set_item_updates + prunable_set_items
+    }
+    # Rewriting every surviving row in a changed set lets apply temporarily move
+    # positions aside without leaving otherwise-unchanged siblings offset.
+    set_item_updates = [
+        row for key, row in planned_set_items.items()
+        if key in target_set_items and key[0] in changed_item_set_ids
+    ]
 
     print(f"owners: {len(owner_map)} mapped" + (f", {len(unmapped)} unmapped (their lessons are skipped)" if unmapped else ""))
     for owner in unmapped:
@@ -178,6 +243,10 @@ def main() -> None:
     print(f"tags: {len(tag_inserts)} to insert, {len(tag_updates)} to update, {len(prunable_tags)} to delete"
           + ("" if args.prune else " (pass --prune to delete)"))
     print(f"likes: {len(like_inserts)} to insert, {len(like_updates)} to update, {len(prunable_likes)} to delete"
+          + ("" if args.prune else " (pass --prune to delete)"))
+    print(f"lesson sets: {len(set_inserts)} to insert, {len(set_updates)} to update, {len(prunable_sets)} to delete"
+          + ("" if args.prune else " (pass --prune to delete)"))
+    print(f"lesson set items: {len(set_item_inserts)} to insert, {len(set_item_updates)} to update, {len(prunable_set_items)} to delete"
           + ("" if args.prune else " (pass --prune to delete)"))
     if not args.apply:
         print("\ndry-run: nothing written. Re-run with --apply.")
@@ -196,6 +265,45 @@ def main() -> None:
             cursor.execute(
                 f"INSERT INTO lessons ({columns}) VALUES ({placeholders}) "
                 f"ON CONFLICT (id) DO UPDATE SET {assignments}",
+                planned,
+            )
+        set_columns = ", ".join(SET_COLUMNS)
+        set_placeholders = ", ".join(f"%({name})s" for name in SET_COLUMNS)
+        set_assignments = ", ".join(
+            f"{name} = EXCLUDED.{name}" for name in SET_COLUMNS if name != "id"
+        )
+        for planned in set_inserts + set_updates:
+            cursor.execute(
+                f"INSERT INTO lesson_sets ({set_columns}) VALUES ({set_placeholders}) "
+                f"ON CONFLICT (id) DO UPDATE SET {set_assignments}",
+                planned,
+            )
+        set_item_columns = ", ".join(SET_ITEM_COLUMNS)
+        set_item_placeholders = ", ".join(
+            f"%({name})s" for name in SET_ITEM_COLUMNS
+        )
+        set_item_assignments = ", ".join(
+            f"{name} = EXCLUDED.{name}"
+            for name in SET_ITEM_COLUMNS
+            if name not in {"lesson_set_id", "root_lesson_id"}
+        )
+        existing_changed_set_ids = sorted(
+            lesson_set_id
+            for lesson_set_id in changed_item_set_ids
+            if lesson_set_id in target_sets
+        )
+        if existing_changed_set_ids:
+            cursor.execute(
+                "UPDATE lesson_set_items SET position = position + 1000 "
+                "WHERE lesson_set_id::text = ANY(%s)",
+                (existing_changed_set_ids,),
+            )
+        for planned in set_item_inserts + set_item_updates:
+            cursor.execute(
+                f"INSERT INTO lesson_set_items ({set_item_columns}) "
+                f"VALUES ({set_item_placeholders}) "
+                "ON CONFLICT (lesson_set_id, root_lesson_id) DO UPDATE SET "
+                f"{set_item_assignments}",
                 planned,
             )
         tag_columns = ", ".join(TAG_COLUMNS)
@@ -222,6 +330,17 @@ def main() -> None:
             )
         pruned_objects = 0
         if args.prune:
+            for row in prunable_set_items:
+                cursor.execute(
+                    "DELETE FROM lesson_set_items "
+                    "WHERE lesson_set_id = %s AND root_lesson_id = %s",
+                    (row["lesson_set_id"], row["root_lesson_id"]),
+                )
+            for row in prunable_sets:
+                cursor.execute(
+                    "DELETE FROM lesson_sets WHERE id = %s",
+                    (row["id"],),
+                )
             for row in prunable_likes:
                 cursor.execute(
                     "DELETE FROM lesson_likes WHERE root_lesson_id = %s AND owner_id = %s",
@@ -250,7 +369,12 @@ def main() -> None:
           + f"; tags: {len(tag_inserts)} inserted, {len(tag_updates)} updated, "
           f"{len(prunable_tags) if args.prune else 0} deleted"
           + f"; likes: {len(like_inserts)} inserted, {len(like_updates)} updated, "
-          f"{len(prunable_likes) if args.prune else 0} deleted")
+          f"{len(prunable_likes) if args.prune else 0} deleted"
+          + f"; lesson sets: {len(set_inserts)} inserted, {len(set_updates)} updated, "
+          f"{len(prunable_sets) if args.prune else 0} deleted"
+          + f"; lesson set items: {len(set_item_inserts)} inserted, "
+          f"{len(set_item_updates)} updated, "
+          f"{len(prunable_set_items) if args.prune else 0} deleted")
 
 
 if __name__ == "__main__":

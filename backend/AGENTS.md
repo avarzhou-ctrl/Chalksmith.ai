@@ -39,6 +39,7 @@ backend/
 │   │   ├── generations.py       # POST /v2/generations SSE endpoint
 │   │   ├── health.py            # Health check
 │   │   ├── lessons.py           # Lesson CRUD, versions, and access URLs
+│   │   ├── lesson_sets.py       # Private ordered lesson-set CRUD and membership
 │   │   ├── profiles.py          # Private profile editing and public profile reads
 │   │   ├── local_storage.py     # Local-only artifact route, mounted conditionally
 │   │   └── schemas.py           # API Pydantic models, not ORM models
@@ -49,7 +50,8 @@ backend/
 │   ├── db/
 │   │   ├── folders.py           # Owner-scoped folder queries and leaf deletion
 │   │   ├── lessons.py           # Owner-scoped lesson queries and mutations
-│   │   ├── models.py            # Lesson, tag, lesson-folder, and profile SQLModel tables
+│   │   ├── models.py            # Lesson, set, tag, folder, like, and profile SQLModel tables
+│   │   ├── lesson_sets.py       # Owner-scoped set queries, ordering, and cleanup
 │   │   └── session.py           # Engine, sessions, schema creation, additive migration
 │   ├── integrations/
 │   │   ├── auth.py              # Clerk JWT verification and AuthUser
@@ -177,6 +179,11 @@ bounded form, but must not appear in public API schemas.
   roots whose selected final revision is ready and currently published.
 - `lesson_likes` — one row per Clerk owner and lesson root. Counts are public only while the root
   is published; likes survive final-version changes and are deleted with the lesson lineage.
+- `lesson_sets` / `lesson_set_items` — private, owner-scoped teaching sequences. Membership points
+  at `root_lesson_id`, so a set automatically resolves the currently selected final revision.
+  Positions are dense, unique within a set, and resequenced transactionally after removals. A
+  lesson can belong to multiple sets; deleting a set never deletes lessons, while deleting a
+  lesson removes its memberships before the lesson lineage is committed away.
 
 Consequences to respect:
 
@@ -189,7 +196,8 @@ Consequences to respect:
   uniqueness constraint is the final defense against duplicates.
 - Rename (`PATCH`) rewrites `topic` on **all** versions of the root.
 - Delete marks every version `deleting`, removes the source prefix and object from GCS, and only
-  then deletes the rows — a ready row must never point at a missing file.
+  then removes set memberships and deletes the rows — a ready row must never point at a missing
+  file.
 
 ## Non-negotiable invariants
 

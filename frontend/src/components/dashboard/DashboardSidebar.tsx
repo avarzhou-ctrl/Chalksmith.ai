@@ -1,10 +1,13 @@
 'use client';
 
 import {
+  ChevronDown,
+  ChevronRight,
   Folder,
   FolderOpen,
   FolderPlus,
   Globe2,
+  LibraryBig,
   PanelLeft,
   PencilLine,
   Plus,
@@ -14,11 +17,18 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { type DragEvent, FormEvent, useState } from 'react';
 
 import { useLessonFolders } from '@/components/dashboard/LessonFoldersProvider';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import { moveLesson } from '@/lib/api/lessons';
+import { useApi } from '@/lib/hooks/useApi';
+import { useLessonSets } from '@/lib/hooks/useLessonSets';
+import {
+  dispatchLessonMoved,
+  getLessonDragData,
+} from '@/lib/lesson-drag';
 import type { LessonFolder } from '@/lib/types/api';
 
 interface DashboardSidebarProps {
@@ -41,6 +51,12 @@ interface FolderBranchProps {
   onCreate: (parentId: string) => void;
   onRename: (folder: LessonFolder) => void;
   onDelete: (folder: LessonFolder) => void;
+  collapsedFolderIds: Set<string>;
+  onToggle: (folderId: string) => void;
+  activeDropTarget: string | null;
+  onDragEnter: (event: DragEvent<HTMLElement>, target: string, effect: 'copy' | 'move') => void;
+  onDragLeave: (event: DragEvent<HTMLElement>, target: string) => void;
+  onDrop: (event: DragEvent<HTMLElement>, folderId: string) => void;
 }
 
 function FolderBranch({
@@ -51,6 +67,12 @@ function FolderBranch({
   onCreate,
   onRename,
   onDelete,
+  collapsedFolderIds,
+  onToggle,
+  activeDropTarget,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
 }: FolderBranchProps) {
   const children = folders
     .filter((folder) => folder.parent_id === parentId)
@@ -59,17 +81,39 @@ function FolderBranch({
   if (!children.length) return null;
 
   return (
-    <ul className={parentId ? 'ml-4 border-l border-border pl-2' : 'mt-1'}>
+    <ul className="ml-4 mt-1 border-l border-border pl-2">
       {children.map((folder) => {
         const hasChildren = folders.some((candidate) => candidate.parent_id === folder.id);
         const isSelected = selectedFolderId === folder.id;
+        const isCollapsed = collapsedFolderIds.has(folder.id);
+        const dropTarget = `folder:${folder.id}`;
         return (
           <li key={folder.id}>
             <section
-              className={`group flex min-h-9 items-center rounded-md transition-colors ${
-                isSelected ? 'bg-accent text-primary-text' : 'text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
+              onDragEnter={(event) => onDragEnter(event, dropTarget, 'move')}
+              onDragOver={(event) => onDragEnter(event, dropTarget, 'move')}
+              onDragLeave={(event) => onDragLeave(event, dropTarget)}
+              onDrop={(event) => onDrop(event, folder.id)}
+              className={`group flex min-h-9 items-center rounded-md border transition-colors ${
+                activeDropTarget === dropTarget
+                  ? 'border-accent bg-accent/20 text-primary-text'
+                  : isSelected
+                    ? 'border-transparent bg-surface text-primary-text'
+                    : 'border-transparent text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
               }`}
             >
+              {hasChildren ? (
+                <button
+                  type="button"
+                  onClick={() => onToggle(folder.id)}
+                  className="ml-1 rounded p-1 hover:bg-stone-950/30"
+                  title={isCollapsed ? `Expand ${folder.name}` : `Collapse ${folder.name}`}
+                  aria-label={isCollapsed ? `Expand ${folder.name}` : `Collapse ${folder.name}`}
+                  aria-expanded={!isCollapsed}
+                >
+                  {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                </button>
+              ) : <span className="ml-1 size-6" />}
               <button
                 type="button"
                 onClick={() => onSelect(folder.id)}
@@ -97,15 +141,23 @@ function FolderBranch({
                 </button>
               </span>
             </section>
-            <FolderBranch
-              folders={folders}
-              parentId={folder.id}
-              selectedFolderId={selectedFolderId}
-              onSelect={onSelect}
-              onCreate={onCreate}
-              onRename={onRename}
-              onDelete={onDelete}
-            />
+            {!isCollapsed && (
+              <FolderBranch
+                folders={folders}
+                parentId={folder.id}
+                selectedFolderId={selectedFolderId}
+                onSelect={onSelect}
+                onCreate={onCreate}
+                onRename={onRename}
+                onDelete={onDelete}
+                collapsedFolderIds={collapsedFolderIds}
+                onToggle={onToggle}
+                activeDropTarget={activeDropTarget}
+                onDragEnter={onDragEnter}
+                onDragLeave={onDragLeave}
+                onDrop={onDrop}
+              />
+            )}
           </li>
         );
       })}
@@ -114,6 +166,7 @@ function FolderBranch({
 }
 
 export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSidebarProps) {
+  const api = useApi();
   const pathname = usePathname();
   const router = useRouter();
   const {
@@ -126,12 +179,25 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
     renameFolder,
     deleteFolder,
   } = useLessonFolders();
+  const {
+    lessonSets,
+    isLoading: areLessonSetsLoading,
+    error: lessonSetsError,
+    addLessonToSet,
+  } = useLessonSets();
   const [editor, setEditor] = useState<FolderEditorState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LessonFolder | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [areFoldersExpanded, setAreFoldersExpanded] = useState(true);
+  const [areLessonSetsExpanded, setAreLessonSetsExpanded] = useState(true);
+  const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(new Set());
+  const [activeDropTarget, setActiveDropTarget] = useState<string | null>(null);
+  const [dropMessage, setDropMessage] = useState<string | null>(null);
+  const [dropError, setDropError] = useState<string | null>(null);
   const isLessonsPath = pathname === '/dashboard' || pathname === '/home';
   const isPublishedPath = pathname === '/dashboard/published';
+  const isLessonSetsIndexPath = pathname === '/dashboard/sets';
 
   const dashboardHref = (folderId: string | null) => (
     folderId ? `/dashboard?folder=${encodeURIComponent(folderId)}` : '/dashboard'
@@ -188,6 +254,70 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
     }
   };
 
+  const toggleFolder = (folderId: string) => {
+    setCollapsedFolderIds((current) => {
+      const next = new Set(current);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  };
+
+  const enterDropTarget = (
+    event: DragEvent<HTMLElement>,
+    target: string,
+    effect: 'copy' | 'move',
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = effect;
+    setActiveDropTarget(target);
+  };
+
+  const leaveDropTarget = (event: DragEvent<HTMLElement>, target: string) => {
+    const nextTarget = event.relatedTarget as Node | null;
+    if (nextTarget && event.currentTarget.contains(nextTarget)) return;
+    if (activeDropTarget === target) setActiveDropTarget(null);
+  };
+
+  const dropIntoFolder = async (event: DragEvent<HTMLElement>, folderId: string | null) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const payload = getLessonDragData(event.dataTransfer);
+    setActiveDropTarget(null);
+    if (!payload) return;
+    try {
+      setDropError(null);
+      setDropMessage(`Moving ${payload.title}…`);
+      await moveLesson(api, payload.lessonId, folderId);
+      dispatchLessonMoved({ lessonId: payload.lessonId, folderId });
+      const folderName = folderId
+        ? folders.find((folder) => folder.id === folderId)?.name ?? 'folder'
+        : 'My Lessons';
+      setDropMessage(`Moved ${payload.title} to ${folderName}.`);
+    } catch (caught) {
+      setDropMessage(null);
+      setDropError(caught instanceof Error ? caught.message : 'Failed to move lesson.');
+    }
+  };
+
+  const dropIntoLessonSet = async (event: DragEvent<HTMLElement>, lessonSetId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const payload = getLessonDragData(event.dataTransfer);
+    setActiveDropTarget(null);
+    if (!payload) return;
+    try {
+      setDropError(null);
+      setDropMessage(`Adding ${payload.title}…`);
+      const updated = await addLessonToSet(lessonSetId, payload.lessonId);
+      setDropMessage(`Added ${payload.title} to ${updated.title}.`);
+    } catch (caught) {
+      setDropMessage(null);
+      setDropError(caught instanceof Error ? caught.message : 'Failed to add lesson to set.');
+    }
+  };
+
   return (
     <section className="relative flex h-full w-full flex-col bg-secondary-bg px-4 pb-2 pt-4">
       <header className="mb-3 flex h-10 items-center justify-between">
@@ -213,8 +343,8 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
       <nav className={`flex min-h-0 flex-1 flex-col gap-2 ${isCollapsed ? 'items-center' : ''}`}>
         <Link
           href="/dashboard/search"
-          className={`group flex w-full items-center rounded-lg transition-colors ${
-            pathname === '/dashboard/search' ? 'bg-surface text-primary-text' : 'text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
+          className={`group flex w-full items-center rounded-lg border transition-colors ${
+            pathname === '/dashboard/search' ? 'border-transparent bg-surface text-primary-text' : 'border-transparent text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
           } ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}
           title={isCollapsed ? 'Search' : undefined}
         >
@@ -222,31 +352,45 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
           {!isCollapsed && <span className="text-sm font-medium">Search</span>}
         </Link>
 
-        <Link
-          href="/dashboard/published"
-          className={`group flex w-full items-center rounded-lg transition-colors ${
-            isPublishedPath ? 'bg-surface text-primary-text' : 'text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
-          } ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}
-          title={isCollapsed ? 'Published Lessons' : undefined}
-        >
-          <Globe2 size={20} className={isCollapsed ? '' : 'mr-3'} />
-          {!isCollapsed && <span className="text-sm font-medium">Published Lessons</span>}
-        </Link>
-
+        {!isCollapsed && (
+          <p className="px-3 pt-3 text-xs font-semibold uppercase tracking-wider text-secondary-text/70">My Content</p>
+        )}
         <section className="min-h-0 w-full overflow-y-auto">
-          <span className={`group flex w-full items-center rounded-lg transition-colors ${
-            isLessonsPath && selectedFolderId === null
-              ? 'bg-surface text-primary-text'
-              : 'text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
+          <span
+            onDragEnter={(event) => {
+              setAreFoldersExpanded(true);
+              enterDropTarget(event, 'folder:root', 'move');
+            }}
+            onDragOver={(event) => enterDropTarget(event, 'folder:root', 'move')}
+            onDragLeave={(event) => leaveDropTarget(event, 'folder:root')}
+            onDrop={(event) => void dropIntoFolder(event, null)}
+            className={`group flex w-full items-center rounded-lg border transition-colors ${
+              activeDropTarget === 'folder:root'
+                ? 'border-accent bg-accent/20 text-primary-text'
+                : isLessonsPath && selectedFolderId === null
+                  ? 'border-transparent bg-surface text-primary-text'
+                  : 'border-transparent text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
           }`}>
+            {!isCollapsed && (
+              <button
+                type="button"
+                onClick={() => setAreFoldersExpanded((current) => !current)}
+                className="ml-1 rounded p-1.5 text-current hover:bg-primary-text/10"
+                title={areFoldersExpanded ? 'Collapse folders' : 'Expand folders'}
+                aria-label={areFoldersExpanded ? 'Collapse folders' : 'Expand folders'}
+                aria-expanded={areFoldersExpanded}
+              >
+                {areFoldersExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => selectLessons(null)}
-              className={`flex min-w-0 flex-1 items-center rounded-lg ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}
-              title={isCollapsed ? 'Lessons' : undefined}
+              className={`flex min-w-0 flex-1 items-center rounded-lg ${isCollapsed ? 'justify-center p-3' : 'py-3 pr-3'}`}
+              title={isCollapsed ? 'My Lessons' : undefined}
             >
               {isLessonsPath && selectedFolderId === null ? <FolderOpen size={20} /> : <Folder size={20} />}
-              {!isCollapsed && <span className="ml-3 truncate text-sm font-medium">Lessons</span>}
+              {!isCollapsed && <span className="ml-3 truncate text-sm font-medium">My Lessons</span>}
             </button>
             {!isCollapsed && (
               <button type="button" onClick={() => openCreate(null)} className="mr-2 rounded-md p-1.5 text-current hover:bg-primary-text/10" title="Add folder">
@@ -255,7 +399,7 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
             )}
           </span>
 
-          {!isCollapsed && (
+          {!isCollapsed && areFoldersExpanded && (
             <>
               {isLoading && <p className="px-3 py-2 text-xs text-secondary-text">Loading folders...</p>}
               {foldersError && <p className="px-3 py-2 text-xs text-red-300">{foldersError}</p>}
@@ -270,10 +414,124 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
                   setActionError(null);
                   setDeleteTarget(folder);
                 }}
+                collapsedFolderIds={collapsedFolderIds}
+                onToggle={toggleFolder}
+                activeDropTarget={activeDropTarget}
+                onDragEnter={enterDropTarget}
+                onDragLeave={leaveDropTarget}
+                onDrop={(event, folderId) => void dropIntoFolder(event, folderId)}
               />
             </>
           )}
+
+          <section
+            onDragEnter={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setAreLessonSetsExpanded(true);
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setDropMessage(null);
+              setDropError('Drop the lesson on a named lesson set below.');
+            }}
+            className={`mt-2 flex w-full items-center rounded-lg border transition-colors ${
+            isLessonSetsIndexPath
+              ? 'border-transparent bg-surface text-primary-text'
+              : 'border-transparent text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
+          }`}>
+            {!isCollapsed && (
+              <button
+                type="button"
+                onClick={() => setAreLessonSetsExpanded((current) => !current)}
+                className="ml-1 rounded p-1.5 text-current hover:bg-primary-text/10"
+                title={areLessonSetsExpanded ? 'Collapse lesson sets' : 'Expand lesson sets'}
+                aria-label={areLessonSetsExpanded ? 'Collapse lesson sets' : 'Expand lesson sets'}
+                aria-expanded={areLessonSetsExpanded}
+              >
+                {areLessonSetsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+            )}
+            <Link
+              href="/dashboard/sets"
+              className={`flex min-w-0 flex-1 items-center rounded-lg ${isCollapsed ? 'justify-center p-3' : 'py-3 pr-3'}`}
+              title={isCollapsed ? 'Lesson Sets' : undefined}
+            >
+              <LibraryBig size={20} className={isCollapsed ? '' : 'mr-3'} />
+              {!isCollapsed && <span className="truncate text-sm font-medium">Lesson Sets</span>}
+            </Link>
+          </section>
+
+          {!isCollapsed && areLessonSetsExpanded && (
+            <ul className="ml-4 mt-1 space-y-1 border-l border-border pl-2">
+              {areLessonSetsLoading && <li className="px-3 py-2 text-xs text-secondary-text">Loading lesson sets...</li>}
+              {lessonSetsError && <li className="px-3 py-2 text-xs text-red-300">{lessonSetsError}</li>}
+              {!areLessonSetsLoading && lessonSets.length === 0 && (
+                <li className="px-3 py-2 text-xs text-secondary-text">No lesson sets yet</li>
+              )}
+              {lessonSets.map((lessonSet) => {
+                const target = `set:${lessonSet.id}`;
+                const isActive = pathname === `/dashboard/sets/${lessonSet.id}`;
+                return (
+                  <li key={lessonSet.id}>
+                    <section
+                      onDragEnter={(event) => enterDropTarget(event, target, 'copy')}
+                      onDragOver={(event) => enterDropTarget(event, target, 'copy')}
+                      onDragLeave={(event) => leaveDropTarget(event, target)}
+                      onDrop={(event) => void dropIntoLessonSet(event, lessonSet.id)}
+                      className={`flex min-h-9 items-center rounded-md border text-sm transition-colors ${
+                        activeDropTarget === target
+                          ? 'border-accent bg-accent/20 text-primary-text'
+                          : isActive
+                            ? 'border-transparent bg-surface text-primary-text'
+                            : 'border-transparent text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
+                      }`}
+                    >
+                      <span className="ml-1 size-6 shrink-0" aria-hidden="true" />
+                      <Link
+                        href={`/dashboard/sets/${lessonSet.id}`}
+                        className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2"
+                        title={`Open ${lessonSet.title}; drop a lesson to add it`}
+                      >
+                        <LibraryBig size={15} className="shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">{lessonSet.title}</span>
+                        <span className="text-xs text-secondary-text">{lessonSet.lesson_count}</span>
+                      </Link>
+                    </section>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {!isCollapsed && (dropMessage || dropError) && (
+            <p
+              role="status"
+              className={`mx-2 mt-2 rounded-md px-2 py-2 text-xs ${dropError ? 'bg-red-950/40 text-red-300' : 'bg-emerald-950/40 text-emerald-300'}`}
+            >
+              {dropError ?? dropMessage}
+            </p>
+          )}
         </section>
+
+        {!isCollapsed && (
+          <p className="px-3 pt-3 text-xs font-semibold uppercase tracking-wider text-secondary-text/70">Sharing</p>
+        )}
+        <Link
+          href="/dashboard/published"
+          className={`group flex w-full items-center rounded-lg border transition-colors ${
+            isPublishedPath ? 'border-transparent bg-surface text-primary-text' : 'border-transparent text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
+          } ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}
+          title={isCollapsed ? 'Published Lessons' : undefined}
+        >
+          <Globe2 size={20} className={isCollapsed ? '' : 'mr-3'} />
+          {!isCollapsed && <span className="text-sm font-medium">Published Lessons</span>}
+        </Link>
       </nav>
 
       <Modal isOpen={editor !== null} onClose={() => setEditor(null)} title={editor?.mode === 'rename' ? 'Rename folder' : 'Create folder'}>

@@ -23,7 +23,13 @@ from backend.app.db.lessons import (
     set_lesson_publication,
 )
 from backend.app.db.profiles import ensure_user_profile
-from backend.app.db.models import LessonFolder, LessonLike, LessonTag
+from backend.app.db.models import (
+    LessonFolder,
+    LessonLike,
+    LessonSet,
+    LessonSetItem,
+    LessonTag,
+)
 from backend.app.db.session import get_session
 from backend.app.integrations.auth import AuthUser, get_current_user
 from backend.app.integrations.llm.base import LLMResult, LLMSource, LLMStreamChunk
@@ -1208,6 +1214,179 @@ class V2ApiTests(unittest.TestCase):
         )
         self.assertEqual(self.client.patch(f"/v2/folders/{other_folder_id}", json={"name": "No"}).status_code, 404)
         self.assertEqual(self.client.delete(f"/v2/folders/{other_folder_id}").status_code, 404)
+
+    def test_lesson_set_crud_membership_and_order(self) -> None:
+        first = self.client.post(
+            "/v2/generations",
+            data={"topic": "Equivalent fractions", "format": "interactive"},
+        )
+        second = self.client.post(
+            "/v2/generations",
+            data={"topic": "Comparing fractions", "format": "interactive"},
+        )
+        first_id = _completed_lesson_id(first.text)
+        second_id = _completed_lesson_id(second.text)
+
+        created = self.client.post(
+            "/v2/lesson-sets",
+            json={"title": " Fractions Unit ", "description": " A teaching sequence. "},
+        )
+        self.assertEqual(created.status_code, 201)
+        lesson_set_id = created.json()["id"]
+        self.assertEqual(created.json()["title"], "Fractions Unit")
+        self.assertEqual(created.json()["description"], "A teaching sequence.")
+
+        first_add = self.client.post(
+            f"/v2/lesson-sets/{lesson_set_id}/lessons",
+            json={"lesson_id": first_id},
+        )
+        second_add = self.client.post(
+            f"/v2/lesson-sets/{lesson_set_id}/lessons",
+            json={"lesson_id": second_id},
+        )
+        self.assertEqual(first_add.status_code, 201)
+        self.assertEqual(second_add.status_code, 201)
+        self.assertEqual(
+            [lesson["topic"] for lesson in second_add.json()["lessons"]],
+            ["Equivalent fractions", "Comparing fractions"],
+        )
+        duplicate = self.client.post(
+            f"/v2/lesson-sets/{lesson_set_id}/lessons",
+            json={"lesson_id": first_id},
+        )
+        self.assertEqual(duplicate.status_code, 409)
+        self.assertEqual(duplicate.json()["error"]["code"], "lesson_already_in_set")
+
+        roots = [lesson["root_lesson_id"] for lesson in second_add.json()["lessons"]]
+        reordered = self.client.put(
+            f"/v2/lesson-sets/{lesson_set_id}/order",
+            json={"root_lesson_ids": list(reversed(roots))},
+        )
+        self.assertEqual(reordered.status_code, 200)
+        self.assertEqual(
+            [lesson["topic"] for lesson in reordered.json()["lessons"]],
+            ["Comparing fractions", "Equivalent fractions"],
+        )
+        invalid_order = self.client.put(
+            f"/v2/lesson-sets/{lesson_set_id}/order",
+            json={"root_lesson_ids": [roots[0]]},
+        )
+        self.assertEqual(invalid_order.status_code, 422)
+
+        updated = self.client.patch(
+            f"/v2/lesson-sets/{lesson_set_id}",
+            json={"title": "Fraction Foundations"},
+        )
+        self.assertEqual(updated.status_code, 200)
+        self.assertEqual(updated.json()["title"], "Fraction Foundations")
+        listed = self.client.get("/v2/lesson-sets")
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual(listed.json()[0]["lesson_count"], 2)
+        self.assertEqual(
+            [lesson["topic"] for lesson in listed.json()[0]["preview_lessons"]],
+            ["Comparing fractions", "Equivalent fractions"],
+        )
+        dashboard_lessons = self.client.get("/v2/lessons").json()
+        self.assertEqual(
+            {lesson["topic"]: lesson["lesson_set_count"] for lesson in dashboard_lessons},
+            {"Equivalent fractions": 1, "Comparing fractions": 1},
+        )
+
+        removed = self.client.delete(
+            f"/v2/lesson-sets/{lesson_set_id}/lessons/{roots[1]}"
+        )
+        self.assertEqual(removed.status_code, 200)
+        self.assertEqual(len(removed.json()["lessons"]), 1)
+        self.assertEqual(removed.json()["lessons"][0]["position"], 0)
+
+        self.assertEqual(self.client.delete(f"/v2/lesson-sets/{lesson_set_id}").status_code, 204)
+        self.assertEqual(self.client.get("/v2/lesson-sets").json(), [])
+        self.assertEqual(self.client.get(f"/v2/lessons/{first_id}").status_code, 200)
+
+    def test_lesson_sets_follow_final_revisions_and_clean_up_deleted_lessons(self) -> None:
+        with Session(self.app.state.engine) as session:
+            root = create_lesson(
+                session,
+                owner_id="teacher-a",
+                topic="Revision sequence",
+                lesson_format="interactive",
+            )
+            root.status = "ready"
+            root.object_key = f"lessons/teacher-a/{root.id}/lesson.html"
+            save_lesson(session, root)
+            revision = create_lesson(
+                session,
+                owner_id="teacher-a",
+                topic="Revision sequence",
+                lesson_format="interactive",
+                root_lesson_id=root.id,
+                parent_lesson_id=root.id,
+                version_number=2,
+            )
+            revision.status = "ready"
+            revision.object_key = f"lessons/teacher-a/{revision.id}/lesson.html"
+            save_lesson(session, revision)
+            root_id = str(root.id)
+            revision_id = str(revision.id)
+
+        lesson_set = self.client.post(
+            "/v2/lesson-sets",
+            json={"title": "Revision Set"},
+        ).json()
+        lesson_set_id = lesson_set["id"]
+        added = self.client.post(
+            f"/v2/lesson-sets/{lesson_set_id}/lessons",
+            json={"lesson_id": revision_id},
+        )
+        self.assertEqual(added.status_code, 201)
+        self.assertEqual(added.json()["lessons"][0]["id"], root_id)
+
+        self.assertEqual(self.client.put(f"/v2/lessons/{revision_id}/final").status_code, 200)
+        detail = self.client.get(f"/v2/lesson-sets/{lesson_set_id}")
+        self.assertEqual(detail.json()["lessons"][0]["id"], revision_id)
+
+        self.assertEqual(self.client.delete(f"/v2/lessons/{revision_id}").status_code, 204)
+        detail = self.client.get(f"/v2/lesson-sets/{lesson_set_id}")
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["lessons"], [])
+        with Session(self.app.state.engine) as session:
+            self.assertEqual(session.exec(select(LessonSetItem)).all(), [])
+
+    def test_lesson_set_operations_are_tenant_isolated(self) -> None:
+        with Session(self.app.state.engine) as session:
+            other_set = LessonSet(owner_id="teacher-b", title="Private set")
+            other_lesson = create_lesson(
+                session,
+                owner_id="teacher-b",
+                topic="Private lesson",
+                lesson_format="slides",
+            )
+            other_lesson.status = "ready"
+            other_lesson.object_key = f"lessons/teacher-b/{other_lesson.id}/lesson.html"
+            save_lesson(session, other_lesson)
+            session.add(other_set)
+            session.commit()
+            session.refresh(other_set)
+            other_set_id = str(other_set.id)
+            other_lesson_id = str(other_lesson.id)
+
+        mine = self.client.post("/v2/lesson-sets", json={"title": "Mine"}).json()
+        self.assertEqual(self.client.get(f"/v2/lesson-sets/{other_set_id}").status_code, 404)
+        self.assertEqual(
+            self.client.patch(
+                f"/v2/lesson-sets/{other_set_id}",
+                json={"title": "No access"},
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.post(
+                f"/v2/lesson-sets/{mine['id']}/lessons",
+                json={"lesson_id": other_lesson_id},
+            ).status_code,
+            404,
+        )
+        self.assertEqual(self.client.delete(f"/v2/lesson-sets/{other_set_id}").status_code, 404)
 
     def test_missing_identity_token_is_rejected(self) -> None:
         self.app.dependency_overrides.pop(get_current_user)

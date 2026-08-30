@@ -55,12 +55,41 @@ export interface LessonVersion {
 export type LessonListItem = Pick<
   Lesson,
   'id' | 'root_lesson_id' | 'folder_id' | 'topic' | 'format' | 'status' | 'summary' | 'is_published' | 'tags' | 'created_at' | 'updated_at'
-> & { version_count: number };
+> & { version_count: number; lesson_set_count: number };
 
 export interface LessonFolder {
   id: string;
   parent_id: string | null;
   name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LessonSetLessonItem {
+  id: string;
+  root_lesson_id: string;
+  topic: string;
+  format: LessonFormat;
+  status: Lesson['status'];
+  summary: string | null;
+  position: number;
+}
+
+export interface LessonSetListItem {
+  id: string;
+  title: string;
+  description: string;
+  lesson_count: number;
+  preview_lessons: LessonSetLessonItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LessonSetDetail {
+  id: string;
+  title: string;
+  description: string;
+  lessons: LessonSetLessonItem[];
   created_at: string;
   updated_at: string;
 }

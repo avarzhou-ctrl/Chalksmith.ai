@@ -61,6 +61,7 @@ export default function LessonGrid({
           tags={lesson.tags}
           createdAt={lesson.created_at}
           versionCount={lesson.version_count}
+          lessonSetCount={lesson.lesson_set_count}
           folderId={lesson.folder_id}
           folders={folders}
           onDelete={() => onDelete(lesson.id)}

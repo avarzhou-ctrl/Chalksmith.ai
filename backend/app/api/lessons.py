@@ -39,6 +39,7 @@ from backend.app.db.lessons import (
     set_lesson_publication,
 )
 from backend.app.db.folders import get_owned_folder
+from backend.app.db.lesson_sets import remove_lesson_from_all_sets
 from backend.app.db.session import get_session
 from backend.app.db.profiles import ensure_user_profile
 from backend.app.integrations.auth import AuthUser, get_current_user
@@ -105,6 +106,7 @@ def list_lessons(
             update={
                 "version_count": version_counts.get(lesson.root_lesson_id, 0),
                 "is_published": lesson.is_published,
+                "lesson_set_count": lesson.lesson_set_count,
                 "tags": tags_by_root.get(lesson.root_lesson_id, []),
             }
         )
@@ -289,6 +291,7 @@ def remove_lesson(
                 ) from error
     remove_lesson_tags(session, root)
     remove_lesson_likes(session, root)
+    remove_lesson_from_all_sets(session, root)
     for version in versions:
         session.delete(version)
     session.commit()
