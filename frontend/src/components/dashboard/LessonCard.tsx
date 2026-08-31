@@ -189,7 +189,6 @@ export default function LessonCard({
     return (
         <LessonCardLayout
             format={format}
-            showFormatIcon={false}
             title={displayTitle}
             subtitle={`Created ${formattedDate}${folderPath ? ` · ${folderPath}` : ''}`}
             description={description}

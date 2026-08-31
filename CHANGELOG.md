@@ -1,5 +1,7 @@
 # Changelog
 
+**2026-08-31**: Restored content-type icons on personal lesson cards and removed the redundant instructional card from the empty Lesson Sets view (`frontend/src/components/dashboard/LessonCard.tsx`, `frontend/src/app/dashboard/sets/page.tsx`, `CHANGELOG.md`).
+
 **2026-08-30**: Added accessible, reduced-motion-aware skeleton loading states for authentication shells, homepage media, lesson and lesson-set grids, dashboard navigation, published lesson previews, profile views, and lesson-set modals while retaining existing results during background refreshes (`frontend/src/components/ui/Skeleton.tsx`, `frontend/src/components/auth/`, `frontend/src/components/home/`, `frontend/src/components/dashboard/`, `frontend/src/components/content/`, `frontend/src/components/lesson/`, `frontend/src/components/lesson-sets/`, `frontend/src/components/profile/`, `frontend/src/components/generation/`, `frontend/src/app/`, `CHANGELOG.md`).
 
 **2026-08-30**: Added a Cloud Build upload ignore file to exclude local credentials, installed dependencies, virtual environments, generated output, databases, logs, and editor state from deployment source archives (`.gcloudignore`, `CHANGELOG.md`).
