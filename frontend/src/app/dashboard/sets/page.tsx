@@ -36,14 +36,6 @@ export default function LessonSetsPage() {
             (_, index) => <LessonSetCardSkeleton key={index} />,
           )}
           {isLoading && <SkeletonStatus>Loading lesson sets</SkeletonStatus>}
-          {!isLoading && lessonSets.length === 0 && (
-            <section className="flex min-h-64 flex-col justify-center rounded-2xl border border-border bg-secondary-bg p-6">
-              <h2 className="text-lg font-semibold text-primary-text">Plan a reusable lesson set</h2>
-              <p className="mt-3 text-sm leading-6 text-secondary-text">
-                Folders organize where lessons are stored. Lesson sets group lessons without moving or duplicating them.
-              </p>
-            </section>
-          )}
           {lessonSets.map((lessonSet) => (
             <LessonSetCard
               key={lessonSet.id}
