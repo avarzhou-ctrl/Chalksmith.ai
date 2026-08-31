@@ -411,11 +411,11 @@ class V2ApiTests(unittest.TestCase):
         self.assertNotIn('"stage": "repairing"', response.text)
         lesson_id = _completed_lesson_id(response.text)
         lesson = self.client.get(f"/v2/lessons/{lesson_id}").json()
-        self.assertEqual(lesson["spec_version"], "chalksmith.slides.v1")
+        self.assertEqual(lesson["spec_version"], "chalksmith.slides.v2")
         self.assertNotIn("template_id", lesson)
-        self.assertEqual(lesson["runtime_version"], "slides-runtime.v1.3")
-        self.assertEqual(lesson["compiler_version"], "slides-compiler.v1.3")
-        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.3"', lesson["source_code"])
+        self.assertEqual(lesson["runtime_version"], "slides-runtime.v2.0")
+        self.assertEqual(lesson["compiler_version"], "slides-compiler.v2.0")
+        self.assertIn('data-chalksmith-runtime="slides-runtime.v2.0"', lesson["source_code"])
         self.assertNotIn("data-chalksmith-template", lesson["source_code"])
         for asset_url in (
             REVEAL_CORE_STYLESHEET,
@@ -461,7 +461,7 @@ class V2ApiTests(unittest.TestCase):
 
     def test_unescaped_custom_html_compiles_without_a_model_repair(self) -> None:
         lesson = json.loads(_slides_response())
-        lesson["payload"]["slides"][2]["body"] = [
+        lesson["payload"]["slides"][2]["blocks"] = [
             {
                 "type": "custom-html",
                 "description": "Igneous to sedimentary",
@@ -485,7 +485,7 @@ class V2ApiTests(unittest.TestCase):
         self.assertIn("Igneous", compiled["source_code"])
 
     def test_unrecoverable_slides_json_uses_one_repair_and_keeps_private_output(self) -> None:
-        broken = '{"schema_version":"chalksmith.slides.v1","format":}'
+        broken = '{"schema_version":"chalksmith.slides.v2","format":}'
         llm = FakeSlidesLLM(broken, broken)
         self.app.dependency_overrides[get_llm_provider] = lambda: llm
 
@@ -532,7 +532,7 @@ class V2ApiTests(unittest.TestCase):
         self.assertIn("event: complete", edited.text)
         self.assertEqual(len(llm.prompts), 2)
         self.assertIn("<PREVIOUS_SPEC>", llm.prompts[1])
-        self.assertIn('"schema_version":"chalksmith.slides.v1"', llm.prompts[1])
+        self.assertIn('"schema_version":"chalksmith.slides.v2"', llm.prompts[1])
         self.assertNotIn("<!doctype html>", llm.prompts[1])
 
     def test_legacy_slides_remain_viewable_but_cannot_be_edited(self) -> None:

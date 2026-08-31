@@ -1,0 +1,80 @@
+.cs-layout--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cs-layout--row-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cs-layout--row-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cs-layout--column-2 {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.cs-layout--grid-2-by-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.cs-layout--grid-3-by-2 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.cs-layout--top-1-bottom-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+  align-content: start;
+}
+
+.cs-layout--top-2-bottom-1 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.cs-layout--top-1-bottom-2 > :first-child,
+.cs-layout--top-2-bottom-1 > :last-child {
+  grid-column: 1 / -1;
+}
+
+.cs-layout--top-1-bottom-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+  align-content: start;
+}
+
+.cs-layout--top-3-bottom-1 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.cs-layout--top-1-bottom-3 > :first-child,
+.cs-layout--top-3-bottom-1 > :last-child {
+  grid-column: 1 / -1;
+}
+
+.cs-layout--left-wide {
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+}
+
+.cs-layout--right-wide {
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+}
+
+.cs-layout--left-1-right-2,
+.cs-layout--left-2-right-1 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.cs-layout--left-1-right-2 > :first-child {
+  grid-row: 1 / -1;
+}
+
+.cs-layout--left-2-right-1 > :last-child {
+  grid-column: 2;
+  grid-row: 1 / -1;
+}

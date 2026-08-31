@@ -1,0 +1,166 @@
+:root {
+  --cs-bg: #0c0a09;
+  --cs-surface: #1c1917;
+  --cs-surface-raised: #292524;
+  --cs-border: #57534e;
+  --cs-text: #fafaf9;
+  --cs-muted: #a8a29e;
+  --cs-accent: #d97706;
+  --cs-accent-soft: #fbbf24;
+  --cs-success: #34d399;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--cs-bg);
+}
+
+body {
+  color: var(--cs-text);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.reveal {
+  color: var(--cs-text);
+  background: var(--cs-bg);
+}
+
+.reveal .slides {
+  text-align: left;
+}
+
+.reveal.chalksmith-reveal-fallback .slides {
+  position: static !important;
+  width: 100% !important;
+  height: 100% !important;
+  transform: none !important;
+}
+
+.reveal.chalksmith-reveal-fallback .slides > section {
+  display: none !important;
+}
+
+.reveal.chalksmith-reveal-fallback .slides > section:first-child {
+  position: relative !important;
+  display: grid !important;
+  width: 100% !important;
+  height: 100% !important;
+  transform: none !important;
+  visibility: visible !important;
+}
+
+.reveal .slides > section.cs-slide {
+  display: none !important;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+  padding: 3rem 4rem 2.25rem;
+  overflow: hidden;
+  background: var(--cs-bg);
+  text-align: left;
+}
+
+.reveal .slides > section.cs-slide.present {
+  display: grid !important;
+}
+
+.reveal .slides > section.cs-slide--soft {
+  background: linear-gradient(145deg, #1c1917, #0c0a09);
+}
+
+.reveal .slides > section.cs-slide--accent {
+  background: linear-gradient(145deg, #451a03, #1c1917 68%, #0c0a09);
+}
+
+.reveal .slides > section.cs-slide--contrast {
+  background: linear-gradient(145deg, #172554, #0c0a09 72%);
+}
+
+.reveal h2,
+.reveal h3,
+.reveal p,
+.reveal ul,
+.reveal ol,
+.reveal figure,
+.reveal table {
+  margin: 0;
+  color: inherit;
+  font-family: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* KaTeX defaults to 1.21em, which makes inline notation jump out of surrounding text. */
+.reveal .katex {
+  font-size: 1em;
+}
+
+.cs-slide__header {
+  min-width: 0;
+  padding-bottom: 1.35rem;
+}
+
+.cs-eyebrow,
+.reveal p.cs-eyebrow {
+  margin-bottom: 0.5rem;
+  color: var(--cs-accent-soft);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.reveal .cs-slide h2 {
+  max-width: 70rem;
+  color: var(--cs-text);
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.08;
+}
+
+.cs-slide__body {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  align-content: stretch;
+  gap: 1.25rem;
+}
+
+.cs-slide__footer {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 1.25rem;
+  color: var(--cs-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.reveal .progress {
+  height: 0.3rem;
+  color: var(--cs-accent);
+}
+
+.reveal .controls {
+  color: var(--cs-accent);
+}
+
+.reveal :focus-visible {
+  outline: 0.2rem solid var(--cs-accent-soft);
+  outline-offset: 0.2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal .slides section,
+  .reveal .fragment {
+    transition: none !important;
+  }
+}

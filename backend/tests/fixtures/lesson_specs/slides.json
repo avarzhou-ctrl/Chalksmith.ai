@@ -1,5 +1,5 @@
 {
-  "schema_version": "chalksmith.slides.v1",
+  "schema_version": "chalksmith.slides.v2",
   "format": "slides",
   "summary": "A structured lesson about equivalent fractions.",
   "title": "Equivalent Fractions",
@@ -9,68 +9,113 @@
   "payload": {
     "slides": [
       {
-        "kind": "learning-goal",
         "title": "Our goal",
-        "body": [
+        "label": "Learning goal",
+        "background": "default",
+        "layout": "single",
+        "blocks": [
           {
-            "type": "statement",
-            "text": "We will recognize fractions that name the same amount."
+            "type": "prose",
+            "paragraphs": ["We will recognize fractions that name the same amount."],
+            "presentation": "lead",
+            "appearance": "plain"
           }
         ]
       },
       {
-        "kind": "concept",
         "title": "Equal parts",
-        "body": [
+        "label": "Visual explanation",
+        "background": "soft",
+        "layout": "right-wide",
+        "blocks": [
           {
-            "type": "fraction-model",
-            "numerator": 1,
-            "denominator": 2,
-            "label": "One half"
+            "type": "key-point",
+            "summary": "Same amount",
+            "explanation": "One half and two fourths cover equal portions of a whole.",
+            "presentation": "accent-bar",
+            "appearance": "soft"
           },
           {
-            "type": "fraction-model",
-            "numerator": 2,
-            "denominator": 4,
-            "label": "Two fourths"
+            "type": "custom-html",
+            "description": "One half and two fourths shown as equal bars",
+            "html": "<style>.bars{display:grid;gap:1rem}.bar{display:grid;grid-template-columns:repeat(4,1fr);gap:.2rem}.part{height:4rem;border:.08rem solid var(--cs-border);background:var(--cs-surface-raised)}.fill{background:var(--cs-accent)}</style><figure class=\"bars\"><div class=\"bar\"><span class=\"part fill\"></span><span class=\"part fill\"></span><span class=\"part\"></span><span class=\"part\"></span></div><div class=\"bar\"><span class=\"part fill\"></span><span class=\"part fill\"></span><span class=\"part\"></span><span class=\"part\"></span></div><figcaption>One half equals two fourths.</figcaption></figure>"
           }
         ]
       },
       {
-        "kind": "worked-example",
         "title": "Build an equivalent fraction",
-        "body": [
+        "label": "Worked example",
+        "background": "default",
+        "layout": "right-wide",
+        "blocks": [
           {
-            "type": "steps",
+            "type": "list",
             "items": [
-              "Start with 1/2.",
-              "Multiply both numbers by 2.",
-              "The result is 2/4."
-            ]
+              {"summary": "Start with one half."},
+              {"summary": "Multiply both numbers by two."},
+              {"summary": "Read the equivalent fraction."}
+            ],
+            "presentation": "numbered",
+            "appearance": "card"
           },
           {
             "type": "equation",
-            "expression": "\\frac{1}{2} \\times \\frac{2}{2} = \\frac{2}{4}",
-            "explanation": "Multiply the numerator and denominator by the same number."
+            "items": [
+              {
+                "latex": "\\frac{1}{2} \\times \\frac{2}{2} = \\frac{2}{4}",
+                "explanation": "Multiply the numerator and denominator by the same number."
+              }
+            ],
+            "appearance": "card"
           }
         ]
       },
       {
-        "kind": "comprehension-check",
-        "title": "Your turn",
-        "question": "Which fraction is equivalent to 3/4?",
-        "choices": ["4/5", "6/8", "6/7"],
-        "answer_index": 1,
-        "explanation": "Multiplying both numbers by 2 gives 6/8."
+        "title": "Equivalent fraction pairs",
+        "label": "Check understanding",
+        "background": "contrast",
+        "layout": "single",
+        "blocks": [
+          {
+            "type": "table",
+            "columns": ["Starting fraction", "Equivalent fraction", "Multiplier"],
+            "rows": [
+              ["1/2", "2/4", "×2"],
+              ["2/3", "4/6", "×2"],
+              ["3/4", "6/8", "×2"]
+            ],
+            "appearance": "card"
+          }
+        ]
       },
       {
-        "kind": "recap",
         "title": "Remember",
-        "body": [
+        "label": "Recap",
+        "background": "accent",
+        "layout": "top-1-bottom-2",
+        "blocks": [
           {
-            "type": "callout",
-            "label": "Key idea",
-            "text": "Multiply or divide the numerator and denominator by the same number."
+            "type": "key-point",
+            "summary": "The key rule",
+            "explanation": "Multiply or divide the numerator and denominator by the same nonzero number.",
+            "presentation": "callout",
+            "appearance": "accent"
+          },
+          {
+            "type": "key-point",
+            "summary": "Numerator",
+            "explanation": "Apply the operation to the top number.",
+            "presentation": "tagged",
+            "badge": "Top",
+            "appearance": "card"
+          },
+          {
+            "type": "key-point",
+            "summary": "Denominator",
+            "explanation": "Apply the same operation to the bottom number.",
+            "presentation": "tagged",
+            "badge": "Bottom",
+            "appearance": "card"
           }
         ]
       }

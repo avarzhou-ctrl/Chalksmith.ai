@@ -74,25 +74,16 @@ backend/
 │       │   ├── code.py          # Code response parsing, prompts, shared code strategy
 │       │   ├── registry.py      # Format-to-strategy selection
 │       │   ├── slides/
-│       │   │   ├── strategy.py  # Thin Slides strategy adapter
-│       │   │   ├── response.py  # Model-response extraction, recovery, validation
-│       │   │   ├── prompt.py    # Kind-and-Block JSON generation prompt
-│       │   │   ├── blocks/
-│       │   │   │   ├── base.py      # Block definition and guide contracts
-│       │   │   │   ├── content.py   # Text Block Specs, guides, renderers
-│       │   │   │   ├── data.py      # Chart/timeline Block vertical slices
-│       │   │   │   ├── diagrams.py  # Cross-subject relationship diagrams
-│       │   │   │   ├── math.py      # Numeric and mathematical visuals
-│       │   │   │   ├── physics.py   # Force and wave visuals
-│       │   │   │   ├── chemistry.py # Particle and reaction visuals
-│       │   │   │   ├── biology.py   # Type-aware biological visuals
-│       │   │   │   └── custom.py    # Custom HTML contract, policy, sanitizer, renderer
-│       │   │   ├── registry.py  # Block registry, Prompt Catalog, render dispatch
-│       │   │   ├── spec.py      # Slide and lesson-level v1 contract
-│       │   │   ├── compiler.py  # Block layout, Slide shell, Reveal document
-│       │   │   └── assets/v1/
-│       │   │       ├── core.css  # Tokens, Slide shell, shared Reveal styles
-│       │   │       └── blocks/   # Selectively embedded category CSS
+│       │   │   ├── strategy.py  # Strategy adapter, response recovery, and repair
+│       │   │   ├── prompt.py    # Slides v2 JSON contract and generation guidance
+│       │   │   ├── presentation/
+│       │   │   │   ├── __init__.py  # Block union, render dispatch, capacity helpers
+│       │   │   │   ├── content.py   # Five generic structured Blocks and renderers
+│       │   │   │   ├── custom.py    # Custom HTML contract, policy, sanitizer, renderer
+│       │   │   │   └── layouts.py   # Explicit platform-owned layout presets
+│       │   │   ├── spec.py      # Slide and lesson-level v2 contract
+│       │   │   ├── compiler.py  # Block rendering, Slide shell, Reveal document
+│       │   │   └── assets/      # Core, layout, Block, and custom HTML CSS
 │       │   ├── interactive/
 │       │   │   ├── strategy.py  # Interactive code strategy
 │       │   │   └── prompt.py    # p5.js code-generation rules
@@ -112,7 +103,7 @@ backend/
 └── tests/
     ├── fixtures/
     │   └── lesson_specs/
-    │       └── slides.json      # Representative valid Slides v1 Spec
+│       └── slides.json      # Representative valid Slides v2 Spec
     ├── test_v2_api.py           # HTTP, generation, storage, ownership tests
     └── test_v2_app.py           # Settings, providers, renderers, Specs, deadlines
 ```
@@ -140,8 +131,8 @@ Routine `__init__.py` files and generated `__pycache__/` directories are omitted
    PDF, PNG, JPEG, and WebP sources are passed directly as multimodal inputs to Vertex Gemini and
    OpenAI. Text-only providers reject them before the SSE stream opens instead of silently ignoring
    them.
-4. A format strategy parses the model output. Slides always use the strict `chalksmith.slides.v1`
-   Kind-and-Block JSON specification and deterministic block-composition compiler; Interactive and
+4. A format strategy parses the model output. Slides always use the strict `chalksmith.slides.v2`
+   generic Block and explicit-layout JSON specification and deterministic compiler; Interactive and
    Video still use `formats/code.py` parsing and the `---CODE_START---` contract. Historical Slides
    without a specification remain readable from their stored artifact but are intentionally
    read-only.
@@ -215,14 +206,15 @@ unpublished, or not-yours private records are always a 404 via `_owned_or_404()`
   platform-owned p5/KaTeX assets only when missing, plus a document-wide typesetting pass when an
   Interactive lesson needs them. Inline event attributes and local forms are allowed because the
   sandbox omits `allow-forms` and the CSP retains `form-action 'none'`.
-- Structured Slides use validated semantic Blocks by default. Their only model-authored markup is
-  the `custom-html` escape hatch: it may appear on at most five slides per lesson and passes through
+- Structured Slides use five generic validated content Blocks by default. Complex subject and
+  visual content uses the `custom-html` Block, which passes through
   the tag, attribute, CSS-property, URL, node, depth, and length allowlists colocated with its
-  contract and renderer in `slides/blocks/custom.py`. That
+  contract and renderer in `slides/presentation/custom.py`. That
   sanitizer scopes classes, ids, selectors, and local SVG references to the Block. JavaScript,
   event handlers, external resources, global CSS, Reveal configuration, and page-level positioning
-  remain forbidden. The compiler still owns the complete document, pinned Reveal/KaTeX assets,
-  CDN fallback, and all page composition.
+  remain forbidden. There is no arbitrary deck-level custom-html count limit; each instance has
+  independent sanitizer and complexity bounds. The compiler still owns the complete document,
+  pinned Reveal/KaTeX assets, CDN fallback, and every named page layout.
 - `video`: `validate_manim_code()` AST-walks the source against an import allowlist
   (`manim`, `math`, `numpy`, `random`, `itertools`, `statistics`, `fractions`, `decimal`), blocked
   builtins, dunder names, and blocked attributes, and requires a `GeneratedScene` class. The API
@@ -314,7 +306,7 @@ response carries `X-Request-Id`, which matches the `request_id` field in the str
 - `sqlite://` is in-memory and pinned to `StaticPool` by `create_database_engine`, so the whole
   test app shares one connection.
 - No network, no real GCP calls, no Manim subprocess in the suite.
-- Every Slides test pass must render and visually inspect every registered Block, not only the
+- Every Slides test pass must render and visually inspect all six v2 Block types, not only the
   Blocks changed by the current task. Testing is incomplete until all Blocks display correctly.
 - Security-relevant behavior gets a test: sandbox rejections, tenant isolation, upload limits,
   and asset pinning all already have one — follow that precedent for new rules.
@@ -333,12 +325,13 @@ response carries `X-Request-Id`, which matches the `request_id` field in the str
   wire its renderer in `api/dependencies.py`. Declarative formats also colocate their Spec, compiler,
   and versioned assets there. Code formats reuse the envelope and parser in `formats/code.py`;
   shared renderer implementations stay under `lessons/render/`.
-- A Slides Block is a vertical slice under `slides/blocks/`: keep its Pydantic model, model-facing
-  guide, validation, and platform HTML renderer in the same category module. Register it once in
-  `slides/registry.py`, add it to the explicit discriminated union in `blocks/__init__.py`, and keep
-  cross-Block arrangement and Reveal assembly in `slides/compiler.py`; do not move document-level
-  behavior or runtime CSS into a Block model. Put its styles in the matching
-  `slides/assets/v1/blocks/<category>.css` group so the compiler can embed them selectively.
+- A Slides Block is a content shape, not a subject taxonomy. Keep reusable structured content in
+  `slides/presentation/content.py`, complex visual markup policy in
+  `slides/presentation/custom.py`, and the explicit discriminated union and render dispatch in
+  `presentation/__init__.py`. Page composition belongs to the named presets in
+  `presentation/layouts.py`; Reveal assembly stays in `slides/compiler.py`, and runtime styles stay
+  in `slides/assets/`. Do not add subject-specific Blocks when sanitized `custom-html` can express
+  the visual safely.
 - Before adding or removing a Slides Block, completely read the existing Block implementations and
   Catalog guidance to determine whether the same or a similar capability already exists. If it
   does, stop and ask the user to decide whether to add a new Block or modify the existing one.

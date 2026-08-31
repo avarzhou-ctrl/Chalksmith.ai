@@ -9,7 +9,6 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from backend.app.lessons.formats.contracts import StrictSpecModel
-from backend.app.lessons.formats.slides.blocks.base import BlockDefinition, BlockGuide
 
 SCOPE_PLACEHOLDER = "__CS_SCOPE__"
 MAX_HTML_LENGTH = 6000
@@ -123,7 +122,7 @@ _CSS_CLASS_SELECTOR = re.compile(r"\.([A-Za-z][\w-]*)")
 _CSS_ID_SELECTOR = re.compile(r"#([A-Za-z][\w-]*)")
 _SELECTOR_CHARACTERS = re.compile(r"^[\w .#>+~:()\[\]\"'=^$*|-]+$")
 _LOCAL_REFERENCE = re.compile(r"url\(\s*['\"]?#([A-Za-z_][\w-]*)['\"]?\s*\)")
-_BLOCKED_VALUE = re.compile(r"url\(|expression\(|javascript:|@import|\\", re.IGNORECASE)
+_BLOCKED_DYNAMIC_VALUE = re.compile(r"url\(|expression\(|javascript:|@import", re.IGNORECASE)
 _FORBIDDEN_SELECTOR_TARGETS = ("html", "body", ":root", ".reveal", ".cs-")
 
 
@@ -134,8 +133,8 @@ def allowlist_prompt() -> str:
     )
     forbidden = ", ".join(sorted(FORBIDDEN_TAGS))
     return (
-        "Write the markup for a 16:9 slot the compiler sizes and centers; the block always "
-        "occupies the slide body alone. Only these are kept:\n"
+        "Write markup inside the fixed layout slot. The outer Block clips overflow, so keep the "
+        "complete visual within those bounds. Only these are kept:\n"
         "- Standard text, list, and table elements plus div, span, figure, and figcaption.\n"
         f"- Inline SVG for drawings: {svg_tags}.\n"
         "- One <style> element whose selectors the compiler automatically scopes to this "
@@ -144,7 +143,7 @@ def allowlist_prompt() -> str:
         "typography properties are kept; position, z-index, float, animation, filter, and "
         "url() to anything but a local #id are removed.\n"
         f"Never use: {forbidden}. Never use event handlers, href, src, or any external "
-        "resource; the artifact must render offline. Reference gradients and markers with "
+        "resource; the compiler owns runtime dependencies. Reference gradients and markers with "
         "url(#id) and the compiler rewrites the id.\n"
         "Inherit the deck theme with var(--cs-text), var(--cs-muted), var(--cs-accent), "
         "var(--cs-accent-soft), var(--cs-surface), var(--cs-surface-raised), "
@@ -318,7 +317,12 @@ def _scope_identifier(value: str) -> str:
 
 
 def _resolve_local_references(value: str) -> str:
-    if _BLOCKED_VALUE.search(_LOCAL_REFERENCE.sub("", value)):
+    without_local_references = _LOCAL_REFERENCE.sub("", value)
+    if "\\" in without_local_references:
+        raise ValueError(
+            "custom-html contains an invalid backslash escape in an attribute or CSS value"
+        )
+    if _BLOCKED_DYNAMIC_VALUE.search(without_local_references):
         raise ValueError("custom-html may not reference external or dynamic values")
     return _LOCAL_REFERENCE.sub(
         lambda match: f"url(#{_scope_identifier(match.group(1))})", value
@@ -384,9 +388,6 @@ def _clean_declarations(body: str) -> str:
         declarations.append(f"{property_name}:{_resolve_local_references(value)}")
     return ";".join(declarations)
 
-_MATH_DELIMITERS = ("$", "\\(", "\\[")
-
-
 class CustomHtmlBlock(StrictSpecModel):
     type: Literal["custom-html"]
     description: str = Field(min_length=1, max_length=120)
@@ -403,37 +404,11 @@ def custom_html_visible_length(block: CustomHtmlBlock) -> int:
     return len(visible_text(block.html))
 
 
-def custom_html_uses_math(block: CustomHtmlBlock) -> bool:
-    return any(delimiter in block.html for delimiter in _MATH_DELIMITERS)
-
-
 def render_custom_html(block: CustomHtmlBlock) -> str:
     # The scope class isolates author CSS and element ids from every other block.
     scope = f"csx-{sha1(block.html.encode('utf-8')).hexdigest()[:10]}"
     markup = block.html.replace(SCOPE_PLACEHOLDER, scope)
     return (
-        f'<figure class="cs-card cs-custom {scope}" '
+        f'<figure class="cs-block cs-surface--card cs-custom {scope}" '
         f'aria-label="{escape(block.description)}">{markup}</figure>'
     )
-
-
-CUSTOM_BLOCKS = (
-    BlockDefinition(
-        CustomHtmlBlock,
-        BlockGuide(
-            "custom-html",
-            "visual",
-            "a representation that no other Block can express",
-            "author-written HTML and inline SVG inside a compiler-sized, style-scoped slot",
-            "the teaching representation is not a listed relationship, figure, or dataset; "
-            "prefer any semantic Block that fits",
-            '{"type":"custom-html","description":"Complementary DNA strands","html":'
-            '"<style>.row{display:flex;gap:.5rem;align-items:center}'
-            '.base{padding:.25rem .75rem;border-radius:.4rem;font-weight:700}'
-            '.a{background:#ef4444;color:#fff}.t{background:#22c55e;color:#000}</style>'
-            '<div class=\\"row\\"><span class=\\"base a\\">A</span>'
-            '<span class=\\"base t\\">T</span></div>"}',
-        ),
-        render_custom_html,
-    ),
-)

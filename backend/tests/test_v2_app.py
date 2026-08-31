@@ -43,26 +43,19 @@ from backend.app.lessons.formats import FormatRequest, get_lesson_format_strateg
 from backend.app.lessons.formats.contracts import ModelOutputError
 from backend.app.lessons.formats.code import build_code_generation_prompt, parse_generated_lesson
 from backend.app.lessons.formats.slides import compiler as slides_compiler
-from backend.app.lessons.formats.slides.registry import (
-    BLOCK_DEFINITIONS,
-    BLOCK_REGISTRY,
-    BLOCK_STYLE_GROUP_ORDER,
-    BLOCK_STYLE_GROUPS,
-    BLOCK_TYPES,
-)
-from backend.app.lessons.formats.slides.blocks.custom import (
+from backend.app.lessons.formats.slides.presentation.custom import (
     PROMPT_HTML_LENGTH_TARGET,
     sanitize_slide_html,
 )
-from backend.app.lessons.formats.slides.response import build_slides_repair_prompt
+from backend.app.lessons.formats.slides.presentation.layouts import LAYOUTS
+from backend.app.lessons.formats.slides.strategy import (
+    StructuredSlidesStrategy,
+    build_slides_repair_prompt,
+)
 from backend.app.lessons.formats.slides.spec import (
-    MAX_CUSTOM_HTML_BLOCKS,
-    PAIRED_EQUATION_MAX_CHARACTERS,
     SLIDE_CAPACITY,
     SlidesLessonSpec,
-    _block_text_length,
 )
-from backend.app.lessons.formats.slides.strategy import StructuredSlidesStrategy
 from backend.app.lessons.formats.video.compiler import (
     VIDEO_COMPILER_VERSION,
     VIDEO_RUNTIME_END,
@@ -1149,86 +1142,440 @@ class StructuredSlidesTests(unittest.TestCase):
 
         self.assertIsInstance(strategy, StructuredSlidesStrategy)
 
-    def test_dense_visual_can_share_a_slide_with_supporting_content(self) -> None:
+    def test_prompt_exposes_the_compact_v2_contract_without_runtime_css(self) -> None:
+        prompt = StructuredSlidesStrategy().build_prompt(
+            FormatRequest(topic="Equivalent fractions", lesson_format="slides")
+        )
+        schema = json.loads(
+            prompt.split("<JSON_SCHEMA>\n", 1)[1].split("\n</JSON_SCHEMA>", 1)[0]
+        )
+        schema_nodes: list[tuple[object, bool]] = [(schema, False)]
+        while schema_nodes:
+            node, is_properties = schema_nodes.pop()
+            if isinstance(node, dict):
+                if not is_properties:
+                    self.assertNotIn("title", node)
+                schema_nodes.extend(
+                    (child, key == "properties") for key, child in node.items()
+                )
+            elif isinstance(node, list):
+                schema_nodes.extend((child, False) for child in node)
+
+        required_fragments = (
+            '"chalksmith.slides.v2"',
+            "<BLOCK_CONTRACT>",
+            "<MATH_NOTATION>",
+            "<LAYOUT_CONTRACT>",
+            "<VISUAL_TEACHING_RULES>",
+            "<CUSTOM_HTML_RULES>",
+            "literal plain text, not Markdown",
+            "five structured Blocks before considering custom-html",
+            "deck must include at least\none custom-html visual",
+            "reconstruct its\nessential teaching relationships",
+            "wrap genuine mathematical notation in inline\nKaTeX delimiters",
+            "Standard Block typography, spacing, alignment, sizing, and overflow are renderer-owned",
+            "steps, phases, and reasoning chains use one numbered list",
+            "Never type manual number prefixes or newline-separated pseudo-lists",
+            "Write markup inside the fixed layout slot",
+            "The outer Block clips overflow",
+        )
+        for fragment in required_fragments:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, prompt)
+        for layout in LAYOUTS:
+            self.assertIn(f"- {layout}:", prompt)
+        for fragment in ('"cell-diagram"', '"force-diagram"', "--cs-bg", "Reveal.initialize({"):
+            with self.subTest(forbidden_fragment=fragment):
+                self.assertNotIn(fragment, prompt)
+        self.assertIn("title", schema["properties"])
+
+    def test_compiler_renders_a_versioned_v2_artifact(self) -> None:
+        prepared = StructuredSlidesStrategy().prepare(_slides_fixture())
+
+        self.assertEqual(prepared.spec_version, "chalksmith.slides.v2")
+        self.assertEqual(prepared.runtime_version, "slides-runtime.v2.0")
+        self.assertEqual(prepared.compiler_version, "slides-compiler.v2.0")
+        self.assertIn('data-chalksmith-runtime="slides-runtime.v2.0"', prepared.source_code)
+        self.assertIn(slides_compiler.REVEAL_SCRIPT, prepared.source_code)
+        self.assertIn(slides_compiler.KATEX_SCRIPT, prepared.source_code)
+
+    def test_every_explicit_layout_renders_without_reordering_blocks(self) -> None:
+        for layout, definition in LAYOUTS.items():
+            lesson = json.loads(_slides_fixture())
+            count = max(definition.slots)
+            lesson["payload"]["slides"][0]["layout"] = layout
+            lesson["payload"]["slides"][0]["blocks"] = [
+                {
+                    "type": "key-point",
+                    "summary": f"Point {index}",
+                    "explanation": f"Explanation {index}",
+                    "presentation": "standard",
+                    "appearance": "card",
+                }
+                for index in range(1, count + 1)
+            ]
+
+            prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+            self.assertIn(f'data-chalksmith-layout="{layout}"', prepared.source_code)
+            positions = [
+                prepared.source_code.index(f"Point {index}")
+                for index in range(1, count + 1)
+            ]
+            self.assertEqual(positions, sorted(positions))
+
+    def test_layout_css_preserves_stacked_and_three_column_sizing(self) -> None:
+        prepared = StructuredSlidesStrategy().prepare(_slides_fixture())
+
+        self.assertIn(
+            ".cs-layout--top-1-bottom-2 {\n"
+            "  grid-template-columns: repeat(2, minmax(0, 1fr));\n"
+            "  grid-template-rows: auto auto;\n"
+            "  align-content: start;\n"
+            "}",
+            prepared.source_code,
+        )
+        self.assertIn(
+            ".cs-layout--top-2-bottom-1 {\n"
+            "  grid-template-columns: repeat(2, minmax(0, 1fr));\n"
+            "  grid-template-rows: minmax(0, 1fr) auto;\n"
+            "}",
+            prepared.source_code,
+        )
+        self.assertIn(
+            ".cs-layout--top-1-bottom-3 {\n"
+            "  grid-template-columns: repeat(3, minmax(0, 1fr));\n"
+            "  grid-template-rows: auto auto;\n"
+            "  align-content: start;\n"
+            "}",
+            prepared.source_code,
+        )
+        self.assertIn(
+            ".cs-layout--top-3-bottom-1 {\n"
+            "  grid-template-columns: repeat(3, minmax(0, 1fr));\n"
+            "  grid-template-rows: minmax(0, 1fr) auto;\n"
+            "}",
+            prepared.source_code,
+        )
+        self.assertIn(
+            ".cs-layout--row-3 {\n"
+            "  grid-template-columns: repeat(3, minmax(0, 1fr));\n"
+            "}",
+            prepared.source_code,
+        )
+        self.assertNotIn(".cs-layout--row-3 {\n  align-content: start", prepared.source_code)
+
+    def test_incompatible_layout_falls_back_locally_by_block_count(self) -> None:
         lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][1]["body"] = [
+        slide = lesson["payload"]["slides"][0]
+        slide["layout"] = "top-1-bottom-3"
+        slide["blocks"] = [
             {
-                "type": "bar-chart",
-                "items": [
-                    {"label": "Before", "value": 2},
-                    {"label": "After", "value": 6},
-                ],
-                "unit": "cm",
+                "type": "key-point",
+                "summary": "Left",
+                "explanation": "First",
             },
-            {"type": "statement", "text": "The measured length triples."},
+            {
+                "type": "key-point",
+                "summary": "Right",
+                "explanation": "Second",
+            },
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        spec = json.loads(prepared.lesson_spec)
+
+        self.assertEqual(spec["payload"]["slides"][0]["layout"], "row-2")
+        self.assertIn('data-chalksmith-layout="row-2"', prepared.source_code)
+
+    def test_unknown_layout_falls_back_locally_by_block_count(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["layout"] = "two-balanced-columns"
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        spec = json.loads(prepared.lesson_spec)
+
+        self.assertEqual(spec["payload"]["slides"][0]["layout"], "single")
+        self.assertIn('data-chalksmith-layout="single"', prepared.source_code)
+
+    def test_list_presentations_reuse_existing_visual_patterns(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        presentations = ("bullets", "numbered", "accent-rows", "timeline", "bands")
+        for slide, presentation in zip(lesson["payload"]["slides"], presentations):
+            slide["layout"] = "single"
+            slide["blocks"] = [
+                {
+                    "type": "list",
+                    "presentation": presentation,
+                    "appearance": "card",
+                    "items": [
+                        {
+                            "summary": "First",
+                            "explanation": "Explanation",
+                            "badge": "1",
+                        },
+                        {
+                            "summary": "Second",
+                            "explanation": "Explanation",
+                            "badge": "2",
+                        },
+                    ],
+                }
+            ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        for presentation in presentations:
+            self.assertIn(f"cs-list--{presentation}", prepared.source_code)
+        self.assertIn(
+            ".cs-list--numbered .cs-item__badge,\n"
+            ".cs-list--numbered .cs-item__content {\n"
+            "  grid-column: 2;\n"
+            "}",
+            prepared.source_code,
+        )
+
+    def test_key_point_presentations_are_content_agnostic(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        presentations = ("standard", "accent-bar", "callout", "spotlight", "tagged")
+        for slide, presentation in zip(lesson["payload"]["slides"], presentations):
+            slide["layout"] = "single"
+            slide["blocks"] = [
+                {
+                    "type": "key-point",
+                    "summary": "Summary",
+                    "explanation": "Explanation",
+                    "badge": "Label",
+                    "presentation": presentation,
+                    "appearance": "soft",
+                }
+            ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        for presentation in presentations:
+            self.assertIn(f"cs-key-point--{presentation}", prepared.source_code)
+        self.assertIn(
+            ".cs-item__badge,\n"
+            ".cs-key-point__badge {\n"
+            "  align-self: start;",
+            prepared.source_code,
+        )
+        self.assertIn(
+            ".cs-key-point--tagged {\n"
+            "  grid-template-columns: minmax(0, 1fr);\n"
+            "}",
+            prepared.source_code,
+        )
+        self.assertIn(
+            ".cs-key-point--tagged .cs-key-point__badge {\n"
+            "  grid-column: 1;\n"
+            "}",
+            prepared.source_code,
+        )
+
+    def test_compiler_renders_all_six_block_shapes(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0] = {
+            "title": "All Blocks",
+            "layout": "grid-3-by-2",
+            "blocks": [
+                {
+                    "type": "prose",
+                    "paragraphs": ["A paragraph."],
+                    "presentation": "body",
+                    "appearance": "plain",
+                },
+                {
+                    "type": "list",
+                    "items": [{"summary": "A"}, {"summary": "B"}],
+                    "presentation": "bullets",
+                    "appearance": "card",
+                },
+                {
+                    "type": "key-point",
+                    "summary": "Key",
+                    "explanation": "Detail",
+                    "presentation": "callout",
+                    "appearance": "accent",
+                },
+                {
+                    "type": "table",
+                    "columns": ["A", "B"],
+                    "rows": [["1", "2"]],
+                    "appearance": "card",
+                },
+                {
+                    "type": "equation",
+                    "items": [{"latex": "a^2+b^2=c^2"}],
+                    "appearance": "card",
+                },
+                {
+                    "type": "custom-html",
+                    "description": "Triangle model",
+                    "html": '<svg viewBox="0 0 100 100"><polygon points="10,90 90,90 10,10"></polygon></svg>',
+                },
+            ],
+        }
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        for class_name in (
+            "cs-prose",
+            "cs-list",
+            "cs-key-point",
+            "cs-table",
+            "cs-equation",
+            "cs-custom",
+        ):
+            self.assertIn(class_name, prepared.source_code)
+        self.assertIn(
+            '<div class="cs-table__viewport"><table>',
+            prepared.source_code,
+        )
+        self.assertIn(
+            "transform: translate(-50%, -50%) scale(var(--cs-table-scale, 1));",
+            prepared.source_code,
+        )
+        self.assertIn("table-layout: auto;", prepared.source_code)
+        self.assertIn(
+            ".reveal .cs-table th,\n"
+            ".reveal .cs-table td {\n"
+            "  padding: 1.15rem 0.8rem;",
+            prepared.source_code,
+        )
+        self.assertIn("overflow-wrap: break-word;", prepared.source_code)
+        self.assertIn(
+            ".cs-table {\n"
+            "  display: grid;\n"
+            "  grid-template-rows: minmax(0, 1fr);\n"
+            "  padding: 1rem;",
+            prepared.source_code,
+        )
+        self.assertIn(
+            'script data-chalksmith-table-fit',
+            prepared.source_code,
+        )
+        self.assertIn(
+            "const heightScale = viewport.clientHeight / table.offsetHeight;",
+            prepared.source_code,
+        )
+
+    def test_list_explanation_does_not_inherit_reveal_small_math_styles(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["blocks"] = [
+            {
+                "type": "list",
+                "items": [
+                    {
+                        "summary": "First curvature",
+                        "explanation": "Use $k_1 = \\frac{1}{2}$.",
+                    },
+                    {
+                        "summary": "Second curvature",
+                        "explanation": "Use $k_2 = \\frac{1}{3}$.",
+                    },
+                ],
+                "presentation": "bands",
+            }
+        ]
+        lesson["payload"]["slides"][0]["layout"] = "single"
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertIn(
+            '<span class="cs-item__explanation">Use $k_1 = \\frac{1}{2}$.</span>',
+            prepared.source_code,
+        )
+        self.assertNotIn('<small class="cs-item__explanation">', prepared.source_code)
+        self.assertIn("data-chalksmith-katex", prepared.source_code)
+
+    def test_equation_block_renders_multiple_ordered_items(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        equation = lesson["payload"]["slides"][2]["blocks"][1]
+        equation["items"] = [
+            {"latex": "2x + 3 = 11", "explanation": "Start with the equation."},
+            {"latex": "2x = 8", "explanation": "Subtract three from both sides."},
+            {"latex": "x = 4", "explanation": "Divide both sides by two."},
         ]
 
         prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
-        self.assertIn('data-chalksmith-layout="visual-split"', prepared.source_code)
+        self.assertEqual(prepared.source_code.count('class="cs-equation__item"'), 3)
+        positions = [
+            prepared.source_code.index(latex)
+            for latex in ("2x + 3 = 11", "2x = 8", "x = 4")
+        ]
+        self.assertEqual(positions, sorted(positions))
+        for item in equation["items"]:
+            self.assertLess(
+                prepared.source_code.index(item["explanation"]),
+                prepared.source_code.index(item["latex"]),
+            )
+        self.assertIn("font-size: 1em", prepared.source_code)
+        self.assertIn("font-size: 1.4rem", prepared.source_code)
 
-    def test_prompt_exposes_a_schema_but_not_the_runtime_styles(self) -> None:
-        prompt = StructuredSlidesStrategy().build_prompt(
-            FormatRequest(topic="Equivalent fractions", lesson_format="slides")
-        )
+    def test_single_equation_shape_is_normalized_without_llm_repair(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        equation = lesson["payload"]["slides"][2]["blocks"][1]
+        item = equation.pop("items")[0]
+        equation.update(item)
 
-        self.assertIn('"chalksmith.slides.v1"', prompt)
-        self.assertIn("<OUTPUT_CONTRACT>", prompt)
-        self.assertIn("<LESSON_REQUIREMENTS>", prompt)
-        self.assertIn("<BLOCK_SELECTION>", prompt)
-        self.assertIn("<SLIDE_COMPOSITION>", prompt)
-        self.assertIn("<LAYOUT_OWNERSHIP>", prompt)
-        self.assertEqual(prompt.count("The platform owns all slide composition"), 1)
-        self.assertIn("<BLOCK_CATALOG>", prompt)
-        self.assertIn("Renders as a horizontal axis", prompt)
-        self.assertIn("energy or food pyramids", prompt)
-        self.assertIn("branching pathways", prompt)
-        self.assertIn("exclusive and shared properties", prompt)
-        self.assertIn("many-to-many directed relationships", prompt)
-        self.assertIn("ordered categories along a continuous", prompt)
-        self.assertIn("nested containment", prompt)
-        self.assertIn("forces acting on one object", prompt)
-        self.assertIn("particle-level composition", prompt)
-        self.assertIn("type-aware plant, animal, or bacterial", prompt)
-        self.assertIn("accurate right-angle markings", prompt)
-        self.assertIn("Use a semantic Catalog Block whenever one accurately expresses", prompt)
-        self.assertIn("Choose steps for vertical reasoning", prompt)
-        self.assertIn("Choose process only for short stage labels", prompt)
-        self.assertIn("orientation=vertical, preferred_width=standard", prompt)
-        self.assertIn("orientation=horizontal, preferred_width=wide", prompt)
-        self.assertIn("internally_partitioned=true", prompt)
-        self.assertIn("avoid more than two", prompt)
-        self.assertIn("consecutive text-only slides", prompt)
-        self.assertIn("The compiler draws coordinates and mathematical markings", prompt)
-        self.assertIn(
-            f"equation.expression at or below\n{PAIRED_EQUATION_MAX_CHARACTERS} source characters",
-            prompt,
-        )
-        self.assertIn("do not repeat the same formula or calculation", prompt)
-        self.assertIn("split the worked example across multiple slides", prompt)
-        self.assertNotIn('"template"', prompt)
-        self.assertNotIn("--cs-bg", prompt)
-        self.assertNotIn("Reveal.initialize({", prompt)
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        persisted = json.loads(prepared.lesson_spec)["payload"]["slides"][2]["blocks"][1]
 
-    def test_prompt_scopes_authored_markup_to_the_custom_html_block(self) -> None:
-        prompt = StructuredSlidesStrategy().build_prompt(
-            FormatRequest(topic="DNA base pairing", lesson_format="slides")
-        )
+        self.assertEqual(persisted["items"], [item])
+        self.assertNotIn("latex", persisted)
+        self.assertNotIn("explanation", persisted)
 
-        self.assertIn("Every field is plain text except the html field", prompt)
-        self.assertIn("<CUSTOM_HTML_RULES>", prompt)
-        self.assertIn("Inline SVG for drawings: circle, clipPath", prompt)
-        self.assertIn("Never use: a, animate", prompt)
-        self.assertIn(
-            f"on no more than\n{MAX_CUSTOM_HTML_BLOCKS} slides", prompt
-        )
-        # The catalog owns per-Block guidance; the planning notes must not restate it.
-        planning_notes = prompt.split("</BLOCK_CATALOG>")[1]
-        self.assertNotIn("Use venn-diagram for set overlap", planning_notes)
+    def test_custom_html_can_share_layouts_without_a_deck_count_limit(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        for index, slide in enumerate(lesson["payload"]["slides"]):
+            slide["layout"] = "row-2"
+            slide["blocks"] = [
+                {
+                    "type": "key-point",
+                    "summary": f"Visual {index}",
+                    "explanation": "Read the model.",
+                },
+                {
+                    "type": "custom-html",
+                    "description": f"Visual model {index}",
+                    "html": f'<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="{20 + index}"></circle></svg>',
+                },
+            ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+        self.assertEqual(prepared.source_code.count('aria-label="Visual model'), 5)
+        self.assertIn('data-chalksmith-layout="row-2"', prepared.source_code)
+
+    def test_custom_html_scopes_styles_and_ids(self) -> None:
+        lesson = json.loads(_custom_html_fixture())
+        raw_html = lesson["payload"]["slides"][2]["blocks"][0]["html"]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        persisted = json.loads(prepared.lesson_spec)["payload"]["slides"][2]["blocks"][0]
+
+        self.assertNotEqual(persisted["html"], raw_html)
+        self.assertIn("__CS_SCOPE__", persisted["html"])
+        self.assertRegex(prepared.source_code, r"\.csx-[0-9a-f]{10} \.csx-[0-9a-f]{10}-base")
+        self.assertRegex(prepared.source_code, r'id="csx-[0-9a-f]{10}-bond"')
+        self.assertRegex(prepared.source_code, r'url\(#csx-[0-9a-f]{10}-bond\)')
+
+    def test_custom_html_rejects_executable_and_remote_markup(self) -> None:
+        for html in (
+            "<script>alert(1)</script>",
+            '<svg><image href="https://example.com/a.png"></image></svg>',
+            '<div onclick="alert(1)">Click</div>',
+        ):
+            with self.subTest(html=html):
+                with self.assertRaises(ValueError):
+                    sanitize_slide_html(html)
 
     def test_parser_recovers_unescaped_quotes_inside_custom_html(self) -> None:
         lesson = json.loads(_custom_html_fixture())
-        lesson["payload"]["slides"][2]["body"][0]["html"] = (
+        lesson["payload"]["slides"][2]["blocks"][0]["html"] = (
             '<div class="row"><span class="base a">A</span></div>'
         )
         raw = json.dumps(lesson).replace('\\"', '"')
@@ -1240,13 +1587,27 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertIn("Complementary DNA strands", prepared.source_code)
         self.assertIn("class=", prepared.source_code)
 
-    def test_parser_escapes_every_illegal_json_string_control(self) -> None:
-        lesson = json.loads(_slides_fixture())
+    def test_parser_reports_extra_backslash_from_recovered_custom_html(self) -> None:
+        lesson = json.loads(_custom_html_fixture())
+        lesson["payload"]["slides"][2]["blocks"][0]["html"] = (
+            '<svg><rect fill="var(--cs-surface-raised)"></rect></svg>'
+        )
         encoded = json.dumps(lesson)
         raw = encoded.replace(
-            json.dumps("\\frac{1}{2} \\times \\frac{2}{2} = \\frac{2}{4}")[1:-1],
-            '\\frac{1}{2}\n\\times 2',
+            r'fill=\"var(--cs-surface-raised)\"',
+            r'fill=\"var(--cs-surface-raised)\\"',
         )
+
+        with self.assertRaises(json.JSONDecodeError):
+            json.loads(raw)
+        with self.assertRaisesRegex(ModelOutputError, "invalid backslash escape"):
+            StructuredSlidesStrategy().prepare(raw)
+
+    def test_parser_recovers_json_controls_in_equations(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        encoded = json.dumps(lesson)
+        legal = json.dumps(r"\frac{1}{2} \times \frac{2}{2} = \frac{2}{4}")[1:-1]
+        raw = encoded.replace(legal, "\\frac{1}{2}\n\\times 2")
 
         with self.assertRaises(json.JSONDecodeError):
             json.loads(raw)
@@ -1254,1179 +1615,169 @@ class StructuredSlidesTests(unittest.TestCase):
         spec = json.loads(prepared.lesson_spec)
 
         self.assertEqual(
-            spec["payload"]["slides"][2]["body"][1]["expression"],
+            spec["payload"]["slides"][2]["blocks"][1]["items"][0]["latex"],
             "\\frac{1}{2}\n\\times 2",
         )
-
-    def test_parser_recovers_an_unescaped_quote_before_prose_punctuation(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        value = 'He said "go", then left'
-        lesson["payload"]["slides"][1]["body"][0]["label"] = value
-        raw = json.dumps(lesson).replace(json.dumps(value)[1:-1], value)
-
-        with self.assertRaises(json.JSONDecodeError):
-            json.loads(raw)
-        prepared = StructuredSlidesStrategy().prepare(raw)
-        spec = json.loads(prepared.lesson_spec)
-
-        self.assertEqual(spec["payload"]["slides"][1]["body"][0]["label"], value)
 
     def test_parser_recovers_trailing_commas_and_extra_fields(self) -> None:
         lesson = json.loads(_slides_fixture())
         lesson["speaker_notes"] = "drop me"
-        lesson["payload"]["slides"][0]["layout"] = "title-only"
-        lesson["payload"]["slides"][1]["body"][0]["decorative_color"] = "amber"
-        lesson["payload"]["slides"][0]["question"] = ""
-        lesson["payload"]["slides"][0]["body"] = lesson["payload"]["slides"][0]["body"][0]
+        lesson["payload"]["slides"][0]["blocks"][0]["decorative_color"] = "amber"
+        lesson["payload"]["slides"][0]["blocks"] = lesson["payload"]["slides"][0]["blocks"][0]
         raw = json.dumps(lesson).replace("}", ",}", 1)
 
         prepared = StructuredSlidesStrategy().prepare(raw)
         spec = json.loads(prepared.lesson_spec)
 
         self.assertNotIn("speaker_notes", spec)
-        self.assertNotIn("layout", spec["payload"]["slides"][0])
-        self.assertNotIn("decorative_color", spec["payload"]["slides"][1]["body"][0])
-        self.assertIsNone(spec["payload"]["slides"][0]["question"])
-        self.assertIsInstance(spec["payload"]["slides"][0]["body"], list)
+        self.assertNotIn(
+            "decorative_color",
+            spec["payload"]["slides"][0]["blocks"][0],
+        )
+        self.assertIsInstance(spec["payload"]["slides"][0]["blocks"], list)
 
     def test_parser_does_not_repair_truncated_json_locally(self) -> None:
         with self.assertRaisesRegex(ValueError, "Invalid JSON"):
             StructuredSlidesStrategy().prepare(
-                '{"schema_version":"chalksmith.slides.v1","format":}'
+                '{"schema_version":"chalksmith.slides.v2","format":}'
             )
 
-    def test_invalid_json_can_use_the_bounded_model_repair_fallback(self) -> None:
-        self.assertTrue(
-            StructuredSlidesStrategy().can_repair(
-                ModelOutputError("Invalid JSON at line 1, column 12: Expecting ',' delimiter")
-            )
-        )
-        self.assertTrue(
-            StructuredSlidesStrategy().can_repair(
-                ModelOutputError("The model response did not contain a JSON object.")
-            )
-        )
-        self.assertTrue(
-            StructuredSlidesStrategy().can_repair(
-                ModelOutputError("Invalid Slides specification: payload.slides: Field required")
-            )
-        )
-        self.assertFalse(StructuredSlidesStrategy().can_repair(ValueError("platform error")))
-
-    def test_prompt_requires_json_escaping_inside_custom_html(self) -> None:
-        prompt = StructuredSlidesStrategy().build_prompt(
-            FormatRequest(topic="The rock cycle", lesson_format="slides")
-        )
-
-        self.assertIn("In that JSON string", prompt)
-        self.assertIn('escape every double quote as \\"', prompt)
-        self.assertIn(str(SLIDE_CAPACITY), prompt)
-        self.assertIn(f"under {PROMPT_HTML_LENGTH_TARGET} characters", prompt)
-
-    def test_repair_prompt_leaves_margin_for_overlong_custom_html(self) -> None:
+    def test_repair_prompt_preserves_custom_html_margin(self) -> None:
         prompt = build_slides_repair_prompt(
             "Original instructions",
             '{"payload":{"slides":[]}}',
             ValueError("custom-html.html: String should have at most 6000 characters"),
         )
 
-        self.assertIn(
-            f"below {PROMPT_HTML_LENGTH_TARGET} characters",
-            prompt,
-        )
+        self.assertIn(f"below {PROMPT_HTML_LENGTH_TARGET} characters", prompt)
         self.assertIn("shorten it substantially", prompt)
+        self.assertNotIn("Original instructions", prompt)
+        self.assertIn("Custom HTML rules remain authoritative", prompt)
+        self.assertIn("Never use event handlers", prompt)
+        self.assertIn("parses\nas strict JSON", prompt)
+        self.assertIn("Escape HTML attribute quotes exactly once", prompt)
+        self.assertIn("recheck the complete specification", prompt)
 
-    def test_prompt_keeps_dynamic_context_separate_from_its_instructions(self) -> None:
-        prompt = StructuredSlidesStrategy().build_prompt(
-            FormatRequest(
-                topic="Fractions",
-                lesson_format="slides",
-                sources="Teacher source",
-                previous_spec='{"title":"Previous"}',
-                edit_instruction="Add an example.",
-            )
-        )
-
-        self.assertEqual(prompt.count("use them as the factual basis"), 1)
-        self.assertEqual(prompt.count("preserve working teaching content"), 1)
-        self.assertIn("<SOURCES>Teacher source</SOURCES>", prompt)
-        self.assertIn("<EDIT_INSTRUCTION>Add an example.</EDIT_INSTRUCTION>", prompt)
-
-    def test_custom_html_scopes_author_styles_and_identifiers(self) -> None:
-        prepared = StructuredSlidesStrategy().prepare(_custom_html_fixture())
-
-        self.assertIn(
-            'data-style-groups="content,math,custom,comprehension"', prepared.source_code
-        )
-        self.assertRegex(
-            prepared.source_code, r'class="cs-card cs-custom csx-[0-9a-f]{10}"'
-        )
-        self.assertRegex(
-            prepared.source_code,
-            r"\.csx-[0-9a-f]{10} \.csx-[0-9a-f]{10}-base\{",
-        )
-        self.assertNotIn('class="progress"', prepared.source_code)
-        self.assertRegex(prepared.source_code, r'id="csx-[0-9a-f]{10}-bond"')
-        self.assertRegex(prepared.source_code, r'stroke="url\(#csx-[0-9a-f]{10}-bond\)"')
-        self.assertIn('aria-label="Complementary DNA strands"', prepared.source_code)
-        persisted = json.loads(prepared.lesson_spec)["payload"]["slides"][2]["body"][0]
-        self.assertIn("__CS_SCOPE__", persisted["html"])
-        self.assertNotIn("__CS_SCOPE__", prepared.source_code)
-
-    def test_custom_html_rejects_executable_and_remote_markup(self) -> None:
-        for markup in (
-            "<div><script>alert(1)</script></div>",
-            '<div onclick="steal()">x</div>',
-            '<a href="https://example.com">x</a>',
-            '<img src="https://example.com/x.png">',
-            "<iframe></iframe>",
-            "<style>@import url(https://example.com/x.css);</style><p>x</p>",
-            "<style>body { display: none; }</style><p>x</p>",
-            '<div style="background:url(https://example.com/x.png)">x</div>',
-        ):
-            with self.subTest(markup=markup):
-                with self.assertRaises(ValueError):
-                    sanitize_slide_html(markup)
-
-    def test_custom_html_strips_unsupported_styling_without_failing(self) -> None:
-        self.assertEqual(
-            sanitize_slide_html('<div style="position:fixed;top:0;color:red">x</div>'),
-            '<div style="color:red">x</div>',
-        )
-        self.assertEqual(
-            sanitize_slide_html('<marquee><p class="cs-card reveal keep">y</p></marquee>'),
-            '<p class="__CS_SCOPE__-keep">y</p>',
-        )
-        self.assertEqual(
-            sanitize_slide_html(
-                '<svg viewBox="0 0 4 4"><rect x="1" bogus="2"></rect></svg>'
-            ),
-            '<svg viewBox="0 0 4 4"><rect x="1"></rect></svg>',
-        )
-
-    def test_custom_html_capacity_counts_learner_visible_text(self) -> None:
-        lesson = json.loads(_custom_html_fixture())
-        block = lesson["payload"]["slides"][2]["body"][0]
-        block["html"] = f'<div style="{"color:#fff;" * 200}">{"A" * 40}</div>'
-
-        StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-        block["html"] = f"<p>{'A' * (SLIDE_CAPACITY + 1)}</p>"
-        with self.assertRaisesRegex(ValueError, "exceeds the slide capacity"):
-            StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-    def test_slide_capacity_counts_decoded_on_slide_text_only(self) -> None:
+    def test_slide_capacity_counts_visible_content(self) -> None:
         lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][2]["body"] = [
+        lesson["payload"]["slides"][0]["blocks"] = [
             {
-                "type": "custom-html",
-                "description": "A" * 120,
-                "html": "<p>Heat &amp; Pressure</p>",
+                "type": "prose",
+                "paragraphs": ["x" * 220, "y" * 220, "z" * 220],
             }
         ]
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-        spec = SlidesLessonSpec.model_validate_json(prepared.lesson_spec)
-        self.assertEqual(_block_text_length(spec.payload.slides[2].body[0]), 15)
 
-        lesson["payload"]["slides"][2]["body"] = [
-            {
-                "type": "hierarchy-tree",
-                "root": {"label": "Rocks", "detail": "Origin"},
-                "branches": [
-                    {
-                        "label": "Igneous",
-                        "children": [{"label": "Granite", "detail": "Slow cooling"}],
-                    },
-                    {
-                        "label": "Sedimentary",
-                        "children": [{"label": "Sandstone", "detail": "Cemented grains"}],
-                    },
-                ],
-            }
-        ]
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-        spec = SlidesLessonSpec.model_validate_json(prepared.lesson_spec)
-        self.assertEqual(_block_text_length(spec.payload.slides[2].body[0]), 72)
-
-    def test_deck_limits_how_many_slides_may_author_markup(self) -> None:
-        lesson = json.loads(_custom_html_fixture())
-        authored = lesson["payload"]["slides"][2]
-        lesson["payload"]["slides"] = [
-            dict(authored, title=f"Slide {index}")
-            for index in range(MAX_CUSTOM_HTML_BLOCKS + 1)
-        ]
-
-        with self.assertRaisesRegex(
-            ValueError,
-            f"at most {MAX_CUSTOM_HTML_BLOCKS} slides may use custom-html",
-        ):
+        with self.assertRaisesRegex(ModelOutputError, "slide capacity"):
             StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
-    def test_deck_allows_five_custom_html_slides(self) -> None:
-        lesson = json.loads(_custom_html_fixture())
-        authored = lesson["payload"]["slides"][2]
-        lesson["payload"]["slides"] = [
-            dict(authored, title=f"Slide {index}")
-            for index in range(MAX_CUSTOM_HTML_BLOCKS)
+    def test_schema_rejects_removed_subject_specific_blocks(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["blocks"] = [
+            {
+                "type": "cell-diagram",
+                "cell_type": "animal",
+                "cell_label": "Animal cell",
+                "features": [],
+            }
         ]
 
-        StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        with self.assertRaisesRegex(ModelOutputError, "does not match any"):
+            StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
-    def test_custom_html_namespaces_reveal_classes_and_unwraps_sections(self) -> None:
-        sanitized = sanitize_slide_html(
-            '<section><div class="progress fragment keep">Visible</div></section>'
-            '<style>.progress,.fragment,.keep{color:red}</style>'
-        )
-
-        self.assertNotIn("<section", sanitized)
-        self.assertIn(
-            'class="__CS_SCOPE__-progress __CS_SCOPE__-fragment '
-            '__CS_SCOPE__-keep"',
-            sanitized,
-        )
-        self.assertIn(".__CS_SCOPE__-progress", sanitized)
-        self.assertIn(".__CS_SCOPE__-fragment", sanitized)
-        self.assertNotIn(".progress,", sanitized)
-
-        # Sanitized markup is canonical lesson data and must survive a later edit unchanged.
-        self.assertEqual(sanitize_slide_html(sanitized), sanitized)
-
-    def test_custom_html_can_share_a_slide_with_supporting_content(self) -> None:
-        lesson = json.loads(_custom_html_fixture())
-        lesson["payload"]["slides"][2]["body"].append(
-            {"type": "statement", "text": "Pairing is always A with T."}
-        )
+    def test_compiler_escapes_structured_content(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["title"] = "<script>alert(1)</script>"
+        lesson["payload"]["slides"][0]["blocks"] = [
+            {
+                "type": "key-point",
+                "summary": "<b>Important</b>",
+                "explanation": "Use < and > safely.",
+            }
+        ]
 
         prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
-        self.assertIn('data-chalksmith-layout="visual-split"', prepared.source_code)
-
-    def test_block_catalog_covers_every_schema_block(self) -> None:
-        schema = SlidesLessonSpec.model_json_schema()
-        body_items = schema["$defs"]["SlideSpec"]["properties"]["body"]["items"]
-
-        self.assertEqual(set(body_items["discriminator"]["mapping"]), BLOCK_TYPES)
-
-    def test_block_registry_colocates_model_guide_and_renderer(self) -> None:
-        self.assertEqual(set(BLOCK_REGISTRY), BLOCK_TYPES)
-        self.assertEqual(set(BLOCK_STYLE_GROUPS), BLOCK_TYPES)
-        self.assertEqual(set(BLOCK_STYLE_GROUPS.values()), set(BLOCK_STYLE_GROUP_ORDER))
-        for group in BLOCK_STYLE_GROUP_ORDER:
-            self.assertTrue(slides_compiler._BLOCK_STYLE_PATHS[group].is_file())
-        self.assertEqual(len(BLOCK_DEFINITIONS), len(BLOCK_TYPES))
-        for definition in BLOCK_DEFINITIONS:
-            block_type = definition.model.model_json_schema()["properties"]["type"][
-                "const"
-            ]
-            self.assertEqual(definition.guide.type, block_type)
-            self.assertTrue(callable(definition.renderer))
-
-    def test_compiler_escapes_content_and_owns_the_document(self) -> None:
-        response = _slides_fixture().replace(
-            "Equivalent Fractions", "Fractions <script>alert(1)</script>"
-        )
-        prepared = StructuredSlidesStrategy().prepare(response)
-
-        self.assertIn("Fractions &lt;script&gt;alert(1)&lt;/script&gt;", prepared.source_code)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", prepared.source_code)
+        self.assertIn("&lt;b&gt;Important&lt;/b&gt;", prepared.source_code)
         self.assertNotIn("<script>alert(1)</script>", prepared.source_code)
-        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.3"', prepared.source_code)
-        self.assertIn('.slides > section.present', prepared.source_code)
-        self.assertIn(
-            ".reveal .cs-card ul,\n.reveal .cs-card ol {\n  margin: 0;",
-            prepared.source_code,
-        )
-        self.assertIn(".cs-list ul,\n.cs-steps ol {\n  display: grid;", prepared.source_code)
-        self.assertEqual(prepared.spec_version, "chalksmith.slides.v1")
-        self.assertNotIn("data-chalksmith-template", prepared.source_code)
 
-    def test_comparison_list_rows_align_at_the_start(self) -> None:
+    def test_compiler_omits_katex_when_no_math_is_used(self) -> None:
         lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][0]["body"] = [
+        lesson["payload"]["slides"][2]["blocks"] = [
             {
-                "type": "comparison",
-                "left_title": "Before",
-                "left_items": ["One", "Two"],
-                "right_title": "After",
-                "right_items": ["Three", "Four"],
+                "type": "key-point",
+                "summary": "Equivalent values",
+                "explanation": "The quantities are equal.",
             }
         ]
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-        self.assertIn('class="cs-comparison"', prepared.source_code)
-        self.assertIn(
-            ".cs-comparison ul {\n  display: grid;\n  align-content: start;",
-            prepared.source_code,
-        )
-
-    def test_compiler_rereads_runtime_styles_for_each_artifact(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            core_path = Path(directory) / "core.css"
-            content_path = Path(directory) / "content.css"
-            core_path.write_text(":root { color-scheme: dark; }", encoding="utf-8")
-            content_path.write_text(
-                ".cs-callout { align-content: center; }", encoding="utf-8"
-            )
-
-            with (
-                patch.object(slides_compiler, "_CORE_STYLE_PATH", core_path),
-                patch.dict(
-                    slides_compiler._BLOCK_STYLE_PATHS,
-                    {"content": content_path},
-                ),
-            ):
-                self.assertIn(
-                    "align-content: center",
-                    slides_compiler._slides_styles(("content",)),
-                )
-                content_path.write_text(
-                    ".cs-callout { align-content: start; }", encoding="utf-8"
-                )
-                self.assertIn(
-                    "align-content: start",
-                    slides_compiler._slides_styles(("content",)),
-                )
-
-    def test_compiler_embeds_only_required_style_groups(self) -> None:
-        prepared = StructuredSlidesStrategy().prepare(_slides_fixture())
-
-        self.assertIn(
-            'data-style-groups="content,math,comprehension"', prepared.source_code
-        )
-        for group in ("Content", "Math", "Comprehension"):
-            self.assertIn(f"/* Slides {group} styles. */", prepared.source_code)
-        for group in ("Data", "Diagrams", "Physics", "Chemistry", "Biology"):
-            self.assertNotIn(f"/* Slides {group} styles. */", prepared.source_code)
-
-    def test_steps_keep_inline_katex_inside_the_content_grid_cell(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][2]["body"][0]["items"][0] = (
-            r"Start with \(\frac{1}{2}\)."
-        )
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-        self.assertIn(
-            r'<li><span class="cs-steps__content">Start with \(\frac{1}{2}\).</span></li>',
-            prepared.source_code,
-        )
-        self.assertIn(".cs-steps__content", prepared.source_code)
-
-    def test_schema_rejects_an_oversized_equation_in_a_split_layout(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][2]["body"][1]["expression"] = (
-            "x" * (PAIRED_EQUATION_MAX_CHARACTERS + 1)
-        )
-
-        with self.assertRaisesRegex(
-            ModelOutputError,
-            f"at most {PAIRED_EQUATION_MAX_CHARACTERS} characters",
-        ):
-            StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-    def test_equation_content_is_bounded_by_its_compiler_owned_card(self) -> None:
-        prepared = StructuredSlidesStrategy().prepare(_slides_fixture())
-
-        self.assertIn(".reveal .cs-equation__formula {\n  max-width: 100%;", prepared.source_code)
-        self.assertIn("overflow-wrap: anywhere", prepared.source_code)
-
-    def test_schema_keeps_the_larger_equation_limit_for_a_single_block(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        expression = "x" * (PAIRED_EQUATION_MAX_CHARACTERS + 1)
-        lesson["payload"]["slides"][2]["body"] = [
-            {"type": "equation", "expression": expression}
-        ]
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-        self.assertIn('data-chalksmith-layout="single"', prepared.source_code)
-        self.assertIn(f"$${expression}$$", prepared.source_code)
-
-    def test_compiler_omits_katex_when_no_equation_block_is_used(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][2]["body"] = [
-            {"type": "statement", "text": "One half and two fourths are equal."}
-        ]
+        lesson["payload"]["slides"][2]["layout"] = "single"
 
         prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
         self.assertNotIn(slides_compiler.KATEX_STYLESHEET, prepared.source_code)
         self.assertNotIn(slides_compiler.KATEX_SCRIPT, prepared.source_code)
-        self.assertNotIn(slides_compiler.KATEX_AUTO_RENDER_SCRIPT, prepared.source_code)
         self.assertNotIn("data-chalksmith-katex", prepared.source_code)
 
-    def test_schema_allows_the_prompt_to_adapt_the_teaching_sequence(self) -> None:
-        adapted = _slides_fixture().replace(
-            '"kind": "learning-goal"', '"kind": "concept"'
-        ).replace(
-            '"kind": "worked-example"', '"kind": "concept"'
-        ).replace(
-            '"kind": "recap"', '"kind": "concept"'
-        )
-
-        prepared = StructuredSlidesStrategy().prepare(adapted)
-
-        self.assertEqual(prepared.spec_version, "chalksmith.slides.v1")
-
-    def test_schema_allows_a_complex_block_in_a_multi_block_body(self) -> None:
+    def test_compiler_typesets_inline_math_in_any_structured_text_field(self) -> None:
         lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][0]["body"].append(
-            {"type": "process", "steps": ["Observe", "Explain"]}
-        )
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-        self.assertIn('data-chalksmith-layout="stacked-emphasis"', prepared.source_code)
-
-    def test_compiler_stacks_an_internally_partitioned_block_above_support(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][0]["body"] = [
+        lesson["payload"]["slides"][2]["blocks"] = [
             {
-                "type": "callout",
-                "label": "Result",
-                "text": "Both methods give the same coefficient.",
-            },
-            {
-                "type": "comparison",
-                "left_title": "Arithmetic",
-                "left_items": ["Compute each term"],
-                "right_title": "Generating function",
-                "right_items": ["Read the coefficient"],
-            },
+                "type": "key-point",
+                "summary": "Use $x^2$ in the title row.",
+                "explanation": "The side satisfies $WX = 4$.",
+            }
         ]
+        lesson["payload"]["slides"][2]["layout"] = "single"
 
         prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-        body_start = prepared.source_code.index(
-            'data-chalksmith-layout="stacked-emphasis"'
-        )
-        comparison_start = prepared.source_code.index("cs-comparison", body_start)
-        callout_start = prepared.source_code.index("cs-callout", body_start)
 
-        self.assertLess(comparison_start, callout_start)
+        self.assertIn(slides_compiler.KATEX_STYLESHEET, prepared.source_code)
+        self.assertIn(slides_compiler.KATEX_SCRIPT, prepared.source_code)
+        self.assertIn("data-chalksmith-katex", prepared.source_code)
         self.assertIn(
-            ".cs-layout--stacked-emphasis {\n  grid-template-columns: minmax(0, 1fr);",
+            '{ left: "\\\\(", right: "\\\\)", display: false }',
             prepared.source_code,
         )
 
-    def test_compiler_places_one_focal_block_beside_two_stacked_supports(self) -> None:
+    def test_compiler_does_not_treat_currency_as_inline_math(self) -> None:
         lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][0]["body"] = [
-            {"type": "callout", "label": "Meaning", "text": "Count the choices."},
+        lesson["payload"]["slides"][2]["blocks"] = [
             {
-                "type": "equation",
-                "expression": r"\binom{n}{r} = \frac{n!}{r!(n-r)!}",
-            },
-            {"type": "statement", "text": "Choose r objects from n objects."},
-        ]
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-        body_start = prepared.source_code.index('data-chalksmith-layout="focus-right"')
-        callout_start = prepared.source_code.index("cs-callout", body_start)
-        statement_start = prepared.source_code.index("cs-statement", body_start)
-        equation_start = prepared.source_code.index("cs-equation", body_start)
-
-        self.assertLess(callout_start, equation_start)
-        self.assertLess(statement_start, equation_start)
-        self.assertIn(
-            ".cs-layout--focus-right > :nth-child(3) {\n  grid-column: 2;",
-            prepared.source_code,
-        )
-
-    def test_solution_split_gives_the_focal_equation_more_width(self) -> None:
-        prepared = StructuredSlidesStrategy().prepare(_slides_fixture())
-
-        self.assertIn('data-chalksmith-layout="solution-split"', prepared.source_code)
-        self.assertIn(
-            ".cs-layout--solution-split {\n  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);",
-            prepared.source_code,
-        )
-
-    def test_compiler_selects_a_visual_layout_and_places_the_visual_second(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][0]["body"].append(
-            {
-                "type": "fraction-model",
-                "numerator": 2,
-                "denominator": 3,
-                "label": "Two thirds",
+                "type": "prose",
+                "paragraphs": ["Tickets cost $5 to $10."],
             }
-        )
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-        body_start = prepared.source_code.index('data-chalksmith-layout="visual-split"')
-        statement_start = prepared.source_code.index("cs-statement", body_start)
-        fraction_start = prepared.source_code.index("cs-fraction", body_start)
-
-        self.assertLess(statement_start, fraction_start)
-
-    def test_compiler_renders_the_visual_block_vocabulary(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        blocks = [
-            {
-                "type": "number-line",
-                "min_value": -5,
-                "max_value": 5,
-                "markers": [{"value": -2, "label": "negative two"}, {"value": 3}],
-            },
-            {
-                "type": "bar-model",
-                "parts": [
-                    {"label": "Read", "value": 30},
-                    {"label": "Remaining", "value": 10},
-                ],
-                "total_label": "40 pages",
-            },
-            {
-                "type": "bar-chart",
-                "items": [
-                    {"label": "Monday", "value": 3},
-                    {"label": "Tuesday", "value": 7},
-                ],
-                "unit": "cm",
-            },
-            {
-                "type": "coordinate-plot",
-                "x_min": -5,
-                "x_max": 5,
-                "y_min": -5,
-                "y_max": 5,
-                "points": [{"x": 2, "y": 3, "label": "A"}],
-            },
-            {
-                "type": "geometry-model",
-                "shape": "triangle",
-                "labels": [
-                    {"position": "bottom", "text": "base = 8 cm"},
-                    {"position": "right", "text": "height = 5 cm"},
-                ],
-            },
-            {
-                "type": "labeled-diagram",
-                "subject": "Cell <core>",
-                "labels": ["Membrane", "Nucleus", "Cytoplasm"],
-            },
-            {
-                "type": "cycle",
-                "steps": ["Evaporation", "Condensation", "Precipitation"],
-            },
-            {
-                "type": "timeline",
-                "events": [
-                    {"label": "1609", "text": "Galileo studies the sky"},
-                    {"label": "1969", "text": "Humans reach the Moon"},
-                ],
-            },
         ]
-        lesson["payload"]["slides"] = [
-            {"kind": "visual-explanation", "title": f"Visual {index}", "body": [block]}
-            for index, block in enumerate(blocks, start=1)
-        ]
+        lesson["payload"]["slides"][2]["layout"] = "single"
 
         prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
-        self.assertIn(
-            'data-style-groups="data,diagrams,math"', prepared.source_code
-        )
-        for class_name in (
-            "cs-number-line",
-            "cs-bar-model",
-            "cs-bar-chart",
-            "cs-coordinate-plot",
-            "cs-geometry",
-            "cs-labeled-diagram",
-            "cs-cycle",
-            "cs-timeline",
-        ):
-            self.assertIn(class_name, prepared.source_code)
-        self.assertIn("Cell &lt;core&gt;", prepared.source_code)
+        self.assertNotIn(slides_compiler.KATEX_STYLESHEET, prepared.source_code)
+        self.assertNotIn("data-chalksmith-katex", prepared.source_code)
 
-    def test_geometry_model_renders_a_semantic_right_triangle(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][1] = {
-            "kind": "visual-explanation",
-            "title": "A labeled right triangle",
-            "body": [
-                {
-                    "type": "geometry-model",
-                    "shape": "triangle",
-                    "triangle_type": "right",
-                    "labels": [
-                        {"position": "left", "text": "leg b"},
-                        {"position": "bottom", "text": "leg a"},
-                        {"position": "right", "text": "hypotenuse c"},
-                    ],
-                    "points": [
-                        {"position": "top", "label": "B"},
-                        {"position": "bottom-left", "label": "C"},
-                        {"position": "bottom-right", "label": "A"},
-                    ],
-                }
-            ],
-        }
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-        self.assertIn(
-            '<polygon points="135.0,45.0 135.0,285.0 540.0,285.0"',
-            prepared.source_code,
-        )
-        self.assertIn('class="cs-geometry__right-angle"', prepared.source_code)
-        self.assertIn(">hypotenuse c</text>", prepared.source_code)
-        self.assertIn(">C</text></g>", prepared.source_code)
-
-    def test_geometry_model_renders_concurrent_cevians(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][1] = {
-            "kind": "visual-explanation",
-            "title": "Cevians meet at P",
-            "body": [
-                {
-                    "type": "geometry-model",
-                    "shape": "triangle",
-                    "triangle_type": "scalene",
-                    "points": [
-                        {"position": "top", "label": "A"},
-                        {"position": "bottom-left", "label": "B"},
-                        {"position": "bottom-right", "label": "C"},
-                        {"position": "bottom", "label": "D"},
-                        {"position": "right", "label": "E"},
-                        {"position": "left", "label": "F"},
-                        {"position": "center", "label": "P"},
-                    ],
-                    "segments": [
-                        {"start": "top", "end": "bottom"},
-                        {"start": "bottom-left", "end": "right"},
-                        {"start": "bottom-right", "end": "left"},
-                    ],
-                }
-            ],
-        }
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-        self.assertEqual(
-            prepared.source_code.count('<g class="cs-geometry__segment '), 3
-        )
-        self.assertEqual(
-            prepared.source_code.count('<g class="cs-geometry__point">'), 7
-        )
-        self.assertIn('cx="306.7" cy="205.0"', prepared.source_code)
-
-    def test_geometry_model_marks_congruent_triangle_sides(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][1]["body"] = [
-            {
-                "type": "geometry-model",
-                "shape": "triangle",
-                "triangle_type": "isosceles",
-            }
-        ]
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-        self.assertIn(
-            '<polygon points="320.0,45.0 115.0,285.0 525.0,285.0"',
-            prepared.source_code,
-        )
-        self.assertEqual(
-            prepared.source_code.count('class="cs-geometry__congruence"'), 2
+    def test_prompt_keeps_dynamic_context_separate(self) -> None:
+        prompt = StructuredSlidesStrategy().build_prompt(
+            FormatRequest(
+                topic="Fractions",
+                lesson_format="slides",
+                sources="Teacher source",
+                previous_spec='{"schema_version":"chalksmith.slides.v1"}',
+                edit_instruction="Add an example.",
+            )
         )
 
-    def test_geometry_model_rejects_an_anchor_outside_the_shape(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][1]["body"] = [
-            {
-                "type": "geometry-model",
-                "shape": "circle",
-                "points": [{"position": "bottom-left", "label": "A"}],
-            }
-        ]
-
-        with self.assertRaisesRegex(ValueError, "valid anchors for a circle"):
-            StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-    def test_compiler_renders_the_relationship_diagram_library(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        blocks = [
-            {
-                "type": "pyramid-diagram",
-                "levels": [
-                    {
-                        "label": "Tertiary consumers",
-                        "detail": "Apex predators",
-                        "value": "10 kcal",
-                    },
-                    {
-                        "label": "Primary consumers",
-                        "detail": "Herbivores",
-                        "value": "1,000 kcal",
-                    },
-                    {
-                        "label": "Producers <base>",
-                        "detail": "Plants",
-                        "value": "10,000 kcal",
-                    },
-                ],
-                "trend_label": "Available energy decreases upward",
-            },
-            {
-                "type": "hierarchy-tree",
-                "root": {"label": "Matter"},
-                "branches": [
-                    {
-                        "label": "Pure substances",
-                        "children": [{"label": "Elements"}, {"label": "Compounds"}],
-                    },
-                    {
-                        "label": "Mixtures",
-                        "children": [
-                            {"label": "Homogeneous"},
-                            {"label": "Heterogeneous"},
-                        ],
-                    },
-                ],
-            },
-            {
-                "type": "flow-diagram",
-                "stages": [
-                    {
-                        "label": "Input",
-                        "nodes": [{"label": "Sunlight"}, {"label": "Water"}],
-                    },
-                    {
-                        "label": "Process",
-                        "nodes": [
-                            {
-                                "label": "Photosynthesis",
-                                "detail": "In chloroplasts",
-                            }
-                        ],
-                    },
-                    {
-                        "label": "Output",
-                        "nodes": [{"label": "Glucose"}, {"label": "Oxygen"}],
-                    },
-                ],
-            },
-        ]
-        for slide, block in zip(lesson["payload"]["slides"], blocks):
-            slide["kind"] = "visual-explanation"
-            slide["body"] = [block]
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-        for class_name in ("cs-pyramid", "cs-hierarchy", "cs-flow-diagram"):
-            self.assertIn(class_name, prepared.source_code)
-        self.assertIn("Producers &lt;base&gt;", prepared.source_code)
-        self.assertIn("--cs-pyramid-width: 100.0%", prepared.source_code)
-        self.assertIn("--cs-hierarchy-columns: 2", prepared.source_code)
-        self.assertIn("--cs-flow-columns: 3", prepared.source_code)
-        self.assertIn(".cs-hierarchy .cs-hierarchy__branches", prepared.source_code)
-
-    def test_schema_rejects_duplicate_pyramid_levels(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][0]["body"] = [
-            {
-                "type": "pyramid-diagram",
-                "levels": [
-                    {"label": "Consumers"},
-                    {"label": "consumers"},
-                    {"label": "Producers"},
-                ],
-            }
-        ]
-
-        with self.assertRaisesRegex(ValueError, "level labels must be unique"):
-            StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-    def test_compiler_renders_the_extended_relationship_diagram_library(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        blocks = [
-            {
-                "type": "venn-diagram",
-                "left_title": "Plant cells",
-                "left_items": ["Cell wall", "Chloroplasts"],
-                "right_title": "Animal cells",
-                "right_items": ["Centrioles", "Flexible shape"],
-                "overlap_title": "Both",
-                "overlap_items": ["Nucleus", "Cell membrane"],
-            },
-            {
-                "type": "cause-effect-diagram",
-                "effect_label": "Effect",
-                "effect": "Algal bloom",
-                "effect_detail": "Rapid algae growth",
-                "groups": [
-                    {
-                        "label": "Nutrients",
-                        "causes": ["Fertilizer runoff", "Sewage"],
-                    },
-                    {
-                        "label": "Conditions",
-                        "causes": ["Warm water", "Strong sunlight"],
-                    },
-                ],
-            },
-            {
-                "type": "layer-diagram",
-                "layers": [
-                    {
-                        "label": "Crust",
-                        "detail": "Thin solid surface",
-                        "property": "5–70 km",
-                    },
-                    {
-                        "label": "Mantle",
-                        "detail": "Slow-flowing rock",
-                        "property": "2,900 km",
-                    },
-                    {
-                        "label": "Outer core",
-                        "detail": "Liquid iron and nickel",
-                        "property": "Liquid",
-                    },
-                    {
-                        "label": "Inner core",
-                        "detail": "Solid metal center",
-                        "property": "Hottest",
-                    },
-                ],
-                "order_label": "Surface to center",
-            },
-            {
-                "type": "network-diagram",
-                "description": "Energy links in a grassland food web",
-                "layers": [
-                    {
-                        "label": "Producers",
-                        "nodes": [
-                            {"id": "grass", "label": "Grass"},
-                            {"id": "seeds", "label": "Seeds"},
-                        ],
-                    },
-                    {
-                        "label": "Consumers",
-                        "nodes": [
-                            {"id": "rabbit", "label": "Rabbit"},
-                            {"id": "mouse", "label": "Mouse"},
-                        ],
-                    },
-                    {
-                        "label": "Predators",
-                        "nodes": [{"id": "hawk", "label": "Hawk"}],
-                    },
-                ],
-                "edges": [
-                    {"from_id": "grass", "to_id": "rabbit"},
-                    {"from_id": "seeds", "to_id": "mouse"},
-                    {"from_id": "rabbit", "to_id": "hawk"},
-                    {"from_id": "mouse", "to_id": "hawk"},
-                ],
-            },
-            {
-                "type": "quadrant-diagram",
-                "x_low_label": "Low conductivity",
-                "x_high_label": "High conductivity",
-                "y_low_label": "Weak magnetism",
-                "y_high_label": "Strong magnetism",
-                "top_left": {
-                    "label": "Magnetic insulators",
-                    "items": ["Ferrite"],
-                },
-                "top_right": {
-                    "label": "Magnetic conductors",
-                    "items": ["Iron", "Steel"],
-                },
-                "bottom_left": {
-                    "label": "Insulators",
-                    "items": ["Rubber", "Glass"],
-                },
-                "bottom_right": {
-                    "label": "Conductors",
-                    "items": ["Copper", "Aluminum"],
-                },
-            },
-            {
-                "type": "spectrum-diagram",
-                "bands": [
-                    {"label": "Radio", "detail": "Longest wavelength"},
-                    {"label": "Microwave"},
-                    {"label": "Infrared"},
-                    {"label": "Visible"},
-                    {"label": "Ultraviolet"},
-                    {"label": "X-ray"},
-                    {"label": "Gamma", "detail": "Shortest wavelength"},
-                ],
-                "low_label": "Low frequency",
-                "high_label": "High frequency",
-                "trend_label": "Frequency increases",
-            },
-            {
-                "type": "concentric-diagram",
-                "rings": [
-                    {"label": "Organism", "detail": "One living individual"},
-                    {"label": "Organ system"},
-                    {"label": "Organ"},
-                    {"label": "Tissue"},
-                    {"label": "Cell", "detail": "Smallest living unit"},
-                ],
-                "direction_label": "Outer organization to inner structure",
-            },
-            {
-                "type": "matrix-diagram",
-                "row_axis_label": "Parent 1",
-                "column_axis_label": "Parent 2",
-                "row_headers": ["B", "b"],
-                "column_headers": ["B", "b"],
-                "cells": [["BB", "Bb"], ["Bb", "bb"]],
-            },
-        ]
-        lesson["payload"]["slides"] = [
-            {
-                "kind": "visual-explanation",
-                "title": f"Relationship {index}",
-                "body": [block],
-            }
-            for index, block in enumerate(blocks, start=1)
-        ]
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-        for class_name in (
-            "cs-venn",
-            "cs-cause-effect",
-            "cs-layers",
-            "cs-network",
-            "cs-quadrant",
-            "cs-spectrum",
-            "cs-concentric",
-            "cs-matrix",
-        ):
-            self.assertIn(class_name, prepared.source_code)
-        self.assertIn("<svg viewBox=\"0 0 1000 420\"", prepared.source_code)
-        self.assertIn("Plant cells", prepared.source_code)
-        self.assertNotIn("<section class=\"cs-quadrant__region", prepared.source_code)
-        self.assertIn("<div class=\"cs-quadrant__region", prepared.source_code)
-
-    def test_schema_rejects_a_backward_network_edge(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][0]["body"] = [
-            {
-                "type": "network-diagram",
-                "description": "An invalid backward dependency",
-                "layers": [
-                    {
-                        "label": "Inputs",
-                        "nodes": [
-                            {"id": "a", "label": "A"},
-                            {"id": "b", "label": "B"},
-                        ],
-                    },
-                    {
-                        "label": "Outputs",
-                        "nodes": [{"id": "c", "label": "C"}],
-                    },
-                ],
-                "edges": [
-                    {"from_id": "a", "to_id": "c"},
-                    {"from_id": "c", "to_id": "b"},
-                ],
-            }
-        ]
-
-        with self.assertRaisesRegex(ValueError, "earlier to a later layer"):
-            StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-    def test_compiler_renders_subject_specific_diagram_blocks(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        blocks = [
-            {
-                "type": "function-graph",
-                "x_min": -2,
-                "x_max": 2,
-                "y_min": -1,
-                "y_max": 4,
-                "series": [
-                    {
-                        "label": "y = x²",
-                        "points": [
-                            {"x": -2, "y": 4},
-                            {"x": -1, "y": 1},
-                            {"x": 0, "y": 0},
-                            {"x": 1, "y": 1},
-                            {"x": 2, "y": 4},
-                        ],
-                    }
-                ],
-            },
-            {
-                "type": "force-diagram",
-                "object_label": "Book",
-                "description": "Forces on a book resting on a table",
-                "forces": [
-                    {
-                        "direction": "up",
-                        "label": "Normal force",
-                        "magnitude": "10 N",
-                    },
-                    {
-                        "direction": "down",
-                        "label": "Weight",
-                        "magnitude": "10 N",
-                    },
-                ],
-            },
-            {
-                "type": "wave-diagram",
-                "description": "Parts of a transverse wave",
-                "equilibrium_label": "Rest position",
-                "amplitude_label": "Amplitude",
-                "wavelength_label": "One wavelength",
-                "crest_label": "Crest",
-                "trough_label": "Trough",
-            },
-            {
-                "type": "particle-diagram",
-                "samples": [
-                    {
-                        "label": "Element",
-                        "species": [
-                            {"formula": "O₂", "atoms": ["O", "O"], "count": 4}
-                        ],
-                    },
-                    {
-                        "label": "Compound",
-                        "species": [
-                            {
-                                "formula": "H₂O",
-                                "atoms": ["H", "O", "H"],
-                                "count": 4,
-                            }
-                        ],
-                    },
-                    {
-                        "label": "Mixture",
-                        "species": [
-                            {"formula": "N₂", "atoms": ["N", "N"], "count": 3},
-                            {"formula": "O₂", "atoms": ["O", "O"], "count": 2},
-                        ],
-                    },
-                ],
-            },
-            {
-                "type": "reaction-diagram",
-                "reactants": [
-                    {"coefficient": 2, "formula": "H₂", "name": "Hydrogen"},
-                    {"formula": "O₂", "name": "Oxygen"},
-                ],
-                "products": [
-                    {"coefficient": 2, "formula": "H₂O", "name": "Water"}
-                ],
-                "condition": "spark",
-                "caption": "Atoms are rearranged, not created or destroyed.",
-            },
-            {
-                "type": "cell-diagram",
-                "cell_type": "plant",
-                "cell_label": "Plant cell",
-                "features": [
-                    {
-                        "feature": "cell-wall",
-                        "label": "Cell wall",
-                        "function": "Rigid support",
-                    },
-                    {
-                        "feature": "cell-membrane",
-                        "label": "Cell membrane",
-                        "function": "Controls entry and exit",
-                    },
-                    {
-                        "feature": "nucleus",
-                        "label": "Nucleus",
-                        "function": "Stores genetic information",
-                    },
-                    {
-                        "feature": "chloroplast",
-                        "label": "Chloroplast",
-                        "function": "Captures light energy",
-                    },
-                    {
-                        "feature": "vacuole",
-                        "label": "Central vacuole",
-                        "function": "Stores water",
-                    },
-                ],
-            },
-        ]
-        lesson["payload"]["slides"] = [
-            {
-                "kind": "visual-explanation",
-                "title": f"Subject visual {index}",
-                "body": [block],
-            }
-            for index, block in enumerate(blocks, start=1)
-        ]
-
-        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-        self.assertIn(
-            'data-style-groups="math,physics,chemistry,biology"',
-            prepared.source_code,
-        )
-        for class_name in (
-            "cs-function-graph",
-            "cs-force-diagram",
-            "cs-wave-diagram",
-            "cs-particle-diagram",
-            "cs-reaction-diagram",
-            "cs-cell-diagram",
-        ):
-            self.assertIn(class_name, prepared.source_code)
-        self.assertIn("cs-particle-diagram__atom--color-1\">O", prepared.source_code)
-        self.assertNotIn("cs-particle-diagram__atom--2", prepared.source_code)
-
-    def test_schema_rejects_an_organelle_incompatible_with_the_cell_type(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][0]["body"] = [
-            {
-                "type": "cell-diagram",
-                "cell_type": "animal",
-                "cell_label": "Animal cell",
-                "features": [
-                    {"feature": "nucleus", "label": "Nucleus"},
-                    {"feature": "cell-membrane", "label": "Cell membrane"},
-                    {"feature": "chloroplast", "label": "Chloroplast"},
-                ],
-            }
-        ]
-
-        with self.assertRaisesRegex(ValueError, "animal cell does not support"):
-            StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
-    def test_schema_rejects_visual_coordinates_outside_the_declared_range(self) -> None:
-        lesson = json.loads(_slides_fixture())
-        lesson["payload"]["slides"][0]["body"] = [
-            {
-                "type": "coordinate-plot",
-                "x_min": -5,
-                "x_max": 5,
-                "y_min": -5,
-                "y_max": 5,
-                "points": [{"x": 8, "y": 1}],
-            }
-        ]
-
-        with self.assertRaisesRegex(ValueError, "points must stay inside its axes"):
-            StructuredSlidesStrategy().prepare(json.dumps(lesson))
-
+        self.assertIn("<SOURCES>Teacher source</SOURCES>", prompt)
+        self.assertIn("<EDIT_INSTRUCTION>Add an example.</EDIT_INSTRUCTION>", prompt)
+        self.assertIn("<PREVIOUS_SPEC>", prompt)
+        self.assertIn("return a complete v2 specification", prompt)
 
 def _custom_html_fixture() -> str:
-    """A deck whose worked example is author-written markup instead of a Block."""
+    """A deck whose worked example contains scoped authored markup."""
     lesson = json.loads(_slides_fixture())
     lesson["payload"]["slides"][2] = {
-        "kind": "worked-example",
         "title": "Building strand 2",
-        "body": [
+        "label": "Visual explanation",
+        "layout": "single",
+        "blocks": [
             {
                 "type": "custom-html",
                 "description": "Complementary DNA strands",
