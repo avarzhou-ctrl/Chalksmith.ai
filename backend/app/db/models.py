@@ -80,6 +80,42 @@ class LessonFolder(SQLModel, table=True):
     )
 
 
+class LessonSet(SQLModel, table=True):
+    __tablename__ = "lesson_sets"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    owner_id: str = Field(index=True, max_length=128)
+    title: str = Field(max_length=160)
+    description: str = Field(default="", sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
+class LessonSetItem(SQLModel, table=True):
+    __tablename__ = "lesson_set_items"
+    __table_args__ = (
+        UniqueConstraint(
+            "lesson_set_id",
+            "position",
+            name="uq_lesson_set_items_set_position",
+        ),
+    )
+
+    lesson_set_id: UUID = Field(primary_key=True)
+    root_lesson_id: UUID = Field(primary_key=True, index=True)
+    position: int = Field(ge=0)
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
 class LessonTag(SQLModel, table=True):
     __tablename__ = "lesson_tags"
     __table_args__ = (

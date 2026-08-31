@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 
 import PublishedLessonGrid from '@/components/content/PublishedLessonGrid';
 import SearchFilter from '@/components/dashboard/SearchFilter';
+import LessonCardSkeleton from '@/components/lesson/LessonCardSkeleton';
+import { SkeletonStatus } from '@/components/ui/Skeleton';
 import TagFilterChips from '@/components/ui/TagFilterChips';
 import { createPublicApiClient } from '@/lib/api/client';
 import { listPublishedTags } from '@/lib/api/explore';
@@ -123,6 +125,12 @@ export default function ExploreCatalog() {
           tags={selectedTags}
           returnTo={`${window.location.pathname}${window.location.search}`}
         />
+      )}
+      {!isHydrated && (
+        <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+          {Array.from({ length: 3 }, (_, index) => <LessonCardSkeleton key={index} />)}
+          <SkeletonStatus>Loading published lessons</SkeletonStatus>
+        </section>
       )}
     </>
   );

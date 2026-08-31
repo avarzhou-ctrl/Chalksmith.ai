@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { deleteLesson, listLessons, moveLesson } from '@/lib/api/lessons';
 import { useApi } from '@/lib/hooks/useApi';
+import { LESSON_MOVED_EVENT, type LessonMovedDetail } from '@/lib/lesson-drag';
 import type { LessonFormat, LessonListItem } from '@/lib/types/api';
 
 interface LessonFilters {
@@ -46,6 +47,17 @@ export function useLessons(filters: LessonFilters = {}, debounceMs = 0) {
       window.clearTimeout(timeoutId);
     };
   }, [api, debounceMs, format, q, tagKey]);
+
+  useEffect(() => {
+    const recordMove = (event: Event) => {
+      const { lessonId, folderId } = (event as CustomEvent<LessonMovedDetail>).detail;
+      setLessons((current) => current.map((lesson) => (
+        lesson.id === lessonId ? { ...lesson, folder_id: folderId } : lesson
+      )));
+    };
+    window.addEventListener(LESSON_MOVED_EVENT, recordMove);
+    return () => window.removeEventListener(LESSON_MOVED_EVENT, recordMove);
+  }, []);
 
   const removeLesson = useCallback(async (lessonId: string) => {
     try {

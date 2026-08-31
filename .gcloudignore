@@ -1,0 +1,31 @@
+# Keep Cloud Build uploads limited to source and build configuration.
+.gcloudignore
+.git
+.gitignore
+#!include:.gitignore
+
+# Local credentials and environment configuration
+.env/
+**/.env
+**/.env.*
+!**/.env.example
+.npmrc
+**/.npmrc
+
+# Installed dependencies and virtual environments
+.venv/
+**/.venv/
+node_modules/
+**/node_modules/
+
+# Generated build, runtime, and editor files
+frontend/.next/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/*.db
+backend/static/
+.codex-pet-runs/
+.vercel/
+.vscode/
+*.log
+.DS_Store

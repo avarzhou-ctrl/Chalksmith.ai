@@ -1,16 +1,23 @@
 'use client'
 
 import Link from "next/link";
-import { FolderInput, Globe2, PencilLine, EllipsisVertical, Trash2 } from "lucide-react";
+import { BookPlus, FolderInput, Globe2, LibraryBig, PencilLine, EllipsisVertical, Trash2 } from "lucide-react";
 import LessonCardLayout from '@/components/lesson/LessonCardLayout';
 import FolderPicker from '@/components/dashboard/FolderPicker';
+import AddToLessonSetModal from '@/components/lesson-sets/AddToLessonSetModal';
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { TriangleAlert } from "lucide-react";
 import EditableTitle from "@/components/generation/EditableTitle";
 import { renameLesson } from "@/lib/api/lessons";
 import { useApi } from "@/lib/hooks/useApi";
-import { getLessonFormatLabel, type LessonFolder, type LessonFormat, type LessonListItem } from '@/lib/types/api';
+import {
+    dispatchLessonAddedToSet,
+    LESSON_ADDED_TO_SET_EVENT,
+    setLessonDragData,
+    type LessonAddedToSetDetail,
+} from '@/lib/lesson-drag';
+import { type LessonFolder, type LessonFormat, type LessonListItem } from '@/lib/types/api';
 import { useState, useRef, useEffect } from "react";
 
 interface LessonCardProps {
@@ -23,6 +30,7 @@ interface LessonCardProps {
     tags: string[];
     createdAt: string;
     versionCount: number;
+    lessonSetCount: number;
     folderId: string | null;
     folders: LessonFolder[];
     onDelete: () => void;
@@ -39,6 +47,7 @@ export default function LessonCard({
     tags,
     createdAt,
     versionCount,
+    lessonSetCount,
     folderId,
     folders,
     onDelete,
@@ -53,19 +62,38 @@ export default function LessonCard({
     const actionsRef = useRef<HTMLDivElement>(null);
     const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
     const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+    const [isAddToSetModalOpen, setIsAddToSetModalOpen] = useState(false);
     const [isMoving, setIsMoving] = useState(false);
+    const [displayLessonSetCount, setDisplayLessonSetCount] = useState(lessonSetCount);
     const [moveError, setMoveError] = useState<string | null>(null);
 
     useEffect(() => {
         setDisplayTitle(title);
     }, [title]);
 
+    useEffect(() => {
+        setDisplayLessonSetCount(lessonSetCount);
+    }, [lessonSetCount]);
+
     const formattedDate = new Intl.DateTimeFormat(undefined, {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
     }).format(new Date(createdAt));
-    const formatLabel = getLessonFormatLabel(format);
+    const folderPath = (() => {
+        const byId = new Map(folders.map((folder) => [folder.id, folder]));
+        const names: string[] = [];
+        const visited = new Set<string>();
+        let currentId = folderId;
+        while (currentId && !visited.has(currentId)) {
+            visited.add(currentId);
+            const folder = byId.get(currentId);
+            if (!folder) break;
+            names.unshift(folder.name);
+            currentId = folder.parent_id;
+        }
+        return names.join(' / ');
+    })();
 
     useEffect(() => {
         const closeActions = (event: MouseEvent) => {
@@ -89,6 +117,17 @@ export default function LessonCard({
         };
     }, []);
 
+    useEffect(() => {
+        const recordSetAdd = (event: Event) => {
+            const detail = (event as CustomEvent<LessonAddedToSetDetail>).detail;
+            if (detail.lessonId === id) {
+                setDisplayLessonSetCount((current) => current + 1);
+            }
+        };
+        window.addEventListener(LESSON_ADDED_TO_SET_EVENT, recordSetAdd);
+        return () => window.removeEventListener(LESSON_ADDED_TO_SET_EVENT, recordSetAdd);
+    }, [id]);
+
     const openDeleteModal = () => {
         setIsActionsOpen(false);
         setIsDeleteModalOpen(true);
@@ -104,6 +143,11 @@ export default function LessonCard({
         setIsActionsOpen(false);
         setMoveError(null);
         setIsMoveModalOpen(true);
+    };
+
+    const openAddToSetModal = () => {
+        setIsActionsOpen(false);
+        setIsAddToSetModalOpen(true);
     };
 
     const handleMoveLesson = async (targetFolderId: string | null) => {
@@ -145,10 +189,18 @@ export default function LessonCard({
     return (
         <LessonCardLayout
             format={format}
+            showFormatIcon={false}
             title={displayTitle}
-            subtitle={`Created ${formattedDate}`}
+            subtitle={`Created ${formattedDate}${folderPath ? ` · ${folderPath}` : ''}`}
             description={description}
             tags={tags}
+            draggable={status === 'ready'}
+            onDragStart={(event) => {
+                setIsActionsOpen(false);
+                setLessonDragData(event.dataTransfer, { lessonId: id, title: displayTitle });
+                event.currentTarget.classList.add('opacity-60');
+            }}
+            onDragEnd={(event) => event.currentTarget.classList.remove('opacity-60')}
             overlay={status !== 'deleting' ? (
                 <Link
                     href={`/generation?lessonId=${id}`}
@@ -192,6 +244,15 @@ export default function LessonCard({
                                 <FolderInput size={16} />
                                 <span className="truncate">Move to folder</span>
                             </button>}
+                            {status === 'ready' && <button
+                                type="button"
+                                role="menuitem"
+                                onClick={openAddToSetModal}
+                                className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-primary-text transition-colors hover:bg-primary-text/10 focus:outline-none focus:ring-2"
+                            >
+                                <BookPlus size={16} />
+                                <span className="truncate">Add to lesson set</span>
+                            </button>}
                             <button
                                 type="button"
                                 role="menuitem"
@@ -223,8 +284,17 @@ export default function LessonCard({
                             Published
                         </span>
                     )}
+                    {displayLessonSetCount > 0 && (
+                        <span
+                            title={`Included in ${displayLessonSetCount} ${displayLessonSetCount === 1 ? 'lesson set' : 'lesson sets'}`}
+                            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1.5 text-xs font-medium text-accent"
+                        >
+                            <LibraryBig size={14} aria-hidden="true" />
+                            In {displayLessonSetCount} {displayLessonSetCount === 1 ? 'set' : 'sets'}
+                        </span>
+                    )}
                     </section>
-                    <p className="truncate text-xs text-secondary-text">{versionCount} {versionCount === 1 ? 'version' : 'versions'} · {formatLabel}</p>
+                    <p className="truncate text-xs text-secondary-text">{versionCount} {versionCount === 1 ? 'version' : 'versions'}</p>
                 </div>
             )}
         >
@@ -304,6 +374,13 @@ export default function LessonCard({
                 />
                 {moveError && <p className="mt-3 text-sm text-red-300">{moveError}</p>}
             </Modal>
+
+            <AddToLessonSetModal
+                isOpen={isAddToSetModalOpen}
+                lessonId={id}
+                onClose={() => setIsAddToSetModalOpen(false)}
+                onAdded={(lessonSetId) => dispatchLessonAddedToSet({ lessonId: id, lessonSetId })}
+            />
         </LessonCardLayout>
     );
 }

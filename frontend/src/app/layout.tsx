@@ -30,7 +30,29 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-primary-bg text-primary-text antialiased">
-        <ClerkProvider>
+        <ClerkProvider
+          appearance={{
+            variables: {
+              colorPrimary: '#d97706',
+              colorPrimaryForeground: '#fafaf9',
+              colorBackground: '#1c1917',
+              colorForeground: '#fafaf9',
+              colorMuted: '#292524',
+              colorMutedForeground: '#a8a29e',
+              colorInput: '#0c0a09',
+              colorInputForeground: '#fafaf9',
+              colorBorder: '#44403c',
+              colorRing: '#d97706',
+              colorModalBackdrop: 'rgba(12, 10, 9, 0.8)',
+              fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+              borderRadius: '0.5rem',
+            },
+            elements: {
+              formButtonPrimary: '!text-stone-950',
+              socialButtonsBlockButton: '!border-stone-700 !text-stone-50 hover:!bg-stone-700',
+            },
+          }}
+        >
           <header
             data-site-header
             className="sticky top-0 z-50 mx-auto flex w-full max-w-7xl flex-nowrap items-center justify-between gap-1 border-b border-stone-800 bg-primary-bg/90 px-4 py-5 backdrop-blur sm:px-6 lg:px-8"

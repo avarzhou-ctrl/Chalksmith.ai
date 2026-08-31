@@ -58,6 +58,7 @@ class LessonListItem(BaseModel):
     status: Literal["generating", "ready", "failed", "deleting"]
     summary: str | None
     is_published: bool = False
+    lesson_set_count: int = 0
     tags: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
@@ -103,6 +104,59 @@ class FolderResponse(BaseModel):
     id: UUID
     parent_id: UUID | None
     name: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class LessonSetCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(default="", max_length=2000)
+
+
+class LessonSetUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=2000)
+
+
+class LessonSetAddLesson(BaseModel):
+    lesson_id: UUID
+
+
+class LessonSetOrderUpdate(BaseModel):
+    root_lesson_ids: list[UUID] = Field(max_length=50)
+
+
+class LessonSetLessonItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    root_lesson_id: UUID
+    topic: str
+    format: LessonFormat
+    status: Literal["generating", "ready", "failed", "deleting"]
+    summary: str | None
+    position: int
+
+
+class LessonSetListItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    title: str
+    description: str
+    lesson_count: int
+    preview_lessons: list[LessonSetLessonItem] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+
+class LessonSetDetail(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    title: str
+    description: str
+    lessons: list[LessonSetLessonItem] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

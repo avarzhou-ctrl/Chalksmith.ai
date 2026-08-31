@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import type { DragEventHandler, ReactNode } from 'react';
 
 import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
 import type { LessonFormat } from '@/lib/types/api';
 
 interface LessonCardLayoutProps {
   format: LessonFormat;
+  showFormatIcon?: boolean;
   title: ReactNode;
   subtitle?: ReactNode;
   subtitleInteractive?: boolean;
@@ -15,11 +16,15 @@ interface LessonCardLayoutProps {
   statusMessage?: ReactNode;
   footer?: ReactNode;
   footerInteractive?: boolean;
+  draggable?: boolean;
+  onDragStart?: DragEventHandler<HTMLElement>;
+  onDragEnd?: DragEventHandler<HTMLElement>;
   children?: ReactNode;
 }
 
 export default function LessonCardLayout({
   format,
+  showFormatIcon = true,
   title,
   subtitle,
   subtitleInteractive = false,
@@ -30,13 +35,21 @@ export default function LessonCardLayout({
   statusMessage,
   footer,
   footerInteractive = false,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
   children,
 }: LessonCardLayoutProps) {
   return (
-    <article className="relative flex min-h-64 flex-col rounded-2xl border border-border bg-secondary-bg p-5 shadow-lg shadow-stone-950/20">
+    <article
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={`relative flex min-h-64 flex-col rounded-2xl border border-border bg-secondary-bg p-5 shadow-lg shadow-stone-950/20 ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+    >
       {overlay}
       <header className="pointer-events-none relative z-20 flex items-start gap-3">
-        <LessonFormatIcon format={format} />
+        {showFormatIcon && <LessonFormatIcon format={format} />}
         <section className="min-w-0 flex-1">
           <h2 className="line-clamp-2 text-xl font-semibold leading-snug text-primary-text">
             {title}

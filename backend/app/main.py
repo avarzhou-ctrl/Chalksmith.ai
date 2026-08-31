@@ -9,6 +9,7 @@ from backend.app.api.folders import router as folders_router
 from backend.app.api.generations import router as generations_router
 from backend.app.api.health import router as health_router
 from backend.app.api.lessons import router as lessons_router
+from backend.app.api.lesson_sets import router as lesson_sets_router
 from backend.app.api.local_storage import router as local_storage_router
 from backend.app.api.profiles import private_router as private_profile_router
 from backend.app.api.profiles import public_router as public_profiles_router
@@ -56,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(health_router)
     application.include_router(generations_router)
     application.include_router(lessons_router)
+    application.include_router(lesson_sets_router)
     application.include_router(folders_router)
     application.include_router(explore_router)
     application.include_router(private_profile_router)

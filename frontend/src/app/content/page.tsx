@@ -8,8 +8,7 @@ export default function Content() {
       <section className="mx-auto w-full max-w-7xl">
         <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <section className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">Explore</p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">Explore lessons</h1>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Explore lessons</h1>
             <p className="mt-4 text-base leading-7 text-secondary-text">
               Discover lessons published by the Chalksmith community. Anyone can view and download them, while only the original author can continue editing.
             </p>

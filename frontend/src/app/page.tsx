@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { SignUpButton, useAuth } from '@clerk/nextjs';
 import { ArrowRight } from 'lucide-react';
 import ChalkDust from '@/components/home/ChalkDust';
@@ -13,6 +14,7 @@ import Footer from '@/components/home/Footer';
 import ForgeFrame from '@/components/home/ForgeFrame';
 import LessonPipeline from '@/components/home/LessonPipeline';
 import RotatingFormats from '@/components/home/RotatingFormats';
+import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text shadow-lg shadow-amber-950/30 transition-all duration-300 hover:-translate-y-0.5 hover:bg-amber-700 hover:shadow-amber-900/30 active:translate-y-0 motion-reduce:transform-none';
 const ctaSizeClasses = {
@@ -37,6 +39,15 @@ function PrimaryCtaLink({ href, children, size = 'md' }: { href: string; childre
 function BuildLessonCta() {
   const { isLoaded, isSignedIn } = useAuth();
 
+  if (!isLoaded) {
+    return (
+      <span className="block">
+        <Skeleton className="h-12 w-52 rounded-lg" />
+        <SkeletonStatus>Loading sign-up controls</SkeletonStatus>
+      </span>
+    );
+  }
+
   if (isLoaded && isSignedIn) {
     return (
       <PrimaryCtaLink href="/generation" size="lg">
@@ -49,7 +60,7 @@ function BuildLessonCta() {
   return (
     <ClickSpark>
       <SignUpButton mode="modal" forceRedirectUrl="/generation" signInForceRedirectUrl="/generation">
-        <button type="button" disabled={!isLoaded} className={`${ctaBaseClasses} ${ctaSizeClasses.lg} disabled:opacity-50`}>
+        <button type="button" className={`${ctaBaseClasses} ${ctaSizeClasses.lg}`}>
           Try Chalksmith Free
           <ArrowRight size={18} />
         </button>
@@ -59,6 +70,8 @@ function BuildLessonCta() {
 }
 
 export default function Home() {
+  const [previewVideoLoaded, setPreviewVideoLoaded] = useState(false);
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-primary-bg text-primary-text">
       <ChalkDust />
@@ -91,14 +104,20 @@ export default function Home() {
 
         <section className="relative mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8" id="content" aria-label="Chalksmith product preview">
           <ForgeFrame>
-            <video
-              src="/demo-1.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="block w-full"
-            />
+            <div className="relative aspect-video">
+              {!previewVideoLoaded && <Skeleton className="absolute inset-0 size-full rounded-none" />}
+              <video
+                src="/demo-1.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                onLoadedData={() => setPreviewVideoLoaded(true)}
+                onError={() => setPreviewVideoLoaded(true)}
+                className={`size-full object-cover transition-opacity duration-300 ${previewVideoLoaded ? 'opacity-100' : 'opacity-0'}`}
+              />
+              {!previewVideoLoaded && <SkeletonStatus>Loading product preview</SkeletonStatus>}
+            </div>
           </ForgeFrame>
         </section>
 

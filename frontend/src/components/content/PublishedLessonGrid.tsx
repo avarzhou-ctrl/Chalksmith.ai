@@ -7,6 +7,8 @@ import Link from 'next/link';
 
 import PublishedLessonLikeButton from '@/components/content/PublishedLessonLikeButton';
 import LessonCardLayout from '@/components/lesson/LessonCardLayout';
+import LessonCardSkeleton from '@/components/lesson/LessonCardSkeleton';
+import { SkeletonStatus } from '@/components/ui/Skeleton';
 import { createPublicApiClient } from '@/lib/api/client';
 import {
   getPublishedLessonAccessUrl,
@@ -125,12 +127,18 @@ export default function PublishedLessonGrid({
     }
   }
 
-  if (isLoading) {
-    return <p className="rounded-xl border border-border bg-surface/20 p-6 text-secondary-text">Loading published lessons…</p>;
+  if (isLoading && lessons.length === 0) {
+    return (
+      <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+        {Array.from({ length: 3 }, (_, index) => <LessonCardSkeleton key={index} />)}
+        <SkeletonStatus>Loading published lessons</SkeletonStatus>
+      </section>
+    );
   }
 
   return (
-    <section aria-label="Published lessons">
+    <section aria-label="Published lessons" aria-busy={isLoading}>
+      {isLoading && <SkeletonStatus>Refreshing published lessons</SkeletonStatus>}
       {error && (
         <p className="mb-5 rounded-xl border border-red-900/60 bg-red-950/30 p-4 text-sm text-red-200">
           {error}

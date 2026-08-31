@@ -3,11 +3,18 @@
 import { SignUpButton, UserButton, useAuth } from '@clerk/nextjs';
 import { LogIn, UserRound } from 'lucide-react';
 
+import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
+
 export function AuthButton() {
   const { isLoaded, isSignedIn } = useAuth();
 
   if (!isLoaded) {
-    return <span className="size-10 animate-pulse rounded-full bg-stone-800" />;
+    return (
+      <span className="block">
+        <Skeleton className="h-10 w-10 rounded-lg sm:w-28" />
+        <SkeletonStatus>Loading account controls</SkeletonStatus>
+      </span>
+    );
   }
   if (isSignedIn) {
     return (
@@ -16,6 +23,11 @@ export function AuthButton() {
           elements: {
             userButtonAvatarBox: 'size-10',
             userButtonTrigger: 'size-10',
+            userButtonPopoverActionButton: '!text-stone-50 hover:!bg-stone-700',
+            userButtonPopoverActionButtonIcon: '!text-stone-400',
+            userButtonPopoverCustomItemButton: '!text-stone-50 hover:!bg-stone-700',
+            userButtonPopoverCustomItemButtonIconBox: '!text-stone-400',
+            userButtonPopoverActionItemButtonIcon: '!text-stone-400',
           },
         }}
       >
