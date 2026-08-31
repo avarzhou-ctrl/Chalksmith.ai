@@ -39,7 +39,7 @@ class LLMProvider(Protocol):
 
 
 @runtime_checkable
-class StreamingLLMProvider(Protocol):
+class StreamingLLMProvider(LLMProvider, Protocol):
     def stream(
         self,
         prompt: str,
@@ -51,5 +51,5 @@ class LLMProviderError(RuntimeError):
     pass
 
 
-class ProviderTruncationError(LLMProviderError):
+class LLMOutputLimitError(LLMProviderError):
     """The provider stopped because the configured model output budget was exhausted."""

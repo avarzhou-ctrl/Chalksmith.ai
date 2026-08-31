@@ -9,6 +9,7 @@ from backend.app.lessons.formats.slides.blocks import (
 )
 from backend.app.lessons.formats.slides.blocks.custom import custom_html_uses_math
 from backend.app.lessons.formats.slides.registry import (
+    BLOCK_REGISTRY,
     BLOCK_STYLE_GROUP_ORDER,
     VISUAL_BLOCK_TYPES,
     render_block,
@@ -16,8 +17,8 @@ from backend.app.lessons.formats.slides.registry import (
 )
 from backend.app.lessons.formats.slides.spec import SlideSpec, SlidesLessonSpec
 
-SLIDES_RUNTIME_VERSION = "slides-runtime.v1.2"
-SLIDES_COMPILER_VERSION = "slides-compiler.v1.2"
+SLIDES_RUNTIME_VERSION = "slides-runtime.v1.3"
+SLIDES_COMPILER_VERSION = "slides-compiler.v1.3"
 REVEAL_CORE_STYLESHEET = (
     "https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css"
 )
@@ -196,12 +197,32 @@ def _arrange_blocks(blocks: list[SlideBlock]) -> tuple[str, list[SlideBlock]]:
     if len(blocks) == 2 and has_steps and has_equation:
         arranged = sorted(blocks, key=lambda block: not isinstance(block, StepsBlock))
         return "solution-split", arranged
+    partitioned = [
+        block
+        for block in blocks
+        if BLOCK_REGISTRY[block.type].guide.internally_partitioned
+    ]
+    if len(blocks) == 2 and len(partitioned) == 1:
+        arranged = [
+            partitioned[0],
+            *(block for block in blocks if block is not partitioned[0]),
+        ]
+        return "stacked-emphasis", arranged
     visual_count = sum(block.type in VISUAL_BLOCK_TYPES for block in blocks)
     if len(blocks) == 2 and visual_count == 1:
         arranged = sorted(blocks, key=lambda block: block.type in VISUAL_BLOCK_TYPES)
         return "visual-split", arranged
     if len(blocks) == 2:
         return "split", blocks
+    focal = [
+        block
+        for block in blocks
+        if block.type in VISUAL_BLOCK_TYPES
+        or BLOCK_REGISTRY[block.type].guide.preferred_width == "wide"
+    ]
+    if len(blocks) == 3 and len(focal) == 1:
+        arranged = [*(block for block in blocks if block is not focal[0]), focal[0]]
+        return "focus-right", arranged
     return "thirds", blocks
 
 

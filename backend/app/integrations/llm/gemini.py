@@ -5,11 +5,11 @@ from google import genai
 from google.genai import types
 
 from backend.app.integrations.llm.base import (
+    LLMOutputLimitError,
     LLMProviderError,
     LLMResult,
     LLMSource,
     LLMStreamChunk,
-    ProviderTruncationError,
 )
 
 
@@ -52,7 +52,7 @@ class VertexGeminiProvider:
                 input_tokens=getattr(usage, "prompt_token_count", None),
                 output_tokens=_billed_output_tokens(usage),
             )
-        except ProviderTruncationError:
+        except LLMOutputLimitError:
             raise
         except Exception as error:
             raise LLMProviderError(f"Gemini request failed: {error}") from error
@@ -82,7 +82,7 @@ class VertexGeminiProvider:
                         input_tokens=getattr(usage, "prompt_token_count", None),
                         output_tokens=_billed_output_tokens(usage),
                     )
-        except ProviderTruncationError:
+        except LLMOutputLimitError:
             raise
         except Exception as error:
             raise LLMProviderError(f"Gemini request failed: {error}") from error
@@ -112,6 +112,6 @@ def _raise_if_truncated(response: object, max_output_tokens: int) -> None:
     candidates = getattr(response, "candidates", None) or ()
     finish_reason = getattr(candidates[0], "finish_reason", None) if candidates else None
     if str(finish_reason).upper().endswith("MAX_TOKENS"):
-        raise ProviderTruncationError(
+        raise LLMOutputLimitError(
             f"Gemini hit the {max_output_tokens}-token output limit before finishing."
         )

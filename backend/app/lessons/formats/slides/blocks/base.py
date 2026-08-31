@@ -6,6 +6,8 @@ from backend.app.lessons.formats.contracts import StrictSpecModel
 
 
 BlockCategory = Literal["text", "symbolic", "structural", "visual"]
+BlockOrientation = Literal["adaptive", "horizontal", "vertical"]
+BlockPreferredWidth = Literal["standard", "wide"]
 
 
 @dataclass(frozen=True)
@@ -16,6 +18,9 @@ class BlockGuide:
     renders_as: str
     use_when: str
     example: str
+    orientation: BlockOrientation = "adaptive"
+    preferred_width: BlockPreferredWidth = "standard"
+    internally_partitioned: bool = False
 
 
 @dataclass(frozen=True)

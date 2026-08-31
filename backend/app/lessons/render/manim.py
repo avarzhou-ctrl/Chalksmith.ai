@@ -121,22 +121,6 @@ class RemoteManimRenderer:
         return RenderedAsset(path=output, content_type="video/mp4", extension="mp4")
 
 
-def _remote_error_detail(response: httpx.Response) -> dict[str, str]:
-    try:
-        payload = response.json()
-    except ValueError:
-        return {"error_type": "generated_code", "message": response.text[-4000:]}
-    detail = payload.get("detail") if isinstance(payload, dict) else None
-    if not isinstance(detail, dict):
-        return {"error_type": "generated_code", "message": response.text[-4000:]}
-    error_type = detail.get("error_type")
-    message = detail.get("message")
-    return {
-        "error_type": error_type if isinstance(error_type, str) else "generated_code",
-        "message": message[-4000:] if isinstance(message, str) else response.text[-4000:],
-    }
-
-
 class UnavailableManimRenderer:
     async def render(self, _code: str, _workdir: Path) -> RenderedAsset:
         raise InfrastructureRenderError("The isolated Manim renderer is not configured.")
@@ -144,29 +128,6 @@ class UnavailableManimRenderer:
 
 def is_local_renderer_url(url: str) -> bool:
     return urlparse(url).hostname in {"localhost", "127.0.0.1", "::1"}
-
-
-async def _terminate_process_group(process: asyncio.subprocess.Process) -> None:
-    if process.returncode is not None:
-        return
-    try:
-        os.killpg(process.pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
-    await process.wait()
-
-
-def _read_log_tail(path: Path, limit: int = 16_000) -> str:
-    with path.open("rb") as log_file:
-        log_file.seek(0, os.SEEK_END)
-        size = log_file.tell()
-        log_file.seek(max(0, size - limit))
-        return log_file.read().decode("utf-8", errors="replace")
-
-
-def _clean_diagnostic(output: str) -> str:
-    cleaned = re.sub(r"\x1b\[[0-9;]*m", "", output)
-    return cleaned[-4000:] or "Manim rendering failed."
 
 
 def validate_manim_code(code: str) -> None:
@@ -251,6 +212,45 @@ def validate_manim_code(code: str) -> None:
             has_scene = True
     if not has_scene:
         raise GeneratedCodeError("Generated Manim code must define GeneratedScene.")
+
+
+def _remote_error_detail(response: httpx.Response) -> dict[str, str]:
+    try:
+        payload = response.json()
+    except ValueError:
+        return {"error_type": "generated_code", "message": response.text[-4000:]}
+    detail = payload.get("detail") if isinstance(payload, dict) else None
+    if not isinstance(detail, dict):
+        return {"error_type": "generated_code", "message": response.text[-4000:]}
+    error_type = detail.get("error_type")
+    message = detail.get("message")
+    return {
+        "error_type": error_type if isinstance(error_type, str) else "generated_code",
+        "message": message[-4000:] if isinstance(message, str) else response.text[-4000:],
+    }
+
+
+async def _terminate_process_group(process: asyncio.subprocess.Process) -> None:
+    if process.returncode is not None:
+        return
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    await process.wait()
+
+
+def _read_log_tail(path: Path, limit: int = 16_000) -> str:
+    with path.open("rb") as log_file:
+        log_file.seek(0, os.SEEK_END)
+        size = log_file.tell()
+        log_file.seek(max(0, size - limit))
+        return log_file.read().decode("utf-8", errors="replace")
+
+
+def _clean_diagnostic(output: str) -> str:
+    cleaned = re.sub(r"\x1b\[[0-9;]*m", "", output)
+    return cleaned[-4000:] or "Manim rendering failed."
 
 
 def _generated_scene_methods(tree: ast.Module) -> frozenset[str]:

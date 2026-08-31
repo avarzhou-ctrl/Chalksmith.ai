@@ -57,7 +57,13 @@ from backend.app.lessons.sources import extract_sources
 
 
 class FakeLLM:
-    async def generate(self, _prompt: str) -> LLMResult:
+    supports_sources = False
+
+    async def generate(
+        self,
+        _prompt: str,
+        sources: tuple[LLMSource, ...] = (),
+    ) -> LLMResult:
         return LLMResult(
             text=(
                 "A short interactive lesson.\n---CODE_START---\n"
@@ -71,8 +77,12 @@ class FakeLLM:
 
 
 class StreamingFakeLLM(FakeLLM):
-    async def stream(self, prompt: str):
-        result = await self.generate(prompt)
+    async def stream(
+        self,
+        prompt: str,
+        sources: tuple[LLMSource, ...] = (),
+    ):
+        result = await self.generate(prompt, sources=sources)
         midpoint = len(result.text) // 2
         yield LLMStreamChunk(
             text=result.text[:midpoint],
@@ -397,9 +407,9 @@ class V2ApiTests(unittest.TestCase):
         lesson = self.client.get(f"/v2/lessons/{lesson_id}").json()
         self.assertEqual(lesson["spec_version"], "chalksmith.slides.v1")
         self.assertNotIn("template_id", lesson)
-        self.assertEqual(lesson["runtime_version"], "slides-runtime.v1.2")
-        self.assertEqual(lesson["compiler_version"], "slides-compiler.v1.2")
-        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.2"', lesson["source_code"])
+        self.assertEqual(lesson["runtime_version"], "slides-runtime.v1.3")
+        self.assertEqual(lesson["compiler_version"], "slides-compiler.v1.3")
+        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.3"', lesson["source_code"])
         self.assertNotIn("data-chalksmith-template", lesson["source_code"])
         for asset_url in (
             REVEAL_CORE_STYLESHEET,

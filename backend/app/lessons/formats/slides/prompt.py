@@ -80,6 +80,11 @@ Use custom-html only when no Catalog Block can express the representation, and o
 For visual-explanation slides, use an accurate visual Block whenever the subject can be represented
 visually. Never force an irrelevant visual, invent data, or replace content clearer as notation.
 Catalog examples demonstrate structure only; write all learner-visible content for this lesson.
+Choose steps for vertical reasoning, calculations, progressive algebra, or repeated formula states.
+Choose process only for short stage labels that read left to right; never put derivations,
+substantial formulas, or full-sentence reasoning in process.
+Geometry metadata describes how much internal space a Block needs. Use it to choose compatible
+Blocks and concise content; the compiler still owns their exact position and dimensions.
 </BLOCK_SELECTION>
 
 <BLOCK_CATALOG>

@@ -20,11 +20,11 @@ from backend.app.db.lessons import (
     save_lesson,
 )
 from backend.app.integrations.llm.base import (
+    LLMOutputLimitError,
     LLMProvider,
     LLMProviderError,
     LLMResult,
     LLMSource,
-    ProviderTruncationError,
     StreamingLLMProvider,
 )
 from backend.app.integrations.storage import Storage
@@ -607,7 +607,7 @@ def _repair_reason_code(error: Exception) -> str:
 
 def _public_error_code(error: Exception) -> str:
     # Map each failure owner to a stable browser-facing code without exposing diagnostics.
-    if isinstance(error, ProviderTruncationError):
+    if isinstance(error, LLMOutputLimitError):
         return "provider_output_truncated"
     if isinstance(error, PolicyViolationError):
         return "lesson_policy_violation"
@@ -627,7 +627,7 @@ def _public_error_code(error: Exception) -> str:
 
 
 def _public_error(error: Exception, *, app_env: str) -> str:
-    if isinstance(error, ProviderTruncationError):
+    if isinstance(error, LLMOutputLimitError):
         return (
             "The AI response reached its output limit before the lesson was complete. "
             "Narrow the lesson scope or split it into multiple parts."

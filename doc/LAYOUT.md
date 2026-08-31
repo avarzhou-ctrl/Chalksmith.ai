@@ -317,7 +317,12 @@ right-angle, congruence, diagonal, radius, median, cevian, and concurrency notat
 the model never supplies SVG paths or page coordinates.
 
 The Block Catalog is the compact model-facing visual contract. For every type it describes the
-teaching purpose, deterministic rendered form, appropriate use, category, and one JSON example.
+teaching purpose, deterministic rendered form, appropriate use, category, orientation, preferred
+width, whether it already contains internal partitions, and one JSON example. These geometry
+properties help the model choose compatible semantic Blocks without exposing compiler layout names
+or page coordinates. In particular, `steps` is the vertical representation for reasoning,
+calculations, progressive algebra, and repeated formula states; `process` is restricted by Prompt
+guidance to short stage labels in a horizontal start-to-end sequence.
 The prompt includes this catalog, the generated JSON Schema, and the custom-html sanitizer's compact
 allowlist guidance, but never runtime CSS or compiler markup. It also recommends visual diversity
 when the topic supports it; lesson-wide visual counts remain planning guidance rather than validator
@@ -364,16 +369,19 @@ one internal layout from the validated block combination:
 | :--- | :--- |
 | One block | Full-width `single` |
 | Two ordinary blocks | Equal `split` |
-| Three ordinary blocks | Equal `thirds` |
-| `steps` plus `equation` | `solution-split`, with steps given more width |
+| Three ordinary blocks without one clear focal Block | Equal `thirds` |
+| Three blocks with exactly one visual or wide focal Block | `focus-right`, with two supporting Blocks stacked on the left and the focal Block spanning both rows on the right |
+| `steps` plus `equation` | `solution-split`, with the focal equation given more width |
 | Two blocks containing exactly one visual block | `visual-split`, with the visual given more width |
+| An internally partitioned `comparison` or `process` plus one supporting Block | `stacked-emphasis`, preserving the internal horizontal columns at full width above the support |
 Slide kinds remain teaching semantics; except for the specialized
 `comprehension-check`, they do not directly choose CSS layouts.
 
 The `steps` renderer wraps each item's complete authored content in one grid cell so KaTeX's
-generated inline spans cannot be placed beside or underneath the numbered marker. When an
-`equation` shares a slide with another Block, its source expression is limited to 80 characters;
-longer derivations use a full-width equation or another worked-example slide.
+generated inline spans cannot be placed beside or underneath the numbered marker. The compiler
+also reserves the wider side of a worked-example split for the focal equation. When an `equation`
+shares a slide with another Block, its source expression is limited to 80 characters; longer
+derivations use a full-width equation or another worked-example slide.
 
 ### 7.5 Slides compilation and validation
 

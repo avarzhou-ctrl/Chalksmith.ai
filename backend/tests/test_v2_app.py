@@ -26,10 +26,10 @@ from backend.app.core.logging import JsonFormatter
 from backend.app.db.session import create_db_and_tables
 from backend.app.integrations.auth import _decode_clerk_token, get_current_user
 from backend.app.integrations.llm.base import (
+    LLMOutputLimitError,
     LLMProviderError,
     LLMResult,
     LLMSource,
-    ProviderTruncationError,
 )
 from backend.app.integrations.llm.deepseek import DeepSeekProvider
 from backend.app.integrations.llm.factory import create_llm_provider
@@ -841,7 +841,7 @@ class OpenAISourceTests(unittest.IsolatedAsyncioTestCase):
             )
         )
 
-        with self.assertRaises(ProviderTruncationError):
+        with self.assertRaises(LLMOutputLimitError):
             await provider.generate("prompt")
 
     async def test_generate_sends_images_and_pdfs_as_data_urls(self) -> None:
@@ -1192,6 +1192,11 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertIn("type-aware plant, animal, or bacterial", prompt)
         self.assertIn("accurate right-angle markings", prompt)
         self.assertIn("Use a semantic Catalog Block whenever one accurately expresses", prompt)
+        self.assertIn("Choose steps for vertical reasoning", prompt)
+        self.assertIn("Choose process only for short stage labels", prompt)
+        self.assertIn("orientation=vertical, preferred_width=standard", prompt)
+        self.assertIn("orientation=horizontal, preferred_width=wide", prompt)
+        self.assertIn("internally_partitioned=true", prompt)
         self.assertIn("avoid more than two", prompt)
         self.assertIn("consecutive text-only slides", prompt)
         self.assertIn("The compiler draws coordinates and mathematical markings", prompt)
@@ -1524,7 +1529,7 @@ class StructuredSlidesTests(unittest.TestCase):
 
         self.assertIn("Fractions &lt;script&gt;alert(1)&lt;/script&gt;", prepared.source_code)
         self.assertNotIn("<script>alert(1)</script>", prepared.source_code)
-        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.2"', prepared.source_code)
+        self.assertIn('data-chalksmith-runtime="slides-runtime.v1.3"', prepared.source_code)
         self.assertIn('.slides > section.present', prepared.source_code)
         self.assertIn(
             ".reveal .cs-card ul,\n.reveal .cs-card ol {\n  margin: 0;",
@@ -1671,7 +1676,70 @@ class StructuredSlidesTests(unittest.TestCase):
 
         prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
 
-        self.assertIn('data-chalksmith-layout="split"', prepared.source_code)
+        self.assertIn('data-chalksmith-layout="stacked-emphasis"', prepared.source_code)
+
+    def test_compiler_stacks_an_internally_partitioned_block_above_support(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["body"] = [
+            {
+                "type": "callout",
+                "label": "Result",
+                "text": "Both methods give the same coefficient.",
+            },
+            {
+                "type": "comparison",
+                "left_title": "Arithmetic",
+                "left_items": ["Compute each term"],
+                "right_title": "Generating function",
+                "right_items": ["Read the coefficient"],
+            },
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        body_start = prepared.source_code.index(
+            'data-chalksmith-layout="stacked-emphasis"'
+        )
+        comparison_start = prepared.source_code.index("cs-comparison", body_start)
+        callout_start = prepared.source_code.index("cs-callout", body_start)
+
+        self.assertLess(comparison_start, callout_start)
+        self.assertIn(
+            ".cs-layout--stacked-emphasis {\n  grid-template-columns: minmax(0, 1fr);",
+            prepared.source_code,
+        )
+
+    def test_compiler_places_one_focal_block_beside_two_stacked_supports(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        lesson["payload"]["slides"][0]["body"] = [
+            {"type": "callout", "label": "Meaning", "text": "Count the choices."},
+            {
+                "type": "equation",
+                "expression": r"\binom{n}{r} = \frac{n!}{r!(n-r)!}",
+            },
+            {"type": "statement", "text": "Choose r objects from n objects."},
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        body_start = prepared.source_code.index('data-chalksmith-layout="focus-right"')
+        callout_start = prepared.source_code.index("cs-callout", body_start)
+        statement_start = prepared.source_code.index("cs-statement", body_start)
+        equation_start = prepared.source_code.index("cs-equation", body_start)
+
+        self.assertLess(callout_start, equation_start)
+        self.assertLess(statement_start, equation_start)
+        self.assertIn(
+            ".cs-layout--focus-right > :nth-child(3) {\n  grid-column: 2;",
+            prepared.source_code,
+        )
+
+    def test_solution_split_gives_the_focal_equation_more_width(self) -> None:
+        prepared = StructuredSlidesStrategy().prepare(_slides_fixture())
+
+        self.assertIn('data-chalksmith-layout="solution-split"', prepared.source_code)
+        self.assertIn(
+            ".cs-layout--solution-split {\n  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);",
+            prepared.source_code,
+        )
 
     def test_compiler_selects_a_visual_layout_and_places_the_visual_second(self) -> None:
         lesson = json.loads(_slides_fixture())

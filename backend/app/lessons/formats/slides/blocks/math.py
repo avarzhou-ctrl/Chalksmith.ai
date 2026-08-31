@@ -633,6 +633,8 @@ MATH_BLOCKS = (
             "a large typeset formula with an optional explanation",
             "the notation itself carries the teaching meaning",
             '{"type":"equation","expression":"F = ma","explanation":"Force equals mass times acceleration."}',
+            orientation="horizontal",
+            preferred_width="wide",
         ),
         render_equation,
     ),

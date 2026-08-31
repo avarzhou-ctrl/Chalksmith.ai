@@ -112,8 +112,10 @@ CONTENT_BLOCKS = (
             "text",
             "a staged solution or procedure",
             "a vertical numbered list",
-            "learners should follow actions in order, especially beside an equation",
+            "showing vertical reasoning, calculations, progressive algebra, or formula states; "
+            "choose this instead of process when each item needs horizontal writing room",
             '{"type":"steps","items":["Substitute the values.","Multiply.","Add the unit."]}',
+            orientation="vertical",
         ),
         render_steps,
     ),

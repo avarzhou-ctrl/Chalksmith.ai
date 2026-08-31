@@ -7,14 +7,13 @@ from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
 from backend.app.integrations.llm.base import LLMSource
 
-IMAGE_MEDIA_TYPES = {
+SUPPORTED_MEDIA_TYPES = {
     ".jpeg": "image/jpeg",
     ".jpg": "image/jpeg",
     ".png": "image/png",
     ".webp": "image/webp",
+    ".pdf": "application/pdf",
 }
-SUPPORTED_MEDIA_TYPES = {"application/pdf", *IMAGE_MEDIA_TYPES.values()}
-
 
 @dataclass(frozen=True)
 class SourceDocument:
@@ -73,14 +72,12 @@ async def extract_sources(files: list[UploadFile], settings: Settings) -> list[S
 
 def _declared_media_type(filename: str, content_type: str | None) -> str | None:
     normalized = (content_type or "").lower().split(";", 1)[0].strip()
-    if normalized in SUPPORTED_MEDIA_TYPES:
+    if normalized in SUPPORTED_MEDIA_TYPES.values():
         return normalized
     if normalized not in {"", "application/octet-stream"}:
         return None
     suffix = Path(filename).suffix.lower()
-    if suffix == ".pdf":
-        return "application/pdf"
-    return IMAGE_MEDIA_TYPES.get(suffix)
+    return SUPPORTED_MEDIA_TYPES.get(suffix)
 
 
 def _detected_image_media_type(data: bytes) -> str | None:

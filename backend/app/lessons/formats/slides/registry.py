@@ -53,7 +53,10 @@ VISUAL_BLOCK_TYPES = frozenset(
 def block_catalog_prompt() -> str:
     return "\n".join(
         f"- {guide.type} [{guide.category}]: {guide.purpose}. Renders as {guide.renders_as}. "
-        f"Use when {guide.use_when}. Example: {guide.example}"
+        f"Use when {guide.use_when}. Geometry: orientation={guide.orientation}, "
+        f"preferred_width={guide.preferred_width}, "
+        f"internally_partitioned={str(guide.internally_partitioned).lower()}. "
+        f"Example: {guide.example}"
         for guide in BLOCK_CATALOG
     )
 

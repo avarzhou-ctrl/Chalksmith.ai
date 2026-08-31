@@ -135,7 +135,7 @@ body,
 }
 
 .cs-layout--solution-split {
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
 }
 
 .cs-layout--visual-split {
@@ -144,6 +144,31 @@ body,
 
 .cs-layout--thirds {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cs-layout--focus-right {
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.cs-layout--focus-right > :nth-child(1) {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.cs-layout--focus-right > :nth-child(2) {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.cs-layout--focus-right > :nth-child(3) {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.cs-layout--stacked-emphasis {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
 }
 
 .cs-card {

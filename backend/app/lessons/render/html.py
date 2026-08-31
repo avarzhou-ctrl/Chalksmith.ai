@@ -137,7 +137,7 @@ class HTMLRenderer:
         code = _ensure_required_runtime(code, document, self.required_marker)
         if self.required_marker == "p5":
             code = _prepare_interactive_math(code)
-        secured = secure_html_document(code)
+        secured = _secure_html_document(code)
         output = workdir / "lesson.html"
         output.write_text(secured, encoding="utf-8")
         return RenderedAsset(
@@ -145,7 +145,7 @@ class HTMLRenderer:
         )
 
 
-def secure_html_document(code: str) -> str:
+def _secure_html_document(code: str) -> str:
     # Inject the platform CSP before the lesson can be served in a sandboxed iframe.
     meta = f'<meta http-equiv="Content-Security-Policy" content="{CONTENT_SECURITY_POLICY}">'
     lowered = code.lower()
@@ -204,12 +204,21 @@ def _validate_executable_script_reliability(code: str) -> None:
 
 def _validate_counter_loops(code: str) -> None:
     # Reject obvious counter-direction mistakes that can freeze the preview iframe.
-    bad_loop = _find_nonterminating_counter_loop(code)
-    if bad_loop:
-        raise GeneratedCodeError(
-            "Generated HTML contains a counter loop whose update moves away from its "
-            f"stopping condition: {bad_loop}"
-        )
+    for script in _SCRIPT_BLOCK.finditer(code):
+        if _SRC_ATTRIBUTE.search(script.group("attrs")):
+            continue
+        executable = _mask_js_non_code(script.group("body"))
+        for loop in _COUNTER_FOR_LOOP.finditer(executable):
+            comparison = loop.group("comparison")
+            update = loop.group("update")
+            if (comparison.startswith(">") and "++" in update) or (
+                comparison.startswith("<") and "--" in update
+            ):
+                bad_loop = " ".join(loop.group(0).split())
+                raise GeneratedCodeError(
+                    "Generated HTML contains a counter loop whose update moves away from its "
+                    f"stopping condition: {bad_loop}"
+                )
 
 
 def _ensure_required_runtime(
@@ -229,35 +238,15 @@ def _ensure_required_runtime(
     raise GeneratedCodeError(f"Generated HTML requires an unknown runtime: {required_marker}.")
 
 
-def _find_nonterminating_counter_loop(code: str) -> str | None:
-    # Locate the first obvious counter-direction mistake in executable inline JavaScript.
-    for script in _SCRIPT_BLOCK.finditer(code):
-        if _SRC_ATTRIBUTE.search(script.group("attrs")):
-            continue
-        executable = _mask_js_non_code(script.group("body"))
-        for loop in _COUNTER_FOR_LOOP.finditer(executable):
-            comparison = loop.group("comparison")
-            update = loop.group("update")
-            if (comparison.startswith(">") and "++" in update) or (
-                comparison.startswith("<") and "--" in update
-            ):
-                return " ".join(loop.group(0).split())
-    return None
-
-
 def _prepare_interactive_math(code: str) -> str:
     # Apply platform-owned math resources only when the lesson exposes LaTeX to learners.
-    if not _has_visible_latex(code):
+    # Visible text excludes formulas inside scripts and code examples from this decision.
+    parser = _VisibleTextParser()
+    parser.feed(code)
+    if not _VISIBLE_LATEX.search(" ".join(parser.text)):
         return code
     code = _ensure_katex_assets(code)
     return _ensure_global_math_typesetting(code)
-
-
-def _has_visible_latex(code: str) -> bool:
-    # Check visible document text so formulas inside scripts and examples do not trigger KaTeX.
-    parser = _VisibleTextParser()
-    parser.feed(code)
-    return _VISIBLE_LATEX.search(" ".join(parser.text)) is not None
 
 
 def _ensure_katex_assets(code: str) -> str:
@@ -345,7 +334,9 @@ def _ensure_global_math_typesetting(code: str) -> str:
     if _GLOBAL_MATH_RENDER.search(executable_scripts):
         return code
 
-    return _inject_before_body_end(code, _KATEX_TYPESET_SCRIPT)
+    # Place the trusted startup pass before the validated document closes.
+    body_end = code.lower().rfind("</body>")
+    return f"{code[:body_end]}{_KATEX_TYPESET_SCRIPT}\n{code[body_end:]}"
 
 
 def _inject_into_head(code: str, markup: str) -> str:
@@ -356,12 +347,6 @@ def _inject_into_head(code: str, markup: str) -> str:
         return f"{code[: head_end + 1]}{markup}\n{code[head_end + 1 :]}"
     html_end = lowered.find(">", lowered.find("<html"))
     return f"{code[: html_end + 1]}<head>{markup}</head>{code[html_end + 1 :]}"
-
-
-def _inject_before_body_end(code: str, markup: str) -> str:
-    # Place platform-owned startup code before the document closes.
-    body_end = code.lower().rfind("</body>")
-    return f"{code[:body_end]}{markup}\n{code[body_end:]}"
 
 
 def _mask_js_non_code(script: str) -> str:

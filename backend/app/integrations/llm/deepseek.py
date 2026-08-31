@@ -1,10 +1,10 @@
 from openai import AsyncOpenAI
 
 from backend.app.integrations.llm.base import (
+    LLMOutputLimitError,
     LLMProviderError,
     LLMResult,
     LLMSource,
-    ProviderTruncationError,
 )
 
 
@@ -50,7 +50,7 @@ class DeepSeekProvider:
         # A truncated answer parses as a malformed lesson much later, which reads as
         # a model formatting failure rather than an exhausted token budget.
         if choice.finish_reason == "length":
-            raise ProviderTruncationError(
+            raise LLMOutputLimitError(
                 f"DeepSeek hit the {self.max_output_tokens}-token output limit before finishing. "
                 "Raise LLM_MAX_OUTPUT_TOKENS, or lower the requested lesson's scope."
             )
