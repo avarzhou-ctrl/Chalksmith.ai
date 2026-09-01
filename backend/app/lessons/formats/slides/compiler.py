@@ -65,8 +65,12 @@ window.addEventListener("load", () => {
       const table = viewport.querySelector("table");
       if (!table || viewport.clientWidth === 0 || viewport.clientHeight === 0) return;
       table.style.setProperty("--cs-table-scale", "1");
-      const widthScale = viewport.clientWidth / table.offsetWidth;
-      const heightScale = viewport.clientHeight / table.offsetHeight;
+      // Keep transformed borders inside the clipping viewport; collapsed table borders can
+      // otherwise land exactly on the edge and lose their final pixel after scaling.
+      const availableWidth = Math.max(0, viewport.clientWidth - 2);
+      const availableHeight = Math.max(0, viewport.clientHeight - 2);
+      const widthScale = availableWidth / table.offsetWidth;
+      const heightScale = availableHeight / table.offsetHeight;
       const scale = Math.max(0.1, Math.min(1, widthScale, heightScale));
       table.style.setProperty("--cs-table-scale", scale.toFixed(4));
     });
@@ -149,7 +153,7 @@ def _render_slide(slide: SlideSpec, number: int, total: int, grade_band: str) ->
     label = (
         f'<p class="cs-eyebrow">{escape(slide.label)}</p>' if slide.label else ""
     )
-    blocks = "".join(render_block(block) for block in slide.blocks)
+    blocks = _render_layout_blocks(slide)
     return f"""
       <section class="cs-slide cs-slide--{escape(slide.background)}" data-grade-band="{escape(grade_band)}">
         <header class="cs-slide__header">
@@ -162,3 +166,16 @@ def _render_slide(slide: SlideSpec, number: int, total: int, grade_band: str) ->
           <span>{number} / {total}</span>
         </footer>
       </section>"""
+
+
+def _render_layout_blocks(slide: SlideSpec) -> str:
+    rendered = [render_block(block) for block in slide.blocks]
+    if slide.layout == "left-1-right-2":
+        return (
+            f'{rendered[0]}<div class="cs-layout__stack">{"".join(rendered[1:])}</div>'
+        )
+    if slide.layout == "left-2-right-1":
+        return (
+            f'<div class="cs-layout__stack">{"".join(rendered[:2])}</div>{rendered[2]}'
+        )
+    return "".join(rendered)

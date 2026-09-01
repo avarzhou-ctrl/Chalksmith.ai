@@ -277,7 +277,7 @@ titles and structured fields. An Equation item's `latex` field contains KaTeX wi
 The compiler detects math across the rendered document, loads pinned KaTeX assets, and performs one
 document-wide typesetting pass. Inline math inherits surrounding type size.
 
-Each slide has a hard 640 learner-visible-character capacity. Markup, CSS, and the accessibility-only
+Each slide has a hard 720 learner-visible-character capacity. Markup, CSS, and the accessibility-only
 custom description do not count; visible custom content does. Narrow third, quarter, and sixth slots
 need substantially less copy than full-width or half-width slots. Content should be split across
 slides instead of being shrunk or hidden.

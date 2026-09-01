@@ -1264,6 +1264,48 @@ class StructuredSlidesTests(unittest.TestCase):
             prepared.source_code,
         )
         self.assertNotIn(".cs-layout--row-3 {\n  align-content: start", prepared.source_code)
+        self.assertIn(
+            ".cs-layout--left-1-right-2,\n"
+            ".cs-layout--left-2-right-1 {\n"
+            "  grid-template-columns: repeat(2, minmax(0, 1fr));\n"
+            "  grid-template-rows: minmax(0, 1fr);\n"
+            "}",
+            prepared.source_code,
+        )
+        self.assertIn(
+            ".cs-layout__stack {\n"
+            "  display: flex;\n"
+            "  min-width: 0;\n"
+            "  min-height: 0;\n"
+            "  flex-direction: column;",
+            prepared.source_code,
+        )
+
+    def test_stacked_layouts_group_secondary_blocks_for_content_sized_flex_rows(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        for layout in ("left-1-right-2", "left-2-right-1"):
+            lesson["payload"]["slides"][0]["layout"] = layout
+            lesson["payload"]["slides"][0]["blocks"] = [
+                {
+                    "type": "key-point",
+                    "summary": f"Point {index}",
+                    "explanation": f"Explanation {index}",
+                }
+                for index in range(1, 4)
+            ]
+
+            prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+
+            self.assertEqual(prepared.source_code.count('class="cs-layout__stack"'), 1)
+            stack_position = prepared.source_code.index('class="cs-layout__stack"')
+            first_position = prepared.source_code.index("Point 1")
+            second_position = prepared.source_code.index("Point 2")
+            third_position = prepared.source_code.index("Point 3")
+            if layout == "left-1-right-2":
+                self.assertLess(first_position, stack_position)
+            else:
+                self.assertLess(stack_position, first_position)
+            self.assertLess(second_position, third_position)
 
     def test_incompatible_layout_falls_back_locally_by_block_count(self) -> None:
         lesson = json.loads(_slides_fixture())
@@ -1328,9 +1370,22 @@ class StructuredSlidesTests(unittest.TestCase):
         for presentation in presentations:
             self.assertIn(f"cs-list--{presentation}", prepared.source_code)
         self.assertIn(
-            ".cs-list--numbered .cs-item__badge,\n"
             ".cs-list--numbered .cs-item__content {\n"
-            "  grid-column: 2;\n"
+            "  display: contents;\n"
+            "}",
+            prepared.source_code,
+        )
+        self.assertIn(
+            ".cs-list--numbered .cs-item__explanation {\n"
+            "  grid-column: 1 / -1;\n"
+            "  grid-row: 2;\n"
+            "}",
+            prepared.source_code,
+        )
+        self.assertIn(
+            ".cs-list--bullets ul {\n"
+            "  padding-left: 0.5rem;\n"
+            "  list-style: disc;\n"
             "}",
             prepared.source_code,
         )
@@ -1445,6 +1500,27 @@ class StructuredSlidesTests(unittest.TestCase):
             prepared.source_code,
         )
         self.assertIn("overflow-wrap: break-word;", prepared.source_code)
+        self.assertIn("border: 0.08rem solid var(--cs-border);\n  border-collapse: collapse;", prepared.source_code)
+        self.assertIn(
+            ".cs-list--accent-rows .cs-item__content {\n"
+            "  display: contents;\n"
+            "}",
+            prepared.source_code,
+        )
+        self.assertIn(
+            ".cs-list--accent-rows .cs-item__explanation {\n"
+            "  grid-column: 1 / -1;\n"
+            "  grid-row: 2;\n"
+            "}",
+            prepared.source_code,
+        )
+        self.assertIn(
+            ".cs-key-point:has(.cs-key-point__badge) > p {\n"
+            "  grid-column: 1 / -1;\n"
+            "  grid-row: 2;\n"
+            "}",
+            prepared.source_code,
+        )
         self.assertIn(
             ".cs-table {\n"
             "  display: grid;\n"
@@ -1457,7 +1533,11 @@ class StructuredSlidesTests(unittest.TestCase):
             prepared.source_code,
         )
         self.assertIn(
-            "const heightScale = viewport.clientHeight / table.offsetHeight;",
+            "const availableHeight = Math.max(0, viewport.clientHeight - 2);",
+            prepared.source_code,
+        )
+        self.assertIn(
+            "const heightScale = availableHeight / table.offsetHeight;",
             prepared.source_code,
         )
 
@@ -1660,10 +1740,15 @@ class StructuredSlidesTests(unittest.TestCase):
 
     def test_slide_capacity_counts_visible_content(self) -> None:
         lesson = json.loads(_slides_fixture())
+        paragraph_length = SLIDE_CAPACITY // 3 + 1
         lesson["payload"]["slides"][0]["blocks"] = [
             {
                 "type": "prose",
-                "paragraphs": ["x" * 220, "y" * 220, "z" * 220],
+                "paragraphs": [
+                    "x" * paragraph_length,
+                    "y" * paragraph_length,
+                    "z" * paragraph_length,
+                ],
             }
         ]
 

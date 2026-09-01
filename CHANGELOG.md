@@ -1,5 +1,15 @@
 # Changelog
 
+**2026-09-01**: Reduced Bullets list indentation so labeled content starts closer to the Block padding and aligns with neighboring structured Blocks (`backend/app/lessons/formats/slides/assets/blocks.css`, `backend/tests/test_v2_app.py`, `CHANGELOG.md`).
+
+**2026-09-01**: Unified labeled Slides content rows so badges and summaries share a heading line while explanations span the full Block width, reducing empty left columns across Bullets, accent rows, numbered lists, and Key Points (`backend/app/lessons/formats/slides/assets/blocks.css`, `backend/tests/test_v2_app.py`, `CHANGELOG.md`).
+
+**2026-09-01**: Placed Bullets badges beside their summaries to reduce vertical pressure and added an explicit table outer border so the final row boundary remains visible after Reveal scaling (`backend/app/lessons/formats/slides/assets/blocks.css`, `backend/tests/test_v2_app.py`, `CHANGELOG.md`).
+
+**2026-09-01**: Made asymmetric stacked Slides layouts size each secondary block from its content while keeping the stack aligned with the adjacent block, and reserved a two-pixel fit margin so scaled table borders remain visible at the viewport edge (`backend/app/lessons/formats/slides/compiler.py`, `backend/app/lessons/formats/slides/assets/layouts.css`, `backend/tests/test_v2_app.py`, `CHANGELOG.md`).
+
+**2026-09-01**: Reconciled the Slides v2 capacity regression after merging by making its boundary test follow the authoritative 720-character constant and aligning the layout documentation with that runtime contract (`backend/tests/test_v2_app.py`, `doc/LAYOUT.md`, `CHANGELOG.md`).
+
 **2026-09-01**: Centered Slides tables by positioning their scaled visual bounds from the Block midpoint, let column widths follow content to reduce avoidable wrapping, and replaced Reveal's default cell spacing with balanced table-owned outer and cell padding so tables use their cards effectively (`backend/app/lessons/formats/slides/assets/blocks.css`, `backend/tests/test_v2_app.py`, `CHANGELOG.md`).
 
 **2026-09-01**: Hardened Slides repair by restating the strict JSON and authoritative Custom HTML rules during the retry, requiring single escaping of HTML attribute quotes, distinguishing invalid backslash escapes from external references, and adding regression coverage for malformed SVG attributes recovered from model output (`backend/app/lessons/formats/slides/strategy.py`, `backend/app/lessons/formats/slides/presentation/custom.py`, `backend/tests/test_v2_app.py`, `CHANGELOG.md`).
