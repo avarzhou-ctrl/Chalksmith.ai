@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.testclient import TestClient
 from jwt import InvalidTokenError
+import pymupdf
 from pydantic import ValidationError
 from sqlalchemy import inspect, text
 from sqlmodel import create_engine
@@ -220,6 +221,70 @@ class SettingsTests(unittest.TestCase):
         request = provider.client.chat.completions.create.call_args.kwargs
         self.assertEqual(request["extra_body"], {"thinking": {"type": "disabled"}})
         self.assertEqual(result.text, "summary\n---CODE_START---\ncode")
+
+    def test_deepseek_sends_images_as_vision_content_blocks(self) -> None:
+        provider = DeepSeekProvider(
+            api_key="secret",
+            model="deepseek-v4-flash-vision-exp",
+            base_url="https://api.deepseek.com",
+            timeout_seconds=120,
+            max_output_tokens=100,
+        )
+        completion = MagicMock(
+            choices=[MagicMock(finish_reason="stop", message=MagicMock(content="done"))],
+            usage=MagicMock(prompt_tokens=10, completion_tokens=2),
+        )
+        provider.client = MagicMock()
+        provider.client.chat.completions.create = AsyncMock(return_value=completion)
+
+        asyncio.run(provider.generate("prompt", (LLMSource("diagram.png", "image/png", b"png-bytes"),)))
+
+        content = provider.client.chat.completions.create.call_args.kwargs["messages"][0]["content"]
+        self.assertEqual(content[0], {"type": "text", "text": "prompt"})
+        self.assertEqual(content[1], {"type": "text", "text": "Source image: diagram.png"})
+        self.assertEqual(
+            content[2],
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": "data:image/png;base64,cG5nLWJ5dGVz",
+                    "detail": "auto",
+                },
+            },
+        )
+
+    def test_deepseek_renders_pdf_pages_with_extracted_text(self) -> None:
+        document = pymupdf.open()
+        page = document.new_page(width=320, height=180)
+        page.insert_text((24, 80), "A worksheet page")
+        pdf = document.tobytes()
+        document.close()
+
+        provider = DeepSeekProvider(
+            api_key="secret",
+            model="deepseek-v4-flash-vision-exp",
+            base_url="https://api.deepseek.com",
+            timeout_seconds=120,
+            max_output_tokens=100,
+        )
+        completion = MagicMock(
+            choices=[MagicMock(finish_reason="stop", message=MagicMock(content="done"))],
+            usage=MagicMock(prompt_tokens=10, completion_tokens=2),
+        )
+        provider.client = MagicMock()
+        provider.client.chat.completions.create = AsyncMock(return_value=completion)
+
+        asyncio.run(
+            provider.generate(
+                "prompt",
+                (LLMSource("worksheet.pdf", "application/pdf", pdf),),
+            )
+        )
+
+        content = provider.client.chat.completions.create.call_args.kwargs["messages"][0]["content"]
+        self.assertIn("Source PDF: worksheet.pdf, page 1\nA worksheet page", content[1]["text"])
+        self.assertEqual(content[2]["type"], "image_url")
+        self.assertTrue(content[2]["image_url"]["url"].startswith("data:image/jpeg;base64,"))
 
     def test_deepseek_reports_a_truncated_answer_as_a_token_limit(self) -> None:
         provider = DeepSeekProvider(

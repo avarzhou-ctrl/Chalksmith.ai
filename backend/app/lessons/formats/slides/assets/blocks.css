@@ -279,7 +279,6 @@
 
 .cs-list--bands li {
   display: grid;
-  flex: 1 1 0;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.8rem;
@@ -415,7 +414,6 @@
 
 .cs-equation {
   display: grid;
-  min-width: 0;
   align-content: start;
   text-align: center;
 }

@@ -76,7 +76,7 @@ export default function Home() {
     <main className="relative min-h-screen overflow-hidden bg-primary-bg text-primary-text">
       <ChalkDust />
       <div className="relative z-10">
-        <section id="landing" className="relative isolate w-full overflow-hidden border-b border-stone-900 px-4 py-12 text-center sm:px-6 sm:py-16 lg:px-8">
+        <section id="landing" className="relative isolate w-full overflow-hidden px-4 py-12 text-center sm:px-6 sm:py-16 lg:px-8">
           <div className="absolute inset-0 z-1 bg-[radial-gradient(ellipse_at_center,rgba(28,25,23,0.08)_0%,rgba(12,10,9,0.24)_58%,rgba(12,10,9,0.7)_100%)]" />
           <div className="absolute inset-x-0 bottom-0 z-1 h-32 bg-gradient-to-b from-transparent to-primary-bg" />
           <div className="relative z-10 mx-auto w-full max-w-6xl">
@@ -114,14 +114,14 @@ export default function Home() {
                 playsInline
                 onLoadedData={() => setPreviewVideoLoaded(true)}
                 onError={() => setPreviewVideoLoaded(true)}
-                className={`size-full object-cover transition-opacity duration-300 ${previewVideoLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`size-full object-contain transition-opacity duration-300 ${previewVideoLoaded ? 'opacity-100' : 'opacity-0'}`}
               />
               {!previewVideoLoaded && <SkeletonStatus>Loading product preview</SkeletonStatus>}
             </div>
           </ForgeFrame>
         </section>
 
-        <section id="about" className="relative border-y border-stone-900 bg-stone-950/40">
+        <section id="about" className="relative bg-stone-950/40">
           <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(217,119,6,0.07),transparent_58%)]" />
           <div className="relative mx-auto w-full max-w-6xl px-4 py-12 text-center sm:px-6 sm:py-16 lg:px-8">
             <h2 className="text-4xl font-bold text-primary-text sm:text-5xl">The Educator&apos;s Dilemma</h2>
@@ -198,7 +198,7 @@ export default function Home() {
           </div>
         </section>
         
-        <section id="examples" className="border-y border-stone-900 bg-stone-950/40">
+        <section id="examples" className="bg-stone-950/40">
           <div className="mx-auto w-full max-w-6xl px-4 py-12 text-center sm:px-6 sm:py-16 lg:px-8">
             <h2 className="text-4xl font-bold text-primary-text sm:text-5xl">Examples</h2>
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-secondary-text">
