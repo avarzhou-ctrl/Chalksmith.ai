@@ -1,11 +1,46 @@
 'use client'
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import Button from '../ui/Button';
 import { Code, Eye, MousePointerClick } from 'lucide-react';
-import SyntaxHighlighter from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
+
+const CodeHighlighter = dynamic<{ sourceCode: string }>(async () => {
+  const [{ Prism: SyntaxHighlighter }, { default: vscDarkPlus }] = await Promise.all([
+    import('react-syntax-highlighter'),
+    import('react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus'),
+  ]);
+
+  return function HighlightedCode({ sourceCode }: { sourceCode: string }) {
+    return (
+      <SyntaxHighlighter
+        language="javascript"
+        style={vscDarkPlus}
+        customStyle={{
+          background: 'transparent',
+          padding: '0',
+          margin: '0',
+          fontSize: '0.875rem',
+          maxWidth: '100%',
+          overflowX: 'auto',
+        }}
+      >
+        {sourceCode}
+      </SyntaxHighlighter>
+    );
+  };
+}, {
+  loading: () => (
+    <section className="space-y-3" aria-busy="true">
+      <Skeleton className="h-4 w-3/5" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-11/12" />
+      <Skeleton className="h-4 w-4/5" />
+      <SkeletonStatus>Loading code viewer</SkeletonStatus>
+    </section>
+  ),
+});
 
 interface CodeDrivenDemoProps {
   filePath: string;
@@ -27,6 +62,8 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
   const [isMaterialLoaded, setIsMaterialLoaded] = useState(false);
 
   useEffect(() => {
+    if (!showCode || sourceCode || sourceError) return;
+
     let isMounted = true;
 
     async function loadSourceCode() {
@@ -50,12 +87,11 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
     }
 
     loadSourceCode();
-    setIsMaterialLoaded(false);
 
     return () => {
       isMounted = false;
     };
-  }, [filePath]);
+  }, [filePath, showCode, sourceCode, sourceError]);
 
   return (
     <div className="min-w-0">
@@ -97,20 +133,7 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
                 <SkeletonStatus>Loading source code</SkeletonStatus>
               </section>
             ) : (
-              <SyntaxHighlighter
-                language="javascript"
-                style={vscDarkPlus}
-                customStyle={{
-                  background: 'transparent',
-                  padding: '0',
-                  margin: '0',
-                  fontSize: '0.875rem',
-                  maxWidth: '100%',
-                  overflowX: 'auto',
-                }}
-              > 
-                {sourceCode}
-              </SyntaxHighlighter>
+              <CodeHighlighter sourceCode={sourceCode} />
             )}
           </div>
         ) : (
@@ -119,6 +142,7 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
             <iframe
               title="Unit Circle and Sine Wave"
               src={filePath}
+              loading="lazy"
               onLoad={() => setIsMaterialLoaded(true)}
               className={`h-full w-full border-none bg-primary-bg transition-opacity duration-300 ${isMaterialLoaded ? 'opacity-100' : 'opacity-0'}`}
               sandbox="allow-scripts"

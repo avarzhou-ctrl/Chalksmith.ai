@@ -344,6 +344,7 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
       <nav className={`flex min-h-0 flex-1 flex-col gap-2 ${isCollapsed ? 'items-center' : ''}`}>
         <Link
           href="/dashboard/search"
+          prefetch={false}
           className={`group flex w-full items-center rounded-lg border transition-colors ${
             pathname === '/dashboard/search' ? 'border-transparent bg-surface text-primary-text' : 'border-transparent text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
           } ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}
@@ -466,6 +467,7 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
             )}
             <Link
               href="/dashboard/sets"
+              prefetch={false}
               className={`flex min-w-0 flex-1 items-center rounded-lg ${isCollapsed ? 'justify-center p-3' : 'py-3 pr-3'}`}
               title={isCollapsed ? 'Lesson Sets' : undefined}
             >
@@ -508,6 +510,7 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
                       <span className="ml-1 size-6 shrink-0" aria-hidden="true" />
                       <Link
                         href={`/dashboard/sets/${lessonSet.id}`}
+                        prefetch={false}
                         className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2"
                         title={`Open ${lessonSet.title}; drop a lesson to add it`}
                       >
@@ -537,6 +540,7 @@ export default function DashboardSidebar({ isCollapsed, onToggle }: DashboardSid
         )}
         <Link
           href="/dashboard/published"
+          prefetch={false}
           className={`group flex w-full items-center rounded-lg border transition-colors ${
             isPublishedPath ? 'border-transparent bg-surface text-primary-text' : 'border-transparent text-secondary-text hover:bg-primary-text/10 hover:text-primary-text'
           } ${isCollapsed ? 'justify-center p-3' : 'px-3 py-3'}`}

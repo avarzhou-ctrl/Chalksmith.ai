@@ -6,7 +6,7 @@ import { CirclePlus } from 'lucide-react';
 import LessonCard from '@/components/dashboard/LessonCard';
 import LessonCardSkeleton from '@/components/lesson/LessonCardSkeleton';
 import FormatOutput from '@/components/ui/FormatOutput';
-import { SkeletonStatus } from '@/components/ui/Skeleton';
+import { ChalkLoader } from '@/components/ui/Skeleton';
 import type { LessonFolder, LessonListItem } from '@/lib/types/api';
 
 interface LessonGridProps {
@@ -31,6 +31,7 @@ export default function LessonGrid({
       {showCreateCard && (
         <Link
           href="/generation"
+          prefetch={false}
           className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-secondary-bg p-5 text-center shadow-lg shadow-stone-950/20 transition-colors hover:border-accent hover:bg-surface/30"
         >
           <CirclePlus className="text-accent" size={55} />
@@ -42,7 +43,11 @@ export default function LessonGrid({
         { length: showCreateCard ? 2 : 3 },
         (_, index) => <LessonCardSkeleton key={index} />,
       )}
-      {isLoading && <SkeletonStatus>Loading lessons</SkeletonStatus>}
+      {isLoading && (
+        <span className="col-span-full flex justify-center py-2">
+          <ChalkLoader compact label="Loading lessons" />
+        </span>
+      )}
 
       {!isLoading && lessons.length === 0 && !showCreateCard && (
         <section className="rounded-2xl border border-border bg-secondary-bg p-8 text-center md:col-span-2 lg:col-span-3">

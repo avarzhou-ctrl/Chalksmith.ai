@@ -1,9 +1,12 @@
 import LessonCardSkeleton from '@/components/lesson/LessonCardSkeleton';
-import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
+import Skeleton, { ChalkLoader } from '@/components/ui/Skeleton';
 
 export default function DashboardShellSkeleton() {
   return (
-    <main className="app-route-without-site-header flex h-screen w-full overflow-hidden bg-primary-bg font-sans text-primary-text">
+    <main
+      aria-busy="true"
+      className="app-route-without-site-header relative flex h-screen w-full overflow-hidden bg-primary-bg font-sans text-primary-text"
+    >
       <aside className="hidden h-full w-1/5 min-w-64 flex-col border-r border-border bg-secondary-bg p-4 md:flex">
         <header className="flex h-10 items-center gap-3">
           <Skeleton className="size-9 rounded-xl" />
@@ -17,12 +20,14 @@ export default function DashboardShellSkeleton() {
         <Skeleton className="mt-auto size-10 rounded-full" />
       </aside>
       <section className="flex-1 overflow-hidden px-8 pb-8 pt-5">
-        <Skeleton className="mb-6 h-9 w-44" />
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <Skeleton className="h-9 w-44" />
+          <ChalkLoader compact label="Loading your dashboard" />
+        </header>
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }, (_, index) => <LessonCardSkeleton key={index} />)}
         </section>
       </section>
-      <SkeletonStatus>Loading your dashboard</SkeletonStatus>
     </main>
   );
 }

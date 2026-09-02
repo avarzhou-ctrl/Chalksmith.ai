@@ -1,5 +1,11 @@
 # Changelog
 
+**2026-09-02**: Consolidated the reusable chalk loader into the existing UI loading primitives so Dashboard loading states share one component module without changing the route-level loading boundary (`frontend/src/components/ui/Skeleton.tsx`, `frontend/src/components/dashboard/DashboardShellSkeleton.tsx`, `frontend/src/components/dashboard/LessonGrid.tsx`, `CHANGELOG.md`).
+
+**2026-09-02**: Improved `/home` cold-load feedback with a server-streamed Dashboard fallback and visible reduced-motion-safe chalk loaders for authentication and lesson data, while disabling nonessential Dashboard route prefetches so primary API requests receive network priority (`frontend/src/app/dashboard/loading.tsx`, `frontend/src/components/ui/Skeleton.tsx`, `frontend/src/components/dashboard/DashboardShellSkeleton.tsx`, `frontend/src/components/dashboard/LessonGrid.tsx`, `frontend/src/components/dashboard/DashboardSidebar.tsx`, `CHANGELOG.md`).
+
+**2026-09-02**: Improved homepage perceived and initial loading by rendering functional account and lesson CTA links while Clerk initializes, deferring the large syntax-highlighting bundle and demo source fetch until the code viewer is opened, lazily loading the interactive iframe, and limiting the example video to metadata preload (`frontend/src/app/page.tsx`, `frontend/src/components/auth/AuthButton.tsx`, `frontend/src/components/home/CodeDrivenDemo.tsx`, `frontend/src/components/home/ExamplesCarousel.tsx`, `CHANGELOG.md`).
+
 **2026-09-01**: Reduced Bullets list indentation so labeled content starts closer to the Block padding and aligns with neighboring structured Blocks (`backend/app/lessons/formats/slides/assets/blocks.css`, `backend/tests/test_v2_app.py`, `CHANGELOG.md`).
 
 **2026-09-01**: Unified labeled Slides content rows so badges and summaries share a heading line while explanations span the full Block width, reducing empty left columns across Bullets, accent rows, numbered lists, and Key Points (`backend/app/lessons/formats/slides/assets/blocks.css`, `backend/tests/test_v2_app.py`, `CHANGELOG.md`).

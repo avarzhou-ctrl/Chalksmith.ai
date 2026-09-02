@@ -143,6 +143,7 @@ export default function ExamplesCarousel() {
                 key={activeExample.src}
                 src={activeExample.src}
                 controls
+                preload="metadata"
                 playsInline
                 onLoadedData={() => setIsMediaLoaded(true)}
                 onError={() => setIsMediaLoaded(true)}

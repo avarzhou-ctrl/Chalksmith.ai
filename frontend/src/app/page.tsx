@@ -41,10 +41,10 @@ function BuildLessonCta() {
 
   if (!isLoaded) {
     return (
-      <span className="block">
-        <Skeleton className="h-12 w-52 rounded-lg" />
-        <SkeletonStatus>Loading sign-up controls</SkeletonStatus>
-      </span>
+      <PrimaryCtaLink href="/generation" size="lg">
+        Try Chalksmith Free
+        <ArrowRight size={18} />
+      </PrimaryCtaLink>
     );
   }
 
