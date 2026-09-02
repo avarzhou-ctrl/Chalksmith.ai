@@ -79,6 +79,11 @@ export default function GenerationPage() {
     if (panel) panel.isCollapsed() ? panel.expand() : panel.collapse();
   }
 
+  function toggleOutputView() {
+    if (showCode) setLoadedPreviewUrl('');
+    setShowCode(!showCode);
+  }
+
   return (
     <RequireAuth fallback={<GenerationShellSkeleton />}>
       <main className="app-route-without-site-header flex h-screen w-full overflow-hidden bg-primary-bg font-sans text-primary-text">
@@ -115,7 +120,7 @@ export default function GenerationPage() {
               <section className="relative flex flex-1 items-center justify-center overflow-hidden px-4 pb-8">
                 <article className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl border border-border bg-primary-bg shadow-2xl">
                   {lesson && <span className="pointer-events-none absolute left-4 top-4 z-20 rounded-full border border-accent/40 bg-primary-bg/80 px-3 py-1 text-xs font-semibold text-accent shadow-lg backdrop-blur-md">Version {lesson.version_number}</span>}
-                  {lesson && <Button onClick={() => setShowCode((current) => !current)} className="absolute right-4 top-4 z-10 flex items-center gap-2 text-xs">{showCode ? <Eye size={14} /> : <Code size={14} />}{showCode ? 'View Material' : 'View Code'}</Button>}
+                  {lesson && <Button onClick={toggleOutputView} className="absolute right-4 top-4 z-10 flex items-center gap-2 text-xs">{showCode ? <Eye size={14} /> : <Code size={14} />}{showCode ? 'View Material' : 'View Code'}</Button>}
                   {lesson ? (
                     showCode
                       ? <SyntaxHighlighter language={format === 'video' ? 'python' : 'html'} style={vscDarkPlus} customStyle={{ background: 'transparent', margin: 0, padding: '4rem 2rem 2rem', minHeight: '100%' }} codeTagProps={{ className: 'whitespace-pre-wrap break-words' }} wrapLongLines>{lesson.source_code || ''}</SyntaxHighlighter>

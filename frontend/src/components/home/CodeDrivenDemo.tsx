@@ -93,12 +93,17 @@ export default function CodeDrivenDemo({ filePath }: CodeDrivenDemoProps) {
     };
   }, [filePath, showCode, sourceCode, sourceError]);
 
+  function toggleView() {
+    if (showCode) setIsMaterialLoaded(false);
+    setShowCode(!showCode);
+  }
+
   return (
     <div className="min-w-0">
       <div className="w-full h-[28rem] max-w-full bg-primary-bg rounded-3xl overflow-hidden border border-border shadow-2xl relative flex flex-col sm:h-[32rem] lg:h-[36rem]">
         <div className="absolute top-4 right-4 z-10">
           <Button
-            onClick={() => setShowCode(!showCode)}
+            onClick={toggleView}
             className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-all duration-200 backdrop-blur-md ${
               showCode
                 ? 'bg-accent/90 text-primary-text border-accent shadow-lg shadow-accent/20'

@@ -1,5 +1,9 @@
 # Changelog
 
+**2026-09-03**: Updated the local and deployment environment templates to use `gemini-3.8-flash` as the default Vertex AI model (`bin/env.local.template`, `bin/env.deploy.template`, `CHANGELOG.md`).
+
+**2026-09-03**: Reset preview readiness when returning from source code to rendered material in both the generation workspace and homepage demo, keeping their loading treatment visible until remounted media is ready (`frontend/src/app/generation/page.tsx`, `frontend/src/components/home/CodeDrivenDemo.tsx`, `CHANGELOG.md`).
+
 **2026-09-03**: Kept the published-lesson loading indicator visible across route, API, iframe, and video loading, revealing previews only after their document or first frame is ready so the viewer no longer flashes blank (`frontend/src/components/content/PublishedLessonClient.tsx`, `CHANGELOG.md`).
 
 **2026-09-03**: Removed the delayed marketing-host redirect from the homepage trial flow by sharing direct production app URLs across the Try Chalksmith Free and Start Free links and their authentication redirects (`frontend/src/lib/navigation.ts`, `frontend/src/app/layout.tsx`, `frontend/src/app/page.tsx`, `frontend/src/components/auth/AuthButton.tsx`, `CHANGELOG.md`).
