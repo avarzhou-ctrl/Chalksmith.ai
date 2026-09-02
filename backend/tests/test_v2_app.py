@@ -1673,6 +1673,25 @@ class StructuredSlidesTests(unittest.TestCase):
         self.assertNotIn("latex", persisted)
         self.assertNotIn("explanation", persisted)
 
+    def test_parser_defaults_invalid_list_presentations(self) -> None:
+        lesson = json.loads(_slides_fixture())
+        slide = lesson["payload"]["slides"][2]
+        list_block = slide["blocks"][0]
+        slide["layout"] = "row-2"
+        slide["blocks"] = [
+            {**list_block, "presentation": "steps"},
+            {**list_block, "presentation": "cards"},
+        ]
+
+        prepared = StructuredSlidesStrategy().prepare(json.dumps(lesson))
+        persisted_blocks = json.loads(prepared.lesson_spec)["payload"]["slides"][2]["blocks"]
+
+        self.assertEqual(
+            [block["presentation"] for block in persisted_blocks],
+            ["bullets", "bullets"],
+        )
+        self.assertEqual(prepared.source_code.count("cs-list cs-list--bullets"), 2)
+
     def test_custom_html_can_share_layouts_without_a_deck_count_limit(self) -> None:
         lesson = json.loads(_slides_fixture())
         for index, slide in enumerate(lesson["payload"]["slides"]):

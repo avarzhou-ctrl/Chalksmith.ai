@@ -459,6 +459,35 @@ class V2ApiTests(unittest.TestCase):
             )
             self.assertIn("Invalid Slides specification", stored.first_error)
 
+    def test_invalid_list_presentations_compile_without_model_repair(self) -> None:
+        lesson = json.loads(_slides_response())
+        slide = lesson["payload"]["slides"][2]
+        list_block = slide["blocks"][0]
+        slide["layout"] = "row-2"
+        slide["blocks"] = [
+            {**list_block, "presentation": "steps"},
+            {**list_block, "presentation": "cards"},
+        ]
+        llm = FakeSlidesLLM(json.dumps(lesson))
+        self.app.dependency_overrides[get_llm_provider] = lambda: llm
+
+        response = self.client.post(
+            "/v2/generations",
+            data={"topic": "Equivalent fractions", "format": "slides"},
+        )
+
+        self.assertIn("event: complete", response.text)
+        self.assertNotIn('"stage": "repairing"', response.text)
+        self.assertEqual(len(llm.prompts), 1)
+        lesson_id = _completed_lesson_id(response.text)
+        with Session(self.app.state.engine) as session:
+            stored = get_owned_lesson(session, UUID(lesson_id), "teacher-a")
+            blocks = json.loads(stored.lesson_spec)["payload"]["slides"][2]["blocks"]
+            self.assertEqual(
+                [block["presentation"] for block in blocks],
+                ["bullets", "bullets"],
+            )
+
     def test_unescaped_custom_html_compiles_without_a_model_repair(self) -> None:
         lesson = json.loads(_slides_response())
         lesson["payload"]["slides"][2]["blocks"] = [

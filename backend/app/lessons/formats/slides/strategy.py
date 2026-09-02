@@ -80,7 +80,7 @@ def parse_slides_response(response: str) -> SlidesLessonSpec:
     try:
         return SlidesLessonSpec.model_validate(data)
     except ValidationError as error:
-        if _drop_extra_fields(data, error):
+        if _drop_recoverable_fields(data, error):
             try:
                 return SlidesLessonSpec.model_validate(data)
             except ValidationError as repaired_error:
@@ -181,12 +181,19 @@ def _normalize_slides_dict(data: dict[str, object]) -> None:
             slide.pop("label")
 
 
-def _drop_extra_fields(data: object, error: ValidationError) -> bool:
+def _drop_recoverable_fields(data: object, error: ValidationError) -> bool:
     dropped = False
     for item in error.errors():
-        if item.get("type") != "extra_forbidden":
-            continue
         loc = item.get("loc") or ()
+        is_extra = item.get("type") == "extra_forbidden"
+        is_defaulted_presentation = (
+            item.get("type") == "literal_error"
+            and len(loc) >= 2
+            and loc[-1] == "presentation"
+            and loc[-2] in {"prose", "list", "key-point"}
+        )
+        if not is_extra and not is_defaulted_presentation:
+            continue
         if _pop_at(data, loc):
             dropped = True
     return dropped

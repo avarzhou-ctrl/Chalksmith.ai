@@ -1,6 +1,6 @@
 # Changelog
 
-**2026-09-02**: Improved lesson browsing and loading across public content, Dashboard, authentication, and the homepage with cursor pagination, shared loading, search, and action controls, accessible modal behavior, clearer component ownership, and removal of redundant APIs (`backend/app/api`, `backend/app/db/lessons.py`, `backend/tests/test_v2_api.py`, `frontend/src/app`, `frontend/src/components`, `frontend/src/lib`, `CHANGELOG.md`).
+**2026-09-02**: Improved lesson reliability and navigation by recovering invalid Slides Block presentations with schema defaults, adding cursor-based browsing, shared loading, search and action controls, and centering site navigation in the header (`backend/app/lessons/formats/slides/strategy.py`, `backend/app/api/`, `backend/app/db/lessons.py`, `backend/tests/test_v2_app.py`, `backend/tests/test_v2_api.py`, `frontend/src/app/`, `frontend/src/components/`, `frontend/src/lib/`, `CHANGELOG.md`).
 
 **2026-09-01**: Reduced Bullets list indentation so labeled content starts closer to the Block padding and aligns with neighboring structured Blocks (`backend/app/lessons/formats/slides/assets/blocks.css`, `backend/tests/test_v2_app.py`, `CHANGELOG.md`).
 
