@@ -6,10 +6,18 @@ import { useLessonFolders } from '@/components/dashboard/LessonFoldersProvider';
 import { useLessons } from '@/lib/hooks/useLessons';
 
 export default function Dashboard() {
-  const { lessons, isLoading, error, removeLesson, moveLessonToFolder } = useLessons();
   const { folders, selectedFolderId, resolveFolderId } = useLessonFolders();
+  const {
+    lessons,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    error,
+    loadMore,
+    removeLesson,
+    moveLessonToFolder,
+  } = useLessons({ folderId: selectedFolderId });
   const normalizedLessons = lessons.map((lesson) => ({ ...lesson, folder_id: resolveFolderId(lesson.folder_id) }));
-  const visibleLessons = normalizedLessons.filter((lesson) => lesson.folder_id === selectedFolderId);
   const selectedFolder = folders.find((folder) => folder.id === selectedFolderId);
 
   return (
@@ -23,7 +31,7 @@ export default function Dashboard() {
             {error}
           </p>
         )}
-        {!isLoading && selectedFolderId && visibleLessons.length === 0 && (
+        {!isLoading && selectedFolderId && normalizedLessons.length === 0 && (
           <section className="mb-5 rounded-xl border border-dashed border-border bg-secondary-bg p-5">
             <h3 className="font-semibold text-primary-text">This folder is empty</h3>
             <p className="mt-1 text-sm text-secondary-text">
@@ -32,8 +40,11 @@ export default function Dashboard() {
           </section>
         )}
         <LessonGrid
-          lessons={visibleLessons}
+          lessons={normalizedLessons}
           isLoading={isLoading}
+          isLoadingMore={isLoadingMore}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
           onDelete={(lessonId) => void removeLesson(lessonId)}
           onMove={moveLessonToFolder}
           folders={folders}

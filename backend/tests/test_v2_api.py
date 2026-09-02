@@ -612,7 +612,7 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual(selected.json()["final_lesson_id"], edited_id)
         versions = self.client.get(f"/v2/lessons/{edited_id}/versions").json()
         self.assertEqual([version["is_final"] for version in versions], [False, True])
-        dashboard = self.client.get("/v2/lessons").json()
+        dashboard = self.client.get("/v2/lessons").json()["items"]
         self.assertEqual(dashboard[0]["id"], edited_id)
 
     def test_published_final_version_is_publicly_listed_viewable_and_downloadable(self) -> None:
@@ -671,7 +671,7 @@ class V2ApiTests(unittest.TestCase):
         self.assertTrue(self.client.get(f"/v2/lessons/{first_id}").json()["is_published"])
         dashboard = self.client.get("/v2/lessons")
         self.assertEqual(dashboard.status_code, 200)
-        self.assertTrue(dashboard.json()[0]["is_published"])
+        self.assertTrue(dashboard.json()["items"][0]["is_published"])
         published = self.client.get("/v2/explore/lessons")
         self.assertEqual(published.status_code, 200)
         self.assertEqual([lesson["id"] for lesson in published.json()], [edited_id])
@@ -745,7 +745,7 @@ class V2ApiTests(unittest.TestCase):
 
         self.assertEqual(unpublished.status_code, 200)
         self.assertFalse(unpublished.json()["is_published"])
-        self.assertFalse(self.client.get("/v2/lessons").json()[0]["is_published"])
+        self.assertFalse(self.client.get("/v2/lessons").json()["items"][0]["is_published"])
         self.assertEqual(self.client.get("/v2/explore/lessons").json(), [])
         self.assertEqual(self.client.get("/v2/explore/tags").json(), [])
         self.assertEqual(
@@ -949,7 +949,7 @@ class V2ApiTests(unittest.TestCase):
 
         dashboard = self.client.get("/v2/lessons")
         self.assertEqual(dashboard.status_code, 200)
-        rows = dashboard.json()
+        rows = dashboard.json()["items"]
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["id"], first_id)
         self.assertEqual(rows[0]["version_count"], 2)
@@ -1016,7 +1016,7 @@ class V2ApiTests(unittest.TestCase):
             event.remove(self.app.state.engine, "before_cursor_execute", record_select)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([row["version_count"] for row in response.json()], [2, 2, 2])
+        self.assertEqual([row["version_count"] for row in response.json()["items"]], [2, 2, 2])
         # Lesson cards, their tags, and version counts each use one bounded query.
         self.assertEqual(len(select_statements), 3)
         self.assertEqual(sum("lesson_tags" in statement for statement in select_statements), 1)
@@ -1030,6 +1030,95 @@ class V2ApiTests(unittest.TestCase):
             "object_key",
         ):
             self.assertNotIn(private_or_heavy_field, dashboard_select)
+
+    def test_lesson_pages_filter_by_folder_and_continue_with_cursor(self) -> None:
+        lesson_ids: dict[str, str] = {}
+        for topic in ("Root one", "Root two", "Root three", "Folder one", "Folder two"):
+            with Session(self.app.state.engine) as session:
+                lesson = create_lesson(
+                    session,
+                    owner_id="teacher-a",
+                    topic=topic,
+                    lesson_format="interactive",
+                )
+                lesson_ids[topic] = str(lesson.id)
+
+        folder = self.client.post(
+            "/v2/folders",
+            json={"name": "Paged folder", "parent_id": None},
+        ).json()
+        for topic in ("Folder one", "Folder two"):
+            moved = self.client.put(
+                f"/v2/lessons/{lesson_ids[topic]}/folder",
+                json={"folder_id": folder["id"]},
+            )
+            self.assertEqual(moved.status_code, 200)
+
+        first_root_page = self.client.get(
+            "/v2/lessons?folder_id=root&page_size=2"
+        )
+        self.assertEqual(first_root_page.status_code, 200)
+        first_payload = first_root_page.json()
+        self.assertEqual(len(first_payload["items"]), 2)
+        self.assertIsNotNone(first_payload["next_cursor"])
+
+        second_root_page = self.client.get(
+            "/v2/lessons",
+            params={
+                "folder_id": "root",
+                "page_size": 2,
+                "cursor": first_payload["next_cursor"],
+            },
+        )
+        self.assertEqual(second_root_page.status_code, 200)
+        second_payload = second_root_page.json()
+        self.assertEqual(len(second_payload["items"]), 1)
+        self.assertIsNone(second_payload["next_cursor"])
+        root_ids = {
+            lesson["id"]
+            for lesson in [*first_payload["items"], *second_payload["items"]]
+        }
+        self.assertEqual(
+            root_ids,
+            {lesson_ids["Root one"], lesson_ids["Root two"], lesson_ids["Root three"]},
+        )
+
+        folder_page = self.client.get(
+            "/v2/lessons",
+            params={"folder_id": folder["id"], "page_size": 10},
+        )
+        self.assertEqual(folder_page.status_code, 200)
+        self.assertEqual(
+            {lesson["id"] for lesson in folder_page.json()["items"]},
+            {lesson_ids["Folder one"], lesson_ids["Folder two"]},
+        )
+
+        global_search = self.client.get(
+            "/v2/lessons",
+            params={"q": "Folder", "page_size": 10},
+        )
+        self.assertEqual(global_search.status_code, 200)
+        self.assertEqual(
+            {lesson["id"] for lesson in global_search.json()["items"]},
+            {lesson_ids["Folder one"], lesson_ids["Folder two"]},
+        )
+
+        invalid_cursor = self.client.get("/v2/lessons?cursor=not-a-cursor")
+        self.assertEqual(invalid_cursor.status_code, 422)
+        self.assertEqual(invalid_cursor.json()["error"]["code"], "invalid_cursor")
+
+        with Session(self.app.state.engine) as session:
+            other_folder = LessonFolder(owner_id="teacher-b", name="Private folder")
+            session.add(other_folder)
+            session.commit()
+            session.refresh(other_folder)
+            other_folder_id = str(other_folder.id)
+        isolated = self.client.get(
+            "/v2/lessons",
+            params={"folder_id": other_folder_id},
+        )
+        self.assertEqual(isolated.status_code, 404)
+        self.assertEqual(isolated.json()["error"]["code"], "folder_not_found")
 
     def test_lesson_tags_are_root_scoped_searchable_and_validated(self) -> None:
         first = self.client.post(
@@ -1058,11 +1147,21 @@ class V2ApiTests(unittest.TestCase):
         self.assertEqual(self.client.get(f"/v2/lessons/{first_id}").json()["tags"], ["Math", "Number Sense"])
         self.assertEqual(self.client.get(f"/v2/lessons/{edited_id}").json()["tags"], ["Math", "Number Sense"])
         self.assertEqual(
-            [lesson["id"] for lesson in self.client.get("/v2/lessons?tag=math&tag=number+sense").json()],
+            [
+                lesson["id"]
+                for lesson in self.client.get(
+                    "/v2/lessons?tag=math&tag=number+sense"
+                ).json()["items"]
+            ],
             [first_id],
         )
         self.assertEqual(
-            [lesson["id"] for lesson in self.client.get("/v2/lessons?q=number+sense").json()],
+            [
+                lesson["id"]
+                for lesson in self.client.get(
+                    "/v2/lessons?q=number+sense"
+                ).json()["items"]
+            ],
             [first_id],
         )
         self.assertEqual(
@@ -1101,7 +1200,7 @@ class V2ApiTests(unittest.TestCase):
             other_id = str(other.id)
 
         response = self.client.get("/v2/lessons")
-        ids = {row["id"] for row in response.json()}
+        ids = {row["id"] for row in response.json()["items"]}
         self.assertIn(mine_id, ids)
         self.assertNotIn(other_id, ids)
         self.assertEqual(self.client.get("/v2/lessons/tags").json(), [])
@@ -1168,7 +1267,10 @@ class V2ApiTests(unittest.TestCase):
         )
         self.assertEqual(moved.status_code, 200)
         self.assertEqual(moved.json()["folder_id"], child["id"])
-        self.assertEqual(self.client.get("/v2/lessons").json()[0]["folder_id"], child["id"])
+        self.assertEqual(
+            self.client.get("/v2/lessons").json()["items"][0]["folder_id"],
+            child["id"],
+        )
 
         blocked = self.client.delete(f"/v2/folders/{parent['id']}")
         self.assertEqual(blocked.status_code, 409)
@@ -1296,7 +1398,7 @@ class V2ApiTests(unittest.TestCase):
             [lesson["topic"] for lesson in listed.json()[0]["preview_lessons"]],
             ["Comparing fractions", "Equivalent fractions"],
         )
-        dashboard_lessons = self.client.get("/v2/lessons").json()
+        dashboard_lessons = self.client.get("/v2/lessons").json()["items"]
         self.assertEqual(
             {lesson["topic"]: lesson["lesson_set_count"] for lesson in dashboard_lessons},
             {"Equivalent fractions": 1, "Comparing fractions": 1},

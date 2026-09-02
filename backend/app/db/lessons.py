@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import exists, func, or_
+from sqlalchemy import and_, exists, func, or_
 from sqlalchemy.orm import aliased
 from sqlmodel import Session, col, delete, select
 
@@ -150,6 +150,10 @@ def list_owned_lessons(
     query: str | None = None,
     lesson_format: str | None = None,
     tags: list[str] | None = None,
+    filter_by_folder: bool = False,
+    folder_id: UUID | None = None,
+    cursor: tuple[datetime, UUID] | None = None,
+    limit: int | None = None,
 ) -> list[LessonListSummary]:
     root = aliased(Lesson)
     lesson_set_count = (
@@ -196,10 +200,24 @@ def list_owned_lessons(
         )
     if lesson_format:
         statement = statement.where(Lesson.format == lesson_format)
+    if filter_by_folder:
+        statement = statement.where(
+            root.folder_id == folder_id if folder_id is not None else root.folder_id.is_(None)
+        )
     normalized_tags = [normalized for _, normalized in normalize_lesson_tags(tags or [])]
     if normalized_tags:
         statement = statement.where(root.id.in_(_matching_tag_roots(normalized_tags)))
-    statement = statement.order_by(col(Lesson.updated_at).desc())
+    if cursor:
+        cursor_updated_at, cursor_id = cursor
+        statement = statement.where(
+            or_(
+                Lesson.updated_at < cursor_updated_at,
+                and_(Lesson.updated_at == cursor_updated_at, Lesson.id < cursor_id),
+            )
+        )
+    statement = statement.order_by(col(Lesson.updated_at).desc(), col(Lesson.id).desc())
+    if limit is not None:
+        statement = statement.limit(limit)
     return [
         LessonListSummary(
             id=row[0],

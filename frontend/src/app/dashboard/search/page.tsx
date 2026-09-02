@@ -20,7 +20,16 @@ export default function SearchPage() {
   const [availableTags, setAvailableTags] = useState<LessonTagItem[]>([]);
   const [tagError, setTagError] = useState<string | null>(null);
   const api = useApi();
-  const { lessons, isLoading, error, removeLesson, moveLessonToFolder } = useLessons(
+  const {
+    lessons,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    error,
+    loadMore,
+    removeLesson,
+    moveLessonToFolder,
+  } = useLessons(
     {
       q: query.trim() || undefined,
       format: (format || undefined) as LessonFormat | undefined,
@@ -113,6 +122,9 @@ export default function SearchPage() {
         <LessonGrid
           lessons={normalizedLessons}
           isLoading={isLoading}
+          isLoadingMore={isLoadingMore}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
           onDelete={(lessonId) => void removeLesson(lessonId)}
           onMove={moveLessonToFolder}
           folders={folders}

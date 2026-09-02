@@ -57,6 +57,11 @@ export type LessonListItem = Pick<
   'id' | 'root_lesson_id' | 'folder_id' | 'topic' | 'format' | 'status' | 'summary' | 'is_published' | 'tags' | 'created_at' | 'updated_at'
 > & { version_count: number; lesson_set_count: number };
 
+export interface LessonListPage {
+  items: LessonListItem[];
+  next_cursor: string | null;
+}
+
 export interface LessonFolder {
   id: string;
   parent_id: string | null;

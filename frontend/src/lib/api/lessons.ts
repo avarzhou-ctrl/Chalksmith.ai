@@ -4,24 +4,43 @@ import type {
   FinalLessonSelection,
   Lesson,
   LessonFormat,
-  LessonListItem,
+  LessonListPage,
   LessonPublication,
   LessonTags,
   LessonTagItem,
   LessonVersion,
 } from '@/lib/types/api';
 
-export function listLessons(
-  client: ApiClient,
-  filters: { q?: string; format?: LessonFormat; tags?: string[] } = {},
-  signal?: AbortSignal,
-) {
+interface LessonFilters {
+  q?: string;
+  format?: LessonFormat;
+  tags?: string[];
+}
+
+interface LessonPageFilters extends LessonFilters {
+  folderId?: string | null;
+}
+
+function lessonQuery(filters: LessonFilters) {
   const query = new URLSearchParams();
   if (filters.q) query.set('q', filters.q);
   if (filters.format) query.set('format', filters.format);
   filters.tags?.forEach((tag) => query.append('tag', tag));
-  const suffix = query.size ? `?${query}` : '';
-  return client.request<LessonListItem[]>(`/v2/lessons${suffix}`, { signal });
+  return query;
+}
+
+export function listLessons(
+  client: ApiClient,
+  filters: LessonPageFilters = {},
+  options: { cursor?: string; pageSize?: number; signal?: AbortSignal } = {},
+) {
+  const query = lessonQuery(filters);
+  if (filters.folderId !== undefined) {
+    query.set('folder_id', filters.folderId ?? 'root');
+  }
+  if (options.cursor) query.set('cursor', options.cursor);
+  query.set('page_size', String(options.pageSize ?? 24));
+  return client.request<LessonListPage>(`/v2/lessons?${query}`, { signal: options.signal });
 }
 
 export function getLesson(client: ApiClient, lessonId: string, signal?: AbortSignal) {

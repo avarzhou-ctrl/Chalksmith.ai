@@ -64,6 +64,11 @@ class LessonListItem(BaseModel):
     updated_at: datetime
 
 
+class LessonListPage(BaseModel):
+    items: list[LessonListItem]
+    next_cursor: str | None = None
+
+
 class LessonUpdate(BaseModel):
     topic: str = Field(min_length=1, max_length=500)
 

@@ -1,3 +1,7 @@
+import base64
+import binascii
+import json
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
@@ -10,6 +14,7 @@ from backend.app.api.schemas import (
     LessonFormat,
     LessonFolderUpdate,
     LessonListItem,
+    LessonListPage,
     LessonPublicationResponse,
     LessonPublicationUpdate,
     LessonResponse,
@@ -22,6 +27,7 @@ from backend.app.api.schemas import (
 from backend.app.core.config import Settings
 from backend.app.core.errors import AppError
 from backend.app.db.lessons import (
+    LessonListSummary,
     count_lesson_versions,
     get_owned_lesson,
     get_lesson_root,
@@ -77,30 +83,14 @@ def _validated_tag_filters(tags: list[str]) -> list[str]:
         raise AppError(code="invalid_tags", message=str(error), status_code=422) from error
 
 
-@router.get("", response_model=list[LessonListItem])
-def list_lessons(
-    q: str | None = Query(default=None, max_length=200),
-    format: LessonFormat | None = None,
-    tag: list[str] | None = Query(default=None),
-    user: AuthUser = Depends(get_current_user),
-    session: Session = Depends(get_session, scope="function"),
-):
-    lessons = list_owned_lessons(
-        session,
-        user.uid,
-        query=q.strip() if q and q.strip() else None,
-        lesson_format=format,
-        tags=_validated_tag_filters(tag or []),
-    )
-    tags_by_root = list_tags_for_roots(
-        session,
-        [lesson.root_lesson_id for lesson in lessons],
-    )
-    version_counts = count_lesson_versions(
-        session,
-        user.uid,
-        [lesson.root_lesson_id for lesson in lessons],
-    )
+def _lesson_list_items(
+    session: Session,
+    owner_id: str,
+    lessons: list[LessonListSummary],
+) -> list[LessonListItem]:
+    root_ids = [lesson.root_lesson_id for lesson in lessons]
+    tags_by_root = list_tags_for_roots(session, root_ids) if root_ids else {}
+    version_counts = count_lesson_versions(session, owner_id, root_ids) if root_ids else {}
     return [
         LessonListItem.model_validate(lesson).model_copy(
             update={
@@ -112,6 +102,87 @@ def list_lessons(
         )
         for lesson in lessons
     ]
+
+
+def _encode_lesson_cursor(updated_at: datetime, lesson_id: UUID) -> str:
+    payload = json.dumps(
+        {"updated_at": updated_at.isoformat(), "id": str(lesson_id)},
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+
+
+def _decode_lesson_cursor(cursor: str) -> tuple[datetime, UUID]:
+    try:
+        padding = "=" * (-len(cursor) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(cursor + padding).decode("utf-8"))
+        return datetime.fromisoformat(payload["updated_at"]), UUID(payload["id"])
+    except (binascii.Error, UnicodeDecodeError, ValueError, TypeError, KeyError) as error:
+        raise AppError(
+            code="invalid_cursor",
+            message="The lesson cursor is invalid.",
+            status_code=422,
+        ) from error
+
+
+def _lesson_folder_scope(
+    session: Session,
+    owner_id: str,
+    folder_id: str | None,
+) -> tuple[bool, UUID | None]:
+    if folder_id is None:
+        return False, None
+    if folder_id == "root":
+        return True, None
+    try:
+        parsed_folder_id = UUID(folder_id)
+    except ValueError as error:
+        raise AppError(
+            code="invalid_folder_id",
+            message="The folder id is invalid.",
+            status_code=422,
+        ) from error
+    if get_owned_folder(session, parsed_folder_id, owner_id) is None:
+        raise AppError(code="folder_not_found", message="Folder not found.", status_code=404)
+    return True, parsed_folder_id
+
+
+@router.get("", response_model=LessonListPage)
+def list_lessons(
+    q: str | None = Query(default=None, max_length=200),
+    format: LessonFormat | None = None,
+    tag: list[str] | None = Query(default=None),
+    folder_id: str | None = Query(default=None, max_length=64),
+    cursor: str | None = Query(default=None, max_length=512),
+    page_size: int = Query(default=24, ge=1, le=100),
+    user: AuthUser = Depends(get_current_user),
+    session: Session = Depends(get_session, scope="function"),
+):
+    filter_by_folder, parsed_folder_id = _lesson_folder_scope(
+        session,
+        user.uid,
+        folder_id,
+    )
+    lessons = list_owned_lessons(
+        session,
+        user.uid,
+        query=q.strip() if q and q.strip() else None,
+        lesson_format=format,
+        tags=_validated_tag_filters(tag or []),
+        filter_by_folder=filter_by_folder,
+        folder_id=parsed_folder_id,
+        cursor=_decode_lesson_cursor(cursor) if cursor else None,
+        limit=page_size + 1,
+    )
+    page_lessons = lessons[:page_size]
+    next_cursor = None
+    if len(lessons) > page_size and page_lessons:
+        last_lesson = page_lessons[-1]
+        next_cursor = _encode_lesson_cursor(last_lesson.updated_at, last_lesson.id)
+    return LessonListPage(
+        items=_lesson_list_items(session, user.uid, page_lessons),
+        next_cursor=next_cursor,
+    )
 
 
 @router.get("/tags", response_model=list[LessonTagItem])

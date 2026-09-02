@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { deleteLesson, listLessons, moveLesson } from '@/lib/api/lessons';
 import { useApi } from '@/lib/hooks/useApi';
@@ -11,26 +11,43 @@ interface LessonFilters {
   q?: string;
   format?: LessonFormat;
   tags?: string[];
+  folderId?: string | null;
 }
 
 export function useLessons(filters: LessonFilters = {}, debounceMs = 0) {
   const api = useApi();
   const [lessons, setLessons] = useState<LessonListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { q, format, tags } = filters;
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const loadMoreControllerRef = useRef<AbortController | null>(null);
+  const { q, format, tags, folderId } = filters;
   const tagKey = tags?.join('\u0000') ?? '';
+  const requestTags = tagKey ? tagKey.split('\u0000') : undefined;
 
   useEffect(() => {
     let isActive = true;
     const controller = new AbortController();
+    loadMoreControllerRef.current?.abort();
+    loadMoreControllerRef.current = null;
+    setLessons([]);
+    setNextCursor(null);
+    setIsLoadingMore(false);
+    setIsLoading(true);
+    setError(null);
 
     const load = async () => {
-      setIsLoading(true);
-      setError(null);
       try {
-        const data = await listLessons(api, { q, format, tags }, controller.signal);
-        if (isActive) setLessons(data);
+        const page = await listLessons(
+          api,
+          { q, format, tags: requestTags, folderId },
+          { signal: controller.signal },
+        );
+        if (isActive) {
+          setLessons(page.items);
+          setNextCursor(page.next_cursor);
+        }
       } catch (caught) {
         if (isActive && !controller.signal.aborted) {
           setError(caught instanceof Error ? caught.message : 'Failed to load lessons.');
@@ -44,20 +61,62 @@ export function useLessons(filters: LessonFilters = {}, debounceMs = 0) {
     return () => {
       isActive = false;
       controller.abort();
+      loadMoreControllerRef.current?.abort();
+      loadMoreControllerRef.current = null;
       window.clearTimeout(timeoutId);
     };
-  }, [api, debounceMs, format, q, tagKey]);
+  }, [api, debounceMs, folderId, format, q, tagKey]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || isLoading || isLoadingMore || loadMoreControllerRef.current) return;
+    const controller = new AbortController();
+    loadMoreControllerRef.current = controller;
+    setIsLoadingMore(true);
+    setError(null);
+    try {
+      const page = await listLessons(
+        api,
+        { q, format, tags: requestTags, folderId },
+        { cursor: nextCursor, signal: controller.signal },
+      );
+      if (!controller.signal.aborted) {
+        setLessons((current) => {
+          const loadedIds = new Set(current.map((lesson) => lesson.id));
+          return [...current, ...page.items.filter((lesson) => !loadedIds.has(lesson.id))];
+        });
+        setNextCursor(page.next_cursor);
+      }
+    } catch (caught) {
+      if (!controller.signal.aborted) {
+        setError(caught instanceof Error ? caught.message : 'Failed to load more lessons.');
+      }
+    } finally {
+      if (loadMoreControllerRef.current === controller) {
+        loadMoreControllerRef.current = null;
+        setIsLoadingMore(false);
+      }
+    }
+  }, [api, folderId, format, isLoading, isLoadingMore, nextCursor, q, tagKey]);
+
+  const applyLessonMove = useCallback((lessonId: string, nextFolderId: string | null) => {
+    setLessons((current) => {
+      if (folderId !== undefined && folderId !== nextFolderId) {
+        return current.filter((lesson) => lesson.id !== lessonId);
+      }
+      return current.map((lesson) => (
+        lesson.id === lessonId ? { ...lesson, folder_id: nextFolderId } : lesson
+      ));
+    });
+  }, [folderId]);
 
   useEffect(() => {
-    const recordMove = (event: Event) => {
+    const handleLessonMoved = (event: Event) => {
       const { lessonId, folderId } = (event as CustomEvent<LessonMovedDetail>).detail;
-      setLessons((current) => current.map((lesson) => (
-        lesson.id === lessonId ? { ...lesson, folder_id: folderId } : lesson
-      )));
+      applyLessonMove(lessonId, folderId);
     };
-    window.addEventListener(LESSON_MOVED_EVENT, recordMove);
-    return () => window.removeEventListener(LESSON_MOVED_EVENT, recordMove);
-  }, []);
+    window.addEventListener(LESSON_MOVED_EVENT, handleLessonMoved);
+    return () => window.removeEventListener(LESSON_MOVED_EVENT, handleLessonMoved);
+  }, [applyLessonMove]);
 
   const removeLesson = useCallback(async (lessonId: string) => {
     try {
@@ -73,15 +132,22 @@ export function useLessons(filters: LessonFilters = {}, debounceMs = 0) {
     try {
       setError(null);
       await moveLesson(api, lessonId, folderId);
-      setLessons((current) => current.map((lesson) => (
-        lesson.id === lessonId ? { ...lesson, folder_id: folderId } : lesson
-      )));
+      applyLessonMove(lessonId, folderId);
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Failed to move lesson.';
       setError(message);
       throw caught;
     }
-  }, [api]);
+  }, [api, applyLessonMove]);
 
-  return { lessons, isLoading, error, removeLesson, moveLessonToFolder };
+  return {
+    lessons,
+    isLoading,
+    isLoadingMore,
+    hasMore: nextCursor !== null,
+    error,
+    loadMore,
+    removeLesson,
+    moveLessonToFolder,
+  };
 }
