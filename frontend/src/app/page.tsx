@@ -15,6 +15,7 @@ import ForgeFrame from '@/components/home/ForgeFrame';
 import LessonPipeline from '@/components/home/LessonPipeline';
 import RotatingFormats from '@/components/home/RotatingFormats';
 import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
+import { generationHref } from '@/lib/navigation';
 
 const ctaBaseClasses = 'flex items-center justify-center gap-2 rounded-lg bg-accent font-medium text-primary-text shadow-lg shadow-amber-950/30 transition-all duration-300 hover:-translate-y-0.5 hover:bg-amber-700 hover:shadow-amber-900/30 active:translate-y-0 motion-reduce:transform-none';
 const ctaSizeClasses = {
@@ -41,7 +42,7 @@ function BuildLessonCta() {
 
   if (!isLoaded) {
     return (
-      <PrimaryCtaLink href="/generation" size="lg">
+      <PrimaryCtaLink href={generationHref} size="lg">
         Try Chalksmith Free
         <ArrowRight size={18} />
       </PrimaryCtaLink>
@@ -50,7 +51,7 @@ function BuildLessonCta() {
 
   if (isLoaded && isSignedIn) {
     return (
-      <PrimaryCtaLink href="/generation" size="lg">
+      <PrimaryCtaLink href={generationHref} size="lg">
         Try Chalksmith Free
         <ArrowRight size={18} />
       </PrimaryCtaLink>
@@ -59,7 +60,7 @@ function BuildLessonCta() {
 
   return (
     <ClickSpark>
-      <SignUpButton mode="modal" forceRedirectUrl="/generation" signInForceRedirectUrl="/generation">
+      <SignUpButton mode="modal" forceRedirectUrl={generationHref} signInForceRedirectUrl={generationHref}>
         <button type="button" className={`${ctaBaseClasses} ${ctaSizeClasses.lg}`}>
           Try Chalksmith Free
           <ArrowRight size={18} />

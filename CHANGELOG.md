@@ -1,5 +1,11 @@
 # Changelog
 
+**2026-09-03**: Kept the published-lesson loading indicator visible across route, API, iframe, and video loading, revealing previews only after their document or first frame is ready so the viewer no longer flashes blank (`frontend/src/components/content/PublishedLessonClient.tsx`, `CHANGELOG.md`).
+
+**2026-09-03**: Removed the delayed marketing-host redirect from the homepage trial flow by sharing direct production app URLs across the Try Chalksmith Free and Start Free links and their authentication redirects (`frontend/src/lib/navigation.ts`, `frontend/src/app/layout.tsx`, `frontend/src/app/page.tsx`, `frontend/src/components/auth/AuthButton.tsx`, `CHANGELOG.md`).
+
+**2026-09-02**: Made the global Dashboard navigation link target the canonical app URL directly in production, eliminating the delayed marketing-host redirect while preserving local relative routing (`frontend/src/app/layout.tsx`, `CHANGELOG.md`).
+
 **2026-09-02**: Improved lesson reliability and navigation by recovering invalid Slides Block presentations with schema defaults, adding cursor-based browsing, shared loading, search and action controls, and centering site navigation in the header (`backend/app/lessons/formats/slides/strategy.py`, `backend/app/api/`, `backend/app/db/lessons.py`, `backend/tests/test_v2_app.py`, `backend/tests/test_v2_api.py`, `frontend/src/app/`, `frontend/src/components/`, `frontend/src/lib/`, `CHANGELOG.md`).
 
 **2026-09-01**: Reduced Bullets list indentation so labeled content starts closer to the Block padding and aligns with neighboring structured Blocks (`backend/app/lessons/formats/slides/assets/blocks.css`, `backend/tests/test_v2_app.py`, `CHANGELOG.md`).

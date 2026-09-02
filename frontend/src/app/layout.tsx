@@ -5,12 +5,10 @@ import './globals.css'
 
 import Link from 'next/link'
 import { AuthButton } from '@/components/auth/AuthButton'
+import { dashboardHref, homeHref } from '@/lib/navigation'
 
 const configuredDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN
 const siteDomain = configuredDomain || 'chalksmith.ai'
-// The app host has to cross back to the marketing site, which a relative href
-// cannot do. Unset means local development, where relative is the right answer.
-const homeHref = configuredDomain ? `https://${configuredDomain}/` : '/'
 
 export const metadata: Metadata = {
   title: 'Chalksmith | Code-Driven STEM Animations',
@@ -64,7 +62,7 @@ export default function RootLayout({
               <span className="hidden text-base font-semibold text-stone-50 sm:inline">Chalksmith.ai</span>
             </Link>
             <nav className="flex min-w-0 items-center justify-center gap-3 text-base font-medium text-stone-300 max-[359px]:gap-2 max-[359px]:text-sm sm:gap-10 sm:text-base">
-              <Link className="transition-colors hover:text-stone-50" href="/dashboard">
+              <Link className="transition-colors hover:text-stone-50" href={dashboardHref}>
                 Dashboard
               </Link>
               <Link className="transition-colors hover:text-stone-50" href="/content">

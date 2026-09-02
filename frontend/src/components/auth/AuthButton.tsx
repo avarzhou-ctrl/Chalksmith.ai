@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { SignUpButton, UserButton, useAuth } from '@clerk/nextjs';
 import { LogIn, UserRound } from 'lucide-react';
+import { generationHref } from '@/lib/navigation';
 
 export function AuthButton() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -10,7 +11,7 @@ export function AuthButton() {
   if (!isLoaded) {
     return (
       <Link
-        href="/generation"
+        href={generationHref}
         aria-label="Start Free"
         className="grid size-10 shrink-0 place-items-center rounded-lg bg-amber-600 text-sm font-medium text-stone-950 hover:bg-amber-500 sm:flex sm:size-auto sm:gap-2 sm:px-4 sm:py-2"
       >
@@ -46,7 +47,7 @@ export function AuthButton() {
   }
 
   return (
-    <SignUpButton mode="modal" forceRedirectUrl="/generation" signInForceRedirectUrl="/generation">
+    <SignUpButton mode="modal" forceRedirectUrl={generationHref} signInForceRedirectUrl={generationHref}>
       <button type="button" aria-label="Start Free" className="grid size-10 shrink-0 place-items-center rounded-lg bg-amber-600 text-sm font-medium text-stone-950 hover:bg-amber-500 sm:flex sm:size-auto sm:gap-2 sm:px-4 sm:py-2">
         <span className="hidden sm:inline">Start Free</span>
         <LogIn className="size-4" />

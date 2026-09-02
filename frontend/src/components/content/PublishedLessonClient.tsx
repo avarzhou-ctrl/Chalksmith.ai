@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import PublishedLessonLikeButton from '@/components/content/PublishedLessonLikeButton';
 import LessonViewport from '@/components/generation/LessonViewport';
-import Skeleton, { SkeletonStatus } from '@/components/ui/Skeleton';
+import Skeleton, { ChalkLoader } from '@/components/ui/Skeleton';
 import { createPublicApiClient } from '@/lib/api/client';
 import {
   getPublishedLesson,
@@ -38,6 +38,7 @@ export default function PublishedLessonClient() {
   const [lesson, setLesson] = useState<PublishedLessonItem | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isPreviewReady, setIsPreviewReady] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isUpdatingLike, setIsUpdatingLike] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
@@ -46,6 +47,7 @@ export default function PublishedLessonClient() {
   useEffect(() => {
     const controller = new AbortController();
     setIsLoading(true);
+    setIsPreviewReady(false);
     setError(null);
     Promise.all([
       getPublishedLesson(publicApi, lessonId, controller.signal),
@@ -171,27 +173,36 @@ export default function PublishedLessonClient() {
       <section className="relative flex min-h-0 flex-1 items-center justify-center p-5">
         <article className="relative flex size-full max-w-7xl flex-col overflow-hidden rounded-3xl border border-border bg-stone-950 shadow-2xl">
           {isLoading ? (
-            <section className="relative size-full" aria-busy="true">
-              <Skeleton className="absolute inset-0 size-full rounded-none" />
-              <span className="absolute inset-x-6 bottom-6 mx-auto max-w-xl space-y-2 rounded-xl border border-border/60 bg-primary-bg/80 p-4 backdrop-blur">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-4 w-full" />
-              </span>
-              <SkeletonStatus>Loading published lesson</SkeletonStatus>
+            <section className="grid size-full place-items-center" aria-busy="true">
+              <ChalkLoader label="Loading published lesson" />
             </section>
           ) : lesson && previewUrl ? (
-            <LessonViewport>
-              {lesson.format === 'video' ? (
-                <video className="size-full bg-black object-contain" src={previewUrl} controls autoPlay />
-              ) : (
-                <iframe
-                  src={previewUrl}
-                  className="size-full border-none bg-primary-bg"
-                  title={lesson.topic}
-                  sandbox="allow-scripts"
-                />
+            <>
+              <LessonViewport>
+                {lesson.format === 'video' ? (
+                  <video
+                    className={`size-full bg-black object-contain transition-opacity duration-200 ${isPreviewReady ? 'opacity-100' : 'opacity-0'}`}
+                    src={previewUrl}
+                    controls
+                    autoPlay
+                    onLoadedData={() => setIsPreviewReady(true)}
+                  />
+                ) : (
+                  <iframe
+                    src={previewUrl}
+                    className={`size-full border-none bg-primary-bg transition-opacity duration-200 ${isPreviewReady ? 'opacity-100' : 'opacity-0'}`}
+                    title={lesson.topic}
+                    sandbox="allow-scripts"
+                    onLoad={() => setIsPreviewReady(true)}
+                  />
+                )}
+              </LessonViewport>
+              {!isPreviewReady && (
+                <section className="absolute inset-0 grid place-items-center bg-stone-950" aria-busy="true">
+                  <ChalkLoader label="Loading published lesson" />
+                </section>
               )}
-            </LessonViewport>
+            </>
           ) : (
             <section className="m-auto max-w-md p-8 text-center">
               <h2 className="text-xl font-semibold">Lesson unavailable</h2>
