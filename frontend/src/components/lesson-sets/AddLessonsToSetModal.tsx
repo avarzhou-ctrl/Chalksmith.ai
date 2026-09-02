@@ -3,7 +3,7 @@
 import { Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
+import LessonFormatIcon from '@/components/lesson/LessonFormatIcon';
 import Modal from '@/components/ui/Modal';
 import Skeleton, { ChalkLoader, SkeletonStatus } from '@/components/ui/Skeleton';
 import { addLessonToSet } from '@/lib/api/lesson-sets';

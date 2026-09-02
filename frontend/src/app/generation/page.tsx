@@ -9,7 +9,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import { RequireAuth } from '@/components/auth/RequireAuth';
-import EditableTitle from '@/components/generation/EditableTitle';
+import EditableTitle from '@/components/lesson/EditableTitle';
 import GenerationSidebar from '@/components/generation/GenerationSidebar';
 import LessonViewport from '@/components/generation/LessonViewport';
 import LoadingOverlay from '@/components/generation/LoadingOverlay';

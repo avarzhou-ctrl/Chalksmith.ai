@@ -3,7 +3,7 @@
 import { ArrowDown, ArrowUp, ExternalLink, X } from 'lucide-react';
 import Link from 'next/link';
 
-import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
+import LessonFormatIcon from '@/components/lesson/LessonFormatIcon';
 import type { LessonSetLessonItem } from '@/lib/types/api';
 
 interface LessonSetLessonRowProps {

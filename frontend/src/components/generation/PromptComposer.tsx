@@ -18,7 +18,7 @@ function isImageFile(file: File) {
   );
 }
 
-export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'maxLength'> {
+export interface PromptComposerProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'maxLength'> {
   files?: File[];
   onFilesChange?: (files: File[]) => void;
   value: string;
@@ -28,7 +28,7 @@ export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTex
   containerClassName?: string;
 }
 
-const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+const PromptComposer = forwardRef<HTMLTextAreaElement, PromptComposerProps>(
   ({ className = "", containerClassName = "", files = [], onFilesChange, value, maxLength, fileUploadDisabled = false, generationButton, ...props }, ref) => {
     const [isDragActive, setIsDragActive] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -144,6 +144,6 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   }
 );
 
-Textarea.displayName = "Textarea";
+PromptComposer.displayName = 'PromptComposer';
 
-export default Textarea;
+export default PromptComposer;

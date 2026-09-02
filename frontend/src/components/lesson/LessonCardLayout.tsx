@@ -1,11 +1,10 @@
 import type { DragEventHandler, ReactNode } from 'react';
 
-import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
+import LessonFormatIcon from '@/components/lesson/LessonFormatIcon';
 import type { LessonFormat } from '@/lib/types/api';
 
 interface LessonCardLayoutProps {
   format: LessonFormat;
-  showFormatIcon?: boolean;
   title: ReactNode;
   subtitle?: ReactNode;
   subtitleInteractive?: boolean;
@@ -24,7 +23,6 @@ interface LessonCardLayoutProps {
 
 export default function LessonCardLayout({
   format,
-  showFormatIcon = true,
   title,
   subtitle,
   subtitleInteractive = false,
@@ -49,7 +47,7 @@ export default function LessonCardLayout({
     >
       {overlay}
       <header className="pointer-events-none relative z-20 flex items-start gap-3">
-        {showFormatIcon && <LessonFormatIcon format={format} />}
+        <LessonFormatIcon format={format} />
         <section className="min-w-0 flex-1">
           <h2 className="line-clamp-2 text-xl font-semibold leading-snug text-primary-text">
             {title}

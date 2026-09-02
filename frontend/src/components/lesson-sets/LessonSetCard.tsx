@@ -1,12 +1,13 @@
 'use client';
 
-import { BookOpen, EllipsisVertical, Trash2 } from 'lucide-react';
+import { BookOpen, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
+import ActionMenu from '@/components/ui/ActionMenu';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
-import LessonFormatIcon from '@/components/dashboard/LessonFormatIcon';
+import LessonFormatIcon from '@/components/lesson/LessonFormatIcon';
 import type { LessonSetListItem } from '@/lib/types/api';
 
 interface LessonSetCardProps {
@@ -15,26 +16,14 @@ interface LessonSetCardProps {
 }
 
 export default function LessonSetCard({ lessonSet, onDelete }: LessonSetCardProps) {
-  const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const actionsRef = useRef<HTMLElement>(null);
   const formattedDate = new Intl.DateTimeFormat(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   }).format(new Date(lessonSet.updated_at));
-
-  useEffect(() => {
-    function close(event: MouseEvent) {
-      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
-        setIsActionsOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, []);
 
   async function confirmDelete() {
     try {
@@ -58,33 +47,11 @@ export default function LessonSetCard({ lessonSet, onDelete }: LessonSetCardProp
           <h2 className="line-clamp-2 text-xl font-semibold leading-snug text-primary-text">{lessonSet.title}</h2>
           <p className="mt-1 text-sm text-secondary-text">Updated {formattedDate}</p>
         </section>
-        <section ref={actionsRef} className="pointer-events-auto relative">
-          <button
-            type="button"
-            onClick={() => setIsActionsOpen((current) => !current)}
-            className="rounded-md p-1 text-secondary-text hover:bg-primary-text/10 focus:outline-none focus:ring-2"
-            aria-label={`Actions for ${lessonSet.title}`}
-            aria-haspopup="menu"
-            aria-expanded={isActionsOpen}
-          >
-            <EllipsisVertical size={20} />
-          </button>
-          {isActionsOpen && (
-            <section role="menu" className="absolute right-0 top-8 z-20 w-44 rounded-lg border border-border bg-secondary-bg p-1 shadow-xl">
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setIsActionsOpen(false);
-                  setIsDeleteOpen(true);
-                }}
-                className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-primary-text hover:bg-primary-text/10"
-              >
-                <Trash2 size={16} />
-                Delete
-              </button>
-            </section>
-          )}
+        <section className="pointer-events-auto">
+          <ActionMenu
+            label={`Actions for ${lessonSet.title}`}
+            items={[{ label: 'Delete', icon: Trash2, onSelect: () => setIsDeleteOpen(true) }]}
+          />
         </section>
       </header>
       <p className="pointer-events-none relative z-10 mt-4 line-clamp-2 text-sm leading-6 text-secondary-text">

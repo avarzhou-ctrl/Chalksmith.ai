@@ -1,14 +1,15 @@
 'use client'
 
 import Link from "next/link";
-import { BookPlus, FolderInput, Globe2, LibraryBig, PencilLine, EllipsisVertical, Trash2 } from "lucide-react";
+import { BookPlus, FolderInput, Globe2, LibraryBig, PencilLine, Trash2 } from "lucide-react";
 import LessonCardLayout from '@/components/lesson/LessonCardLayout';
 import FolderPicker from '@/components/dashboard/FolderPicker';
 import AddToLessonSetModal from '@/components/lesson-sets/AddToLessonSetModal';
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
+import ActionMenu, { type ActionMenuItem } from '@/components/ui/ActionMenu';
 import { TriangleAlert } from "lucide-react";
-import EditableTitle from "@/components/generation/EditableTitle";
+import EditableTitle from '@/components/lesson/EditableTitle';
 import { renameLesson } from "@/lib/api/lessons";
 import { useApi } from "@/lib/hooks/useApi";
 import {
@@ -18,7 +19,7 @@ import {
     type LessonAddedToSetDetail,
 } from '@/lib/lesson-drag';
 import { type LessonFolder, type LessonFormat, type LessonListItem } from '@/lib/types/api';
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 interface LessonCardProps {
     id: string;
@@ -59,7 +60,6 @@ export default function LessonCard({
     const [isRenaming, setIsRenaming] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isActionsOpen, setIsActionsOpen] = useState(false);
-    const actionsRef = useRef<HTMLDivElement>(null);
     const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
     const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
     const [isAddToSetModalOpen, setIsAddToSetModalOpen] = useState(false);
@@ -96,28 +96,6 @@ export default function LessonCard({
     })();
 
     useEffect(() => {
-        const closeActions = (event: MouseEvent) => {
-            if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
-                setIsActionsOpen(false);
-            }
-        };
-
-        const closeOnEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                setIsActionsOpen(false);
-            }
-        };
-
-        document.addEventListener('mousedown', closeActions);
-        document.addEventListener('keydown', closeOnEscape);
-
-        return () => {
-            document.removeEventListener('mousedown', closeActions);
-            document.removeEventListener('keydown', closeOnEscape);
-        };
-    }, []);
-
-    useEffect(() => {
         const recordSetAdd = (event: Event) => {
             const detail = (event as CustomEvent<LessonAddedToSetDetail>).detail;
             if (detail.lessonId === id) {
@@ -129,24 +107,20 @@ export default function LessonCard({
     }, [id]);
 
     const openDeleteModal = () => {
-        setIsActionsOpen(false);
         setIsDeleteModalOpen(true);
     };
 
     const openRenameModal = () => {
-        setIsActionsOpen(false);
         setRenameError(null);
         setIsRenameModalOpen(true);
     };
 
     const openMoveModal = () => {
-        setIsActionsOpen(false);
         setMoveError(null);
         setIsMoveModalOpen(true);
     };
 
     const openAddToSetModal = () => {
-        setIsActionsOpen(false);
         setIsAddToSetModalOpen(true);
     };
 
@@ -186,6 +160,17 @@ export default function LessonCard({
         }
     };
 
+    const actionItems: ActionMenuItem[] = [
+        ...(status !== 'deleting' ? [
+            { label: 'Rename', icon: PencilLine, onSelect: openRenameModal },
+            { label: 'Move to folder', icon: FolderInput, onSelect: openMoveModal },
+        ] : []),
+        ...(status === 'ready' ? [
+            { label: 'Add to lesson set', icon: BookPlus, onSelect: openAddToSetModal },
+        ] : []),
+        { label: status === 'deleting' ? 'Retry delete' : 'Delete', icon: Trash2, onSelect: openDeleteModal },
+    ];
+
     return (
         <LessonCardLayout
             format={format}
@@ -208,62 +193,12 @@ export default function LessonCard({
                 />
             ) : undefined}
             headerAction={(
-                <div className="relative" ref={actionsRef}>
-                    <button
-                        type="button"
-                        onClick={() => setIsActionsOpen((current) => !current)}
-                        className="rounded-md p-1 text-secondary-text transition-colors hover:bg-primary-text/10 focus:outline-none focus:ring-2"
-                        title="More actions"
-                        aria-haspopup="menu"
-                        aria-expanded={isActionsOpen}
-                    >
-                        <EllipsisVertical size={20} />
-                    </button>
-
-                    {isActionsOpen && (
-                        <div
-                            role="menu"
-                            className="absolute right-0 top-8 z-30 w-44 overflow-hidden rounded-lg border border-border bg-secondary-bg p-1 shadow-lg shadow-stone-950 sm:w-48"
-                        >
-                            {status !== 'deleting' && <button
-                                type="button"
-                                role="menuitem"
-                                onClick={openRenameModal}
-                                className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-primary-text transition-colors hover:bg-primary-text/10 focus:outline-none focus:ring-2"
-                            >
-                                <PencilLine size={16} />
-                                <span className="truncate">Rename</span>
-                            </button>}
-                            {status !== 'deleting' && <button
-                                type="button"
-                                role="menuitem"
-                                onClick={openMoveModal}
-                                className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-primary-text transition-colors hover:bg-primary-text/10 focus:outline-none focus:ring-2"
-                            >
-                                <FolderInput size={16} />
-                                <span className="truncate">Move to folder</span>
-                            </button>}
-                            {status === 'ready' && <button
-                                type="button"
-                                role="menuitem"
-                                onClick={openAddToSetModal}
-                                className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-primary-text transition-colors hover:bg-primary-text/10 focus:outline-none focus:ring-2"
-                            >
-                                <BookPlus size={16} />
-                                <span className="truncate">Add to lesson set</span>
-                            </button>}
-                            <button
-                                type="button"
-                                role="menuitem"
-                                onClick={openDeleteModal}
-                                className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-primary-text transition-colors hover:bg-primary-text/10 focus:outline-none focus:ring-2"
-                            >
-                                <Trash2 size={16} />
-                                <span className="truncate">{status === 'deleting' ? 'Retry delete' : 'Delete'}</span>
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <ActionMenu
+                    label="More actions"
+                    items={actionItems}
+                    open={isActionsOpen}
+                    onOpenChange={setIsActionsOpen}
+                />
             )}
             statusMessage={status !== 'ready' ? (
                 <p className="text-xs font-medium text-amber-400">

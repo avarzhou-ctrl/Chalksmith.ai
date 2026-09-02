@@ -1,7 +1,7 @@
 'use client'
 
 import FormatSelector from './FormatSelector';
-import Textarea from '@/components/ui/Textarea';
+import PromptComposer from '@/components/generation/PromptComposer';
 import { CircleArrowUp, CirclePause } from 'lucide-react';
 import type { LessonFormat } from '@/lib/types/api';
 
@@ -66,7 +66,7 @@ export default function InputForm({
                 </div>
             </div>
             <div className="relative mt-4 group flex-1 min-h-0 flex flex-col">
-                <Textarea 
+                <PromptComposer
                     placeholder={isEditMode ? "How should I edit this lesson?" : "Describe your topic..."}
                     disabled={disabled}
                     fileUploadDisabled={disabled}
